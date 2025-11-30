@@ -5,7 +5,7 @@ Uma aplicação robusta em **TypeScript** para cálculo, análise e otimização
 ---
 
 ## 🎯 Objetivo do Projeto
-gi
+
 Carregar dados de opções (arquivo CSV), identificar montagens válidas de estratégias e calcular métricas financeiras essenciais para suportar decisões de investimento.
 
 **Estratégias suportadas:**
@@ -35,8 +35,8 @@ Carregar dados de opções (arquivo CSV), identificar montagens válidas de estr
 
 Derivativos que conferem ao titular o direito (não obrigação) de comprar ou vender um ativo subjacente a um preço predeterminado (Strike) em data específica (Vencimento).
 
-- **CALL**: Opção de compra
-- **PUT**: Opção de venda
+- ** CALL **: Opção de compra
+- ** PUT  **: Opção de venda
 
 ### Estratégias com Opções
 
