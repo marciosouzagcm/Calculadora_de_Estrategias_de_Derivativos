@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    // ESSENCIAL: Diz ao TypeScript para compilar 'import' para 'require',
+    // resolvendo o erro "Cannot use import statement outside a module" (Módulos ES -> Módulos CJS).
+    "module": "CommonJS",
+    
+    // Alvo de saída do JavaScript (versão moderna com async/await e promessas)
+    "target": "ES2020",
+    
+    // RECOMENDADO: Garante que o TypeScript use as regras de resolução de módulos do Node.js,
+    // o que é crucial para encontrar seus arquivos de interfaces e estratégias corretamente.
+    "moduleResolution": "Node",
+    
+    // Permite que módulos ES (ex: bibliotecas) sejam tratados como CJS (CommonJS), crucial para muitas dependências
+    "esModuleInterop": true,
+    
+    // Pasta raiz onde estão seus arquivos TypeScript
+    "rootDir": "./src",
+    
+    // [ADICIONADO/CORRIGIDO] Pasta onde o JavaScript compilado será gerado (ex: para build de produção)
+    // Se você usa apenas 'ts-node', não terá arquivos .js, mas é uma boa prática configurar.
+    "outDir": "./dist", 
+    
+    // Configurações de tipagem rigorosa (boa prática para código seguro)
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    // Não é necessário gerar arquivos .js no disco, pois estamos usando ts-node (ou similar),
+    // que compila e executa o código "in-memory". Mantenha se usa ts-node.
+    // Altere para "noEmit": false se for fazer o build de produção (`tsc`)
+    "noEmit": true 
+  },
+  // Inclui apenas os arquivos .ts (e .tsx, se houver) dentro da pasta src
+  "include": ["src/**/*.ts", "src/**/*.tsx"], 
+  // Exclui a pasta de módulos
+  "exclude": ["node_modules"]
+}

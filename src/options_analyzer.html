@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador de Cadeia e Estratégias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f4f7;
+        }
+        .table-container {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        th {
+            cursor: pointer;
+            position: sticky;
+            top: 0;
+            background-color: #1f2937;
+            color: white;
+            white-space: nowrap;
+        }
+        .call-row { background-color: #d1fae5; } 
+        .put-row { background-color: #fee2e2; } 
+        .input-text {
+            border: 1px solid #d1d5db;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+        }
+        .text-right { text-align: right; }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem 0.375rem 0 0;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .tab-active {
+            background-color: white;
+            color: #3b82f6;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .tab-inactive {
+            background-color: #e5e7eb;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen">
+
+    <header class="mb-6 bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-2">Analisador Financeiro de Opções</h1>
+        <p class="text-gray-600">Explore dados de opções e calcule o Payoff (Risco vs. Retorno) de estratégias.</p>
+    </header>
+
+    <div class="flex border-b border-gray-300 mb-4">
+        <div id="tabTable" class="tab-button tab-active" onclick="switchView('table')">Cadeia de Opções</div>
+        <div id="tabStrategy" class="tab-button tab-inactive" onclick="switchView('strategy')">Analisador de Estratégias</div>
+    </div>
+    
+    <div id="appContainer" class="bg-white p-6 rounded-lg shadow-md">
+
+        <div id="tableView">
+            <h2 class="text-xl font-bold mb-4 text-gray-700">Dados Brutos (BOVA11)</h2>
+            <div id="controls" class="flex flex-col sm:flex-row gap-4 mb-6">
+                <input type="text" id="filterTicker" oninput="filterTable()" placeholder="Filtrar por Ticker, Strike ou Vencimento" class="input-text flex-grow w-full sm:w-1/3">
+                <select id="filterType" onchange="filterTable()" class="input-text w-full sm:w-auto">
+                    <option value="">Mostrar Tudo (CALL/PUT)</option>
+                    <option value="CALL">CALL</option>
+                    <option value="PUT">PUT</option>
+                </select>
+                <div id="rowCount" class="text-sm font-medium text-gray-600 self-center whitespace-nowrap">
+                    Total de linhas: 0
+                </div>
+            </div>
+
+            <div id="loadingIndicator" class="flex items-center justify-center p-8 text-gray-700">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Carregando dados de exemplo...
+            </div>
+
+            <div id="tableWrapper" class="table-container border border-gray-200 rounded-lg hidden">
+                <table id="optionsTable" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-800 text-white">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg" data-column="idAcao">ID Ação</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="ticker">Ticker</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="vencimento">Vencimento</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="diasUteis">Dias Úteis</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="tipo">Tipo</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="strike">Strike</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="premioPct">Prêmio (R$)</th> 
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="volImplicita">Vol. Impl.</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="delta">Delta</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="gamma">Gamma</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="theta">Theta</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider rounded-tr-lg" data-column="vega">Vega</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="strategyView" class="hidden">
+            <h2 class="text-xl font-bold mb-4 text-gray-700">Analisador de Payoff (Trava de Alta)</h2>
+            <div class="flex flex-col lg:flex-row gap-6">
+                <div class="lg:w-1/3 p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="font-semibold text-lg mb-4 text-gray-800">Definir Trava de Alta (Bull Call Spread)</h3>
+                    <p class="text-sm text-gray-600 mb-4">Compra de uma Call com Strike K1 e Venda de uma Call com Strike K2 (K1 &lt; K2).</p>
+                    
+                    <div class="mb-5 p-3 border-l-4 border-green-500 bg-white shadow-sm rounded">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">1. Long Call (Compra)</label>
+                        <input type="number" id="strike1" value="140.00" step="0.01" placeholder="Strike K1 (R$)" class="input-text w-full mb-2" required>
+                        <input type="number" id="premium1" value="8.00" step="0.01" placeholder="Prêmio Pago (R$)" class="input-text w-full" required>
+                    </div>
+
+                    <div class="mb-6 p-3 border-l-4 border-red-500 bg-white shadow-sm rounded">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">2. Short Call (Venda)</label>
+                        <input type="number" id="strike2" value="150.00" step="0.01" placeholder="Strike K2 (R$)" class="input-text w-full mb-2" required>
+                        <input type="number" id="premium2" value="3.00" step="0.01" placeholder="Prêmio Recebido (R$)" class="input-text w-full" required>
+                    </div>
+
+                    <button onclick="calculateAndRenderStrategy()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition duration-150 shadow-md">
+                        Calcular Payoff e Gerar Gráfico
+                    </button>
+                    
+                    <div id="summary" class="mt-4 p-3 bg-indigo-100 rounded text-sm text-indigo-800 hidden"></div>
+                </div>
+
+                <div class="lg:w-2/3 bg-white p-4 rounded-lg border shadow-inner">
+                    <canvas id="payoffChart"></canvas>
+                    <p class="text-xs text-gray-500 mt-2 text-center">O eixo Y mostra Lucro/Prejuízo (R$) no vencimento, e o eixo X mostra o Preço do Ativo Subjacente (R$).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mapeamento das colunas
+        const columns = [
+            "idAcao", "ticker", "vencimento", "diasUteis", "tipo", "strike", "premioPct", 
+            "volImplicita", "delta", "gamma", "theta", "vega", "dataHora"
+        ];
+        const displayColumns = columns.slice(0, -1);
+
+        // =========================================================================
+        // 🚨 DADOS DE EXEMPLO ATUALIZADOS 🚨
+        // =========================================================================
+        const MOCK_CSV_DATA = [
+            "idAcao,ticker,vencimento,diasUteis,tipo,strike,premioPct,volImplicita,delta,gamma,theta,vega,dataHora", 
+            "BOVA11,BOVAA130,2026-01-02,22,CALL,130.00,20.00,1.4600,0.0009,0.0324,-0.0001,0.0104,26/11/2025",
+            "BOVA11,BOVAA140,2026-01-16,32,CALL,140.00,8.00,1.4100,0.0009,0.0274,-0.0001,0.0118,26/11/2025",
+            "BOVA11,BOVAM140,2026-01-16,32,PUT,140.00,0.96,1.6900,0.0002,0.0273,-0.0208,0.0141,26/11/2025",
+            "BOVA11,BOVAA150,2026-01-16,32,CALL,150.00,3.00,1.4200,0.0008,0.0314,-0.0001,0.0137,26/11/2025",
+            "BOVA11,BOVAM150,2026-01-16,32,PUT,150.00,1.10,1.6700,0.0002,0.0303,-0.0212,0.0155,26/11/2025",
+            "BOVA11,BOVAA160,2026-03-20,74,CALL,160.00,1.00,1.3800,0.0012,0.0380,-0.0002,0.0210,26/11/2025",
+            "BOVA11,BOVAM160,2026-03-20,74,PUT,160.00,2.50,1.6000,0.0004,0.0400,-0.0250,0.0280,26/11/2025",
+            "BOVA11,BOVAB170,2026-05-15,116,CALL,170.00,0.50,1.3500,0.0018,0.0450,-0.0003,0.0350,26/11/2025",
+            "BOVA11,BOVAI170,2026-05-15,116,PUT,170.00,4.00,1.5500,0.0006,0.0500,-0.0300,0.0400,26/11/2025",
+        ];
+        // =========================================================================
+
+        let optionsData = []; 
+        let currentData = [];
+        let sortColumn = 'strike'; 
+        let sortDirection = 'asc'; 
+        let payoffChartInstance = null; // Instância do Chart.js
+
+        // Elementos de UI
+        const tableView = document.getElementById('tableView');
+        const strategyView = document.getElementById('strategyView');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const tabTable = document.getElementById('tabTable');
+        const tabStrategy = document.getElementById('tabStrategy');
+
+        // --- Funções de Utilitários ---
+
+        function parseData(dataArray) {
+            const parsed = [];
+            if (dataArray.length > 0) {
+                dataArray.shift(); 
+            }
+            dataArray.forEach(line => {
+                if (!line.trim()) return; 
+                const values = line.split(','); 
+                if (values.length >= columns.length) { 
+                    const row = {};
+                    columns.forEach((col, index) => {
+                        let value = values[index];
+                        if (["diasUteis", "strike", "premioPct", "volImplicita", "delta", "gamma", "theta", "vega"].includes(col)) {
+                            row[col] = parseFloat(value);
+                        } else {
+                            row[col] = value ? value.trim() : '';
+                        }
+                    });
+                    parsed.push(row);
+                }
+            });
+            return parsed;
+        }
+
+        // --- Funções da Tabela ---
+
+        function renderTable(data) {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = item.tipo === 'CALL' ? 'call-row hover:bg-green-200 transition duration-150' : 'put-row hover:bg-red-200 transition duration-150';
+                
+                displayColumns.forEach(col => {
+                    const cell = row.insertCell();
+                    cell.className = 'px-3 py-2 whitespace-nowrap text-sm text-gray-800';
+                    
+                    let value = item[col];
+                    
+                    if (typeof value === 'number') {
+                        let textValue;
+                        
+                        // [CORRIGIDO] Usar Intl.NumberFormat para formatação monetária (pt-BR)
+                        const formatter = new Intl.NumberFormat('pt-BR', {
+                            minimumFractionDigits: col === 'strike' ? 4 : (col === 'premioPct' ? 2 : 4),
+                            maximumFractionDigits: col === 'strike' ? 4 : (col === 'premioPct' ? 2 : 4),
+                            useGrouping: true,
+                        });
+
+                        if (col === 'strike') { 
+                            textValue = `R$ ${formatter.format(value)}`;
+                            cell.className += ' text-right font-bold tabular-nums';
+                        } else if (col === 'premioPct') { 
+                            textValue = `R$ ${formatter.format(value)}`;
+                            cell.className += ' text-right font-bold tabular-nums text-indigo-700';
+                        } else if (col === 'diasUteis') {
+                            textValue = String(Math.round(value));
+                            cell.className += ' text-center font-mono';
+                        } else {
+                            // Greeks (Delta, Gamma, Theta, Vega)
+                            textValue = formatter.format(value);
+                            cell.className += ' text-right tabular-nums';
+                            
+                            if (col === 'theta' && value < 0) {
+                                cell.className += ' text-red-600';
+                            } else if (col === 'vega' && value > 0) {
+                                cell.className += ' text-blue-600';
+                            }
+                        }
+                        cell.textContent = textValue;
+                    } else if (col === 'vencimento') {
+                        cell.className += ' font-mono text-center';
+                        cell.textContent = value;
+                    } else {
+                        cell.textContent = value;
+                        if (col === 'ticker') cell.className += ' font-bold text-gray-900';
+                        if (col === 'tipo') cell.className += ' text-center';
+                    }
+                });
+                fragment.appendChild(row);
+            });
+
+            tableBody.appendChild(fragment);
+            document.getElementById('rowCount').textContent = `Linhas exibidas: ${data.length} de ${optionsData.length}`;
+        }
+        
+        function filterTable() {
+            const tickerFilter = document.getElementById('filterTicker').value.toLowerCase();
+            const typeFilter = document.getElementById('filterType').value;
+
+            let filteredData = optionsData.filter(item => {
+                const matchesType = typeFilter === '' || item.tipo === typeFilter;
+                const strikeString = String(item.strike).replace('.', ',');
+                const matchesTicker = item.ticker.toLowerCase().includes(tickerFilter) || 
+                                             strikeString.includes(tickerFilter.replace(',', '.')) ||
+                                             item.vencimento.includes(tickerFilter);
+                
+                return matchesType && matchesTicker;
+            });
+            
+            if (sortColumn) {
+                filteredData = sortData(filteredData, sortColumn, sortDirection);
+            }
+
+            currentData = filteredData;
+            renderTable(currentData);
+        }
+        
+        function sortData(data, column, direction) {
+            return data.sort((a, b) => {
+                const aValue = a[column];
+                const bValue = b[column];
+
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    return direction === 'asc' ? aValue - bValue : bValue - aValue;
+                }
+                
+                const aStr = String(aValue).toLowerCase();
+                const bStr = String(bValue).toLowerCase();
+
+                if (aStr < bStr) return direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function setupSorting() {
+            document.querySelectorAll('#optionsTable th').forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.getAttribute('data-column');
+                    if (!column) return; 
+
+                    if (sortColumn === column) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortColumn = column;
+                        sortDirection = 'asc';
+                    }
+                    
+                    document.querySelectorAll('#optionsTable th').forEach(th => {
+                        th.textContent = th.textContent.replace(/[\u25B2\u25BC]/g, '').trim(); 
+                    });
+
+                    const indicator = sortDirection === 'asc' ? ' ▲' : ' ▼';
+                    header.textContent += indicator;
+                    filterTable(); 
+                });
+            });
+        }
+        
+        // --- Funções de Payoff e Gráfico ---
+
+        /**
+         * Calcula o payoff de uma única Call/Put.
+         */
+        function calculateSinglePayoff(type, strike, premium, finalPrice, position) {
+            let intrinsicValue;
+            
+            if (type === 'CALL') {
+                intrinsicValue = Math.max(0, finalPrice - strike);
+            } else if (type === 'PUT') {
+                intrinsicValue = Math.max(0, strike - finalPrice);
+            } else {
+                return 0; // Tipo inválido
+            }
+
+            if (position === 'LONG') {
+                // Lucro/Prejuízo = Valor Intrínseco - Prêmio Pago
+                return intrinsicValue - premium;
+            } else if (position === 'SHORT') {
+                // Lucro/Prejuízo = Prêmio Recebido - Valor Intrínseco
+                return premium - intrinsicValue;
+            }
+            return 0;
+        }
+
+        /**
+         * Calcula o Payoff da Trava de Alta (Bull Call Spread): Long Call K1 + Short Call K2
+         */
+        function calculateStrategyPayoff(K1, P1, K2, P2, finalPrice) {
+            const payoffLongCall = calculateSinglePayoff('CALL', K1, P1, finalPrice, 'LONG');
+            const payoffShortCall = calculateSinglePayoff('CALL', K2, P2, finalPrice, 'SHORT');
+            return payoffLongCall + payoffShortCall;
+        }
+
+        /**
+         * Renderiza o Gráfico de Payoff
+         */
+        function renderPayoffChart(K1, P1, K2, P2) {
+            if (payoffChartInstance) {
+                payoffChartInstance.destroy(); // Destrói instância anterior, se existir
+            }
+
+            const ctx = document.getElementById('payoffChart').getContext('2d');
+            
+            // Determina a faixa de preços a ser plotada (10% abaixo do K1 até 10% acima do K2)
+            const minPrice = Math.min(K1, K2) * 0.9;
+            const maxPrice = Math.max(K1, K2) * 1.1;
+            const step = (maxPrice - minPrice) / 100; // 100 pontos para suavizar a linha
+            
+            const prices = [];
+            const payoffs = [];
+
+            for (let p = minPrice; p <= maxPrice; p += step) {
+                const payoff = calculateStrategyPayoff(K1, P1, K2, P2, p);
+                prices.push(parseFloat(p.toFixed(2))); // Preço final (X)
+                payoffs.push(parseFloat(payoff.toFixed(2))); // Lucro/Prejuízo (Y)
+            }
+            
+            // Calculo dos pontos de resumo
+            const custoLiquido = P1 - P2;
+            const maxProfit = K2 - K1 - custoLiquido;
+            const maxLoss = -custoLiquido;
+            const breakeven = K1 + custoLiquido; // Ponto de equilíbrio (Payoff = 0)
+            
+            // [CORRIGIDO] Usar Intl.NumberFormat para resumo da estratégia
+            const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+
+            // Exibir resumo da estratégia
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.innerHTML = `
+                <p><strong>Custo Líquido:</strong> ${currencyFormatter.format(custoLiquido)}</p>
+                <p><strong>Lucro Máximo:</strong> ${currencyFormatter.format(maxProfit)} (Acima de K2)</p>
+                <p><strong>Prejuízo Máximo:</strong> ${currencyFormatter.format(maxLoss)} (Abaixo de K1)</p>
+                <p><strong>Ponto de Equilíbrio (Breakeven):</strong> ${currencyFormatter.format(breakeven)}</p>
+            `;
+            summaryDiv.classList.remove('hidden');
+
+            // --- Configuração do Chart.js ---
+            payoffChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: prices,
+                    datasets: [{
+                        label: 'Payoff da Trava de Alta (Bull Call Spread)',
+                        data: payoffs,
+                        borderColor: '#3b82f6', // Azul principal
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        title: {
+                            display: true,
+                            text: 'Curva de Payoff no Vencimento'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Preço do Ativo no Vencimento (R$)'
+                            },
+                            // Garantir que os Strikes K1 e K2 sejam visíveis
+                            min: minPrice,
+                            max: maxPrice,
+                            ticks: {
+                                callback: function(value) {
+                                    // [CORRIGIDO] Usar vírgula como separador decimal para o eixo X
+                                    const label = value.toFixed(2).replace('.', ',');
+                                    
+                                    if (value === K1) return `K1 (${label})`;
+                                    if (value === K2) return `K2 (${label})`;
+                                    if (value.toFixed(2) === breakeven.toFixed(2)) return `BE (${label})`; // Compara strings formatadas para evitar float errors
+                                    
+                                    // Exibe ticks não-chave com duas casas decimais formatadas para PT-BR
+                                    return value.toFixed(2).replace('.', ',');
+                                }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Lucro / Prejuízo (R$)'
+                            },
+                            beginAtZero: false,
+                            grid: {
+                                // Linha central em y=0
+                                drawOnChartArea: true,
+                                color: function(context) {
+                                    if (context.tick.value === 0) {
+                                        return '#ef4444'; // Cor vermelha para o zero
+                                    }
+                                    return '#e5e7eb'; // Cor padrão
+                                },
+                                lineWidth: function(context) {
+                                    return context.tick.value === 0 ? 2 : 1; 
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Lida com a entrada do usuário e inicia o cálculo/renderização da estratégia.
+         */
+        function calculateAndRenderStrategy() {
+            const strike1 = parseFloat(document.getElementById('strike1').value);
+            const premium1 = parseFloat(document.getElementById('premium1').value);
+            const strike2 = parseFloat(document.getElementById('strike2').value);
+            const premium2 = parseFloat(document.getElementById('premium2').value);
+            const summaryDiv = document.getElementById('summary');
+            
+            if (isNaN(strike1) || isNaN(premium1) || isNaN(strike2) || isNaN(premium2)) {
+                summaryDiv.innerHTML = `<span class="text-red-600">Erro:</span> Por favor, preencha todos os campos com valores numéricos.`;
+                summaryDiv.classList.remove('hidden');
+                return;
+            }
+
+            if (strike1 >= strike2) {
+                summaryDiv.innerHTML = `<span class="text-red-600">Erro:</span> Para Trava de Alta (Bull Call Spread), o Strike K1 (Long) deve ser **menor** que o Strike K2 (Short).`;
+                summaryDiv.classList.remove('hidden');
+                return;
+            }
+
+            renderPayoffChart(strike1, premium1, strike2, premium2);
+        }
+
+        // --- Funções de Inicialização e Visualização ---
+
+        function fetchDataAndRender() {
+            loadingIndicator.classList.remove('hidden');
+
+            // Simula o carregamento (usando dados mockados)
+            setTimeout(() => {
+                const csvText = MOCK_CSV_DATA.join('\n');
+                const rawDataArray = csvText.trim().split('\n').filter(line => line.trim() !== '');
+
+                optionsData = parseData(rawDataArray);
+
+                if (optionsData.length === 0) {
+                     console.error("Nenhuma linha de dados válida foi carregada.");
+                     loadingIndicator.innerHTML = `<span class="text-red-600 font-bold">ERRO FATAL:</span> Falha ao carregar os dados.`;
+                     return;
+                }
+
+                // Configura a visualização inicial da tabela
+                currentData = sortData([...optionsData], sortColumn, sortDirection);
+                renderTable(currentData);
+                setupSorting();
+                document.querySelector('[data-column="strike"]').textContent += ' ▲';
+
+                // Esconde loading e mostra a tabela
+                loadingIndicator.classList.add('hidden');
+                document.getElementById('controls').classList.remove('hidden');
+                document.getElementById('tableWrapper').classList.remove('hidden');
+                
+                // Inicializa o gráfico com valores padrão
+                calculateAndRenderStrategy();
+
+            }, 500); 
+        }
+
+        /**
+         * Alterna entre as views de Tabela e Estratégia
+         */
+        function switchView(view) {
+            if (view === 'table') {
+                tableView.classList.remove('hidden');
+                strategyView.classList.add('hidden');
+                tabTable.classList.add('tab-active');
+                tabTable.classList.remove('tab-inactive');
+                tabStrategy.classList.remove('tab-active');
+                tabStrategy.classList.add('tab-inactive');
+            } else {
+                tableView.classList.add('hidden');
+                strategyView.classList.remove('hidden');
+                tabStrategy.classList.add('tab-active');
+                tabStrategy.classList.remove('tab-inactive');
+                tabTable.classList.remove('tab-active');
+                tabTable.classList.add('tab-inactive');
+                // Garante que o gráfico seja re-renderizado ao mudar para a view
+                calculateAndRenderStrategy(); 
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', fetchDataAndRender);
+    </script>
+</body>
+</html>

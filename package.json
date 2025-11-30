@@ -1,0 +1,31 @@
+{
+  "dependencies": {
+    "csv-parser": "^3.2.0",
+    "csv-writer": "^1.6.0",
+    "firebase": "^12.6.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  },
+  "name": "calculadora_de_estrategias_de_derivativos",
+  "version": "1.0.0",
+  "description": "Este projeto é uma refatoração em TypeScript de um script Python para o cálculo e otimização de estratégias com opções. A arquitetura modular visa facilitar a escalabilidade e a adição de novas estratégias financeiras de forma organizada.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
