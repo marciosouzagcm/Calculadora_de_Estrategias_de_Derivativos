@@ -61,88 +61,191 @@
         <div id="tabTable" class="tab-button tab-active" onclick="switchView('table')">Cadeia de Opções</div>
         <div id="tabStrategy" class="tab-button tab-inactive" onclick="switchView('strategy')">Analisador de Estratégias</div>
     </div>
-    
-    <div id="appContainer" class="bg-white p-6 rounded-lg shadow-md">
 
-        <div id="tableView">
-            <h2 class="text-xl font-bold mb-4 text-gray-700">Dados Brutos (BOVA11)</h2>
-            <div id="controls" class="flex flex-col sm:flex-row gap-4 mb-6">
-                <input type="text" id="filterTicker" oninput="filterTable()" placeholder="Filtrar por Ticker, Strike ou Vencimento" class="input-text flex-grow w-full sm:w-1/3">
-                <select id="filterType" onchange="filterTable()" class="input-text w-full sm:w-auto">
-                    <option value="">Mostrar Tudo (CALL/PUT)</option>
-                    <option value="CALL">CALL</option>
-                    <option value="PUT">PUT</option>
-                </select>
-                <div id="rowCount" class="text-sm font-medium text-gray-600 self-center whitespace-nowrap">
-                    Total de linhas: 0
-                </div>
-            </div>
+    <!-- Reintroduzido o elemento que o JS espera para a aba 'tabela' (pode ficar vazio) -->
+    <div id="tableView" class="hidden"></div>
 
-            <div id="loadingIndicator" class="flex items-center justify-center p-8 text-gray-700">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Carregando dados de exemplo...
-            </div>
+    <!-- Substitui o bloco appContainer por layout mais limpo e UX-friendly
+         Agora dentro de #strategyView para ser compatível com switchView() -->
+    <div id="strategyView">
+        <div id="appContainer" class="bg-white p-6 rounded-lg shadow-md">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Painel de controles (col 1) -->
+                <aside class="lg:col-span-1 p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="text-lg font-semibold mb-3">Parâmetros do Mercado</h3>
 
-            <div id="tableWrapper" class="table-container border border-gray-200 rounded-lg hidden">
-                <table id="optionsTable" class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-800 text-white">
-                        <tr>
-                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider rounded-tl-lg" data-column="idAcao">ID Ação</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="ticker">Ticker</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="vencimento">Vencimento</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="diasUteis">Dias Úteis</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider" data-column="tipo">Tipo</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="strike">Strike</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="premioPct">Prêmio (R$)</th> 
-                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="volImplicita">Vol. Impl.</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="delta">Delta</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="gamma">Gamma</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider" data-column="theta">Theta</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider rounded-tr-lg" data-column="vega">Vega</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="divide-y divide-gray-200">
-                        </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="strategyView" class="hidden">
-            <h2 class="text-xl font-bold mb-4 text-gray-700">Analisador de Payoff (Trava de Alta)</h2>
-            <div class="flex flex-col lg:flex-row gap-6">
-                <div class="lg:w-1/3 p-4 bg-gray-50 rounded-lg border">
-                    <h3 class="font-semibold text-lg mb-4 text-gray-800">Definir Trava de Alta (Bull Call Spread)</h3>
-                    <p class="text-sm text-gray-600 mb-4">Compra de uma Call com Strike K1 e Venda de uma Call com Strike K2 (K1 &lt; K2).</p>
-                    
-                    <div class="mb-5 p-3 border-l-4 border-green-500 bg-white shadow-sm rounded">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">1. Long Call (Compra)</label>
-                        <input type="number" id="strike1" value="140.00" step="0.01" placeholder="Strike K1 (R$)" class="input-text w-full mb-2" required>
-                        <input type="number" id="premium1" value="8.00" step="0.01" placeholder="Prêmio Pago (R$)" class="input-text w-full" required>
+                    <label class="block text-sm text-gray-600">Ativo Subjacente</label>
+                    <div class="mb-3">
+                        <input id="inputUnderlying" class="input-text w-full" value="BOVA11" />
                     </div>
 
-                    <div class="mb-6 p-3 border-l-4 border-red-500 bg-white shadow-sm rounded">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">2. Short Call (Venda)</label>
-                        <input type="number" id="strike2" value="150.00" step="0.01" placeholder="Strike K2 (R$)" class="input-text w-full mb-2" required>
-                        <input type="number" id="premium2" value="3.00" step="0.01" placeholder="Prêmio Recebido (R$)" class="input-text w-full" required>
+                    <label class="block text-sm text-gray-600">Preço Atual (Spot)</label>
+                    <div class="mb-3">
+                        <input id="inputSpot" type="number" class="input-text w-full" value="100" step="0.01" />
                     </div>
 
-                    <button onclick="calculateAndRenderStrategy()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition duration-150 shadow-md">
-                        Calcular Payoff e Gerar Gráfico
-                    </button>
-                    
-                    <div id="summary" class="mt-4 p-3 bg-indigo-100 rounded text-sm text-indigo-800 hidden"></div>
-                </div>
+                    <label class="block text-sm text-gray-600">Volatilidade (%)</label>
+                    <div class="mb-3">
+                        <input id="inputVol" type="number" class="input-text w-full" value="20" step="0.1" />
+                    </div>
 
-                <div class="lg:w-2/3 bg-white p-4 rounded-lg border shadow-inner">
-                    <canvas id="payoffChart"></canvas>
-                    <p class="text-xs text-gray-500 mt-2 text-center">O eixo Y mostra Lucro/Prejuízo (R$) no vencimento, e o eixo X mostra o Preço do Ativo Subjacente (R$).</p>
-                </div>
+                    <label class="block text-sm text-gray-600">Taxa Livre de Risco (%)</label>
+                    <div class="mb-3">
+                        <input id="inputRFR" type="number" class="input-text w-full" value="10" step="0.01" />
+                    </div>
+
+                    <label class="block text-sm text-gray-600">Dias para o Vencimento</label>
+                    <div class="mb-4">
+                        <input id="inputDays" type="number" class="input-text w-full" value="30" />
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h4 class="text-md font-semibold mb-2">Adicionar Perna Manual</h4>
+                    <div class="space-y-2 mb-3">
+                        <div>
+                            <label class="text-sm text-gray-600">Strike</label>
+                            <input id="manualStrike" class="input-text w-full" placeholder="100.00" />
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <label class="text-sm text-gray-600">Tipo</label>
+                                <select id="manualType" class="input-text w-full">
+                                    <option>CALL</option>
+                                    <option>PUT</option>
+                                </select>
+                            </div>
+                            <div class="flex-1">
+                                <label class="text-sm text-gray-600">Ação</label>
+                                <select id="manualAction" class="input-text w-full">
+                                    <option>Compra (LONG)</option>
+                                    <option>Venda (SHORT)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="manualQty" type="number" class="input-text w-1/2" placeholder="Qtd. (lotes)" />
+                            <input id="manualPremium" type="number" class="input-text w-1/2" placeholder="Prêmio" step="0.01" />
+                        </div>
+                        <button id="addLegBtn" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Adicionar Perna</button>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="text-sm text-gray-600">
+                        <p><strong>Modo Otimizador:</strong></p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <select id="optimizerMode" class="input-text w-full">
+                                <option value="ranking">Ranking Otimizador (Top 5 por R/R)</option>
+                                <option value="filter">Filtrar por Tipo</option>
+                                <option value="all">Otimização Geral (Todos os Spreads)</option>
+                            </select>
+                        </div>
+                        <button id="runOptimizer" class="mt-3 w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">Rodar Otimizador</button>
+                    </div>
+                </aside>
+
+                <!-- Painel principal: lista de estratégias + detalhe (col 2-4) -->
+                <main class="lg:col-span-3 space-y-6">
+                    <section>
+                        <h2 class="text-xl font-semibold mb-3">Resultados do Otimizador</h2>
+                        <div id="optimizerList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Cards de estratégia gerados dinamicamente -->
+                            <div class="strategy-card p-4 bg-white rounded-lg border shadow-sm">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="font-semibold">1. Long Straddle K100 (Débito)</h3>
+                                        <p class="text-sm text-gray-500">Risco/Recompensa e breakevens</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm text-gray-700 font-medium">Score: <span class="text-indigo-600">∞</span></div>
+                                        <div class="text-xs text-gray-500">Custo: R$ 10,42</div>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex gap-2">
+                                    <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm view-strategy-btn">Ver</button>
+                                    <button class="bg-gray-200 px-3 py-1 rounded text-sm add-to-portfolio-btn">Adicionar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="bg-white p-4 rounded-lg border">
+                        <div class="flex flex-col lg:flex-row gap-6">
+                            <div class="lg:w-1/2">
+                                <h3 class="text-lg font-semibold mb-2">Payoff no Vencimento</h3>
+                                <canvas id="payoffChart" class="w-full h-64 bg-white"></canvas>
+                                <div id="summary" class="mt-3 p-3 bg-indigo-50 rounded text-sm text-indigo-800 hidden"></div>
+                            </div>
+                            <div class="lg:w-1/2">
+                                <h3 class="text-lg font-semibold mb-2">Detalhes da Estratégia</h3>
+
+                                <div id="strategyMetrics" class="grid grid-cols-2 gap-3 mb-4 text-sm">
+                                    <div class="p-2 bg-gray-50 rounded">
+                                        <div class="text-xs text-gray-500">Custo Líquido</div>
+                                        <div id="metricCost" class="font-medium">R$ 10,42 (Débito)</div>
+                                    </div>
+                                    <div class="p-2 bg-gray-50 rounded">
+                                        <div class="text-xs text-gray-500">Lucro Máx.</div>
+                                        <div id="metricMaxProfit" class="font-medium">Ilimitado</div>
+                                    </div>
+                                    <div class="p-2 bg-gray-50 rounded">
+                                        <div class="text-xs text-gray-500">Prejuízo Máx.</div>
+                                        <div id="metricMaxLoss" class="font-medium">R$ -10,42</div>
+                                    </div>
+                                    <div class="p-2 bg-gray-50 rounded">
+                                        <div class="text-xs text-gray-500">Ponto de Equilíbrio</div>
+                                        <div id="metricBE" class="font-medium">R$ 89,58 / R$ 110,42</div>
+                                    </div>
+                                </div>
+
+                                <h4 class="text-md font-semibold mb-2">Pernas da Estratégia</h4>
+                                <div class="overflow-auto max-h-48 border rounded">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-gray-100 text-gray-700">
+                                            <tr>
+                                                <th class="px-2 py-2 text-left">Tipo</th>
+                                                <th class="px-2 py-2">Ação</th>
+                                                <th class="px-2 py-2">Strike</th>
+                                                <th class="px-2 py-2">Prêmio</th>
+                                                <th class="px-2 py-2">Qtd.</th>
+                                                <th class="px-2 py-2">Custo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="strategyLegs">
+                                            <!-- Linhas populadas via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="mt-4 flex gap-2">
+                                    <button id="exportExcelBtn" class="ml-auto bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Exportar</button>
+                                    <button id="clearSelectionBtn" class="bg-gray-200 px-4 py-2 rounded">Limpar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </main>
             </div>
         </div>
     </div>
+
+    <!-- Elementos ocultos esperados pelo JS (compatibilidade) -->
+    <div id="loadingIndicator" class="hidden"></div>
+    <div id="controls" class="hidden"></div>
+    <div id="tableWrapper" class="hidden"></div>
+    <table id="optionsTable" class="hidden">
+        <tbody id="tableBody"></tbody>
+    </table>
+    
+    <!-- Elementos de entrada para a aba antigo (usados pelo calculateAndRenderStrategy) -->
+    <input id="strike1" type="hidden" value="140" />
+    <input id="premium1" type="hidden" value="8" />
+    <input id="strike2" type="hidden" value="150" />
+    <input id="premium2" type="hidden" value="3" />
+    <div id="rowCount" class="hidden"></div>
+    <input id="filterTicker" type="hidden" />
+    <select id="filterType" class="hidden"></select>
 
     <script>
         // Mapeamento das colunas
@@ -153,7 +256,7 @@
         const displayColumns = columns.slice(0, -1);
 
         // =========================================================================
-        // 🚨 DADOS DE EXEMPLO ATUALIZADOS 🚨
+        // 🚨 DADOS DE EXEMPLO ATUALIZADOS (FALLBACK) 🚨
         // =========================================================================
         const MOCK_CSV_DATA = [
             "idAcao,ticker,vencimento,diasUteis,tipo,strike,premioPct,volImplicita,delta,gamma,theta,vega,dataHora", 
@@ -182,33 +285,132 @@
         const tabTable = document.getElementById('tabTable');
         const tabStrategy = document.getElementById('tabStrategy');
 
-        // --- Funções de Utilitários ---
+        // --- Funções de Utilitários CSV (substituídas por versões robustas) ---
 
-        function parseData(dataArray) {
-            const parsed = [];
-            if (dataArray.length > 0) {
-                dataArray.shift(); 
-            }
-            dataArray.forEach(line => {
-                if (!line.trim()) return; 
-                const values = line.split(','); 
-                if (values.length >= columns.length) { 
-                    const row = {};
-                    columns.forEach((col, index) => {
-                        let value = values[index];
-                        if (["diasUteis", "strike", "premioPct", "volImplicita", "delta", "gamma", "theta", "vega"].includes(col)) {
-                            row[col] = parseFloat(value);
-                        } else {
-                            row[col] = value ? value.trim() : '';
-                        }
-                    });
-                    parsed.push(row);
-                }
-            });
-            return parsed;
-        }
+        // Remove BOM e normaliza quebras
+        function csvTextToLines(text) {
+	// Remove BOM (se existir)
+	if (text && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+	// Normaliza finais de linha
+	const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+	// Quebra em linhas, preservando possíveis quebras dentro de aspas será tratado pelo parser de linha
+	return normalized.split('\n').map(l => l.trim()).filter(l => l !== '');
+}
 
-        // --- Funções da Tabela ---
+// Detecta delimitador a partir da primeira linha (header)
+function detectDelimiter(headerLine) {
+	if (!headerLine) return ',';
+	const commaCount = (headerLine.match(/,/g) || []).length;
+	const semicolonCount = (headerLine.match(/;/g) || []).length;
+	// Se houver mais ponto-e-vírgula que vírgula, escolhe ';' (comum em Excel/PT-BR)
+	return semicolonCount > commaCount ? ';' : ',';
+}
+
+// Parser de uma linha CSV considerando aspas (retorna array de campos)
+function parseCSVLine(line, delimiter = ',') {
+	const fields = [];
+	let cur = '';
+	let inQuotes = false;
+	for (let i = 0; i < line.length; i++) {
+		const ch = line[i];
+		if (ch === '"') {
+			// Lookahead para dupla-aspas que representam aspas literais
+			if (inQuotes && line[i+1] === '"') {
+				cur += '"';
+				i++; // pula a segunda aspas
+			} else {
+				inQuotes = !inQuotes;
+			}
+		} else if (ch === delimiter && !inQuotes) {
+			fields.push(cur);
+			cur = '';
+		} else {
+			cur += ch;
+		}
+	}
+	fields.push(cur);
+	return fields.map(f => f.trim());
+}
+
+// Converte string numérica BR/EN para number
+function parseNumberFromString(value) {
+	if (value === null || value === undefined || value === '') return NaN;
+	// Remove espaços
+	let s = String(value).trim();
+	// Se contém apenas -, + ou não é numérico, deixa parseFloat normal lidar
+	// Detecta formato com ponto-e-vírgula ou vírgula decimal: remove pontos de milhar e troca vírgula por ponto
+	// Ex: "1.234,56" -> "1234.56"
+	// Também lida com "1,234.56" (EN) conservadoramente: remove ',' se houver '.' depois
+	if (s.indexOf(',') > -1 && s.indexOf('.') > -1) {
+		// decide qual é separador decimal pelo último caractere entre ',' e '.'
+		if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+			s = s.replace(/\./g, '').replace(',', '.');
+		} else {
+			s = s.replace(/,/g, '');
+		}
+	} else if (s.indexOf(',') > -1) {
+		s = s.replace(/\./g, '').replace(',', '.');
+	} else {
+		s = s.replace(/,/g, '');
+	}
+	const n = parseFloat(s);
+	return isNaN(n) ? NaN : n;
+}
+
+// Parseia o CSV usando header real e mapeia para as colunas esperadas
+function parseData(dataArray) {
+	if (!dataArray || dataArray.length === 0) return [];
+	// usa primeira linha como header
+	const headerLine = dataArray[0];
+	const delimiter = detectDelimiter(headerLine);
+	const headerFields = parseCSVLine(headerLine, delimiter).map(h => h.replace(/"/g, '').trim());
+
+	// cria mapa de índice por nome de coluna (case-insensitive, busca por inclusão)
+	const headerIndexMap = {};
+	headerFields.forEach((h, idx) => {
+		headerIndexMap[h.toLowerCase()] = idx;
+	});
+
+	// função auxiliar para achar índice de uma coluna esperada (por equivalência simples)
+	function findIndexForCol(colName) {
+		const target = colName.toLowerCase();
+		// busca exata
+		for (const h of Object.keys(headerIndexMap)) {
+			if (h === target) return headerIndexMap[h];
+		}
+		// busca por inclusão (ex: 'strike' dentro de 'Strike')
+		for (const h of Object.keys(headerIndexMap)) {
+			if (h.includes(target) || target.includes(h)) return headerIndexMap[h];
+		}
+		return -1;
+	}
+
+	const parsed = [];
+	// percorre linhas de dados
+	for (let r = 1; r < dataArray.length; r++) {
+		const line = dataArray[r];
+		if (!line || !line.trim()) continue;
+		const values = parseCSVLine(line, delimiter).map(v => v.replace(/^"|"$/g, '').trim());
+		// monta o objeto conforme nosso conjunto de colunas esperado
+		const row = {};
+		let hasTicker = false;
+		columns.forEach(col => {
+			const idx = findIndexForCol(col);
+			let raw = (idx >= 0 && idx < values.length) ? values[idx] : '';
+			if (["diasUteis", "strike", "premioPct", "volImplicita", "delta", "gamma", "theta", "vega"].includes(col)) {
+				row[col] = parseNumberFromString(raw);
+			} else {
+				row[col] = raw || '';
+			}
+			if (col === 'ticker' && row[col]) hasTicker = true;
+		});
+		// validação simples: ticker e strike presentes
+		if (hasTicker) parsed.push(row);
+	}
+	return parsed;
+}
+
+// --- Funções da Tabela ---
 
         function renderTable(data) {
             const tableBody = document.getElementById('tableBody');
@@ -499,61 +701,158 @@
          * Lida com a entrada do usuário e inicia o cálculo/renderização da estratégia.
          */
         function calculateAndRenderStrategy() {
-            const strike1 = parseFloat(document.getElementById('strike1').value);
-            const premium1 = parseFloat(document.getElementById('premium1').value);
-            const strike2 = parseFloat(document.getElementById('strike2').value);
-            const premium2 = parseFloat(document.getElementById('premium2').value);
+            // Se os inputs antigos (strike1-2, premium1-2) não tiverem valores,
+            // use valores padrão da UI nova
+            let strike1Val = parseFloat(document.getElementById('strike1').value) || 140;
+            let premium1Val = parseFloat(document.getElementById('premium1').value) || 8;
+            let strike2Val = parseFloat(document.getElementById('strike2').value) || 150;
+            let premium2Val = parseFloat(document.getElementById('premium2').value) || 3;
+            
             const summaryDiv = document.getElementById('summary');
             
-            if (isNaN(strike1) || isNaN(premium1) || isNaN(strike2) || isNaN(premium2)) {
+            if (isNaN(strike1Val) || isNaN(premium1Val) || isNaN(strike2Val) || isNaN(premium2Val)) {
                 summaryDiv.innerHTML = `<span class="text-red-600">Erro:</span> Por favor, preencha todos os campos com valores numéricos.`;
                 summaryDiv.classList.remove('hidden');
                 return;
             }
 
-            if (strike1 >= strike2) {
+            if (strike1Val >= strike2Val) {
                 summaryDiv.innerHTML = `<span class="text-red-600">Erro:</span> Para Trava de Alta (Bull Call Spread), o Strike K1 (Long) deve ser **menor** que o Strike K2 (Short).`;
                 summaryDiv.classList.remove('hidden');
                 return;
             }
 
-            renderPayoffChart(strike1, premium1, strike2, premium2);
+            renderPayoffChart(strike1Val, premium1Val, strike2Val, premium2Val);
         }
 
         // --- Funções de Inicialização e Visualização ---
 
-        function fetchDataAndRender() {
-            loadingIndicator.classList.remove('hidden');
-
-            // Simula o carregamento (usando dados mockados)
-            setTimeout(() => {
-                const csvText = MOCK_CSV_DATA.join('\n');
-                const rawDataArray = csvText.trim().split('\n').filter(line => line.trim() !== '');
-
-                optionsData = parseData(rawDataArray);
-
-                if (optionsData.length === 0) {
-                     console.error("Nenhuma linha de dados válida foi carregada.");
-                     loadingIndicator.innerHTML = `<span class="text-red-600 font-bold">ERRO FATAL:</span> Falha ao carregar os dados.`;
-                     return;
+        // Tenta dividir o CSV em linhas respeitando aspas (simples tratamento)
+        function csvTextToLines(text) {
+            const lines = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if (ch === '"') {
+                    inQuotes = !inQuotes;
+                    cur += ch;
+                } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+                    // trata quebra de linha (pula \r, usa \n como separador)
+                    if (ch === '\n') {
+                        lines.push(cur);
+                        cur = '';
+                    }
+                } else {
+                    cur += ch;
                 }
-
-                // Configura a visualização inicial da tabela
-                currentData = sortData([...optionsData], sortColumn, sortDirection);
-                renderTable(currentData);
-                setupSorting();
-                document.querySelector('[data-column="strike"]').textContent += ' ▲';
-
-                // Esconde loading e mostra a tabela
-                loadingIndicator.classList.add('hidden');
-                document.getElementById('controls').classList.remove('hidden');
-                document.getElementById('tableWrapper').classList.remove('hidden');
-                
-                // Inicializa o gráfico com valores padrão
-                calculateAndRenderStrategy();
-
-            }, 500); 
+            }
+            if (cur.trim() !== '') lines.push(cur);
+            return lines.map(l => l.replace(/\r/g, '').trim()).filter(l => l !== '');
         }
+
+        // Lê CSV a partir de um File (input file)
+        function handleLocalFile(file) {
+            const reader = new FileReader();
+            loadingIndicator.classList.remove('hidden');
+            loadingIndicator.innerHTML = `Lendo arquivo local: ${file.name}`;
+            reader.onload = (e) => {
+                const text = String(e.target.result || '');
+                processCsvText(text);
+            };
+            reader.onerror = (err) => {
+                console.error('Erro ao ler arquivo local:', err);
+                loadingIndicator.innerHTML = `<span class="text-red-600">Erro ao ler arquivo local</span>`;
+            };
+            reader.readAsText(file, 'utf-8');
+        }
+
+        // Processa o texto CSV e renderiza a tabela (fluxo centralizado)
+        function processCsvText(csvText) {
+            const rawDataArray = csvTextToLines(csvText);
+            if (!rawDataArray || rawDataArray.length === 0) {
+                console.error("Nenhuma linha de dados válida foi carregada.");
+                loadingIndicator.innerHTML = `<span class="text-red-600 font-bold">ERRO FATAL:</span> Falha ao carregar os dados.`;
+                return;
+            }
+            optionsData = parseData(rawDataArray);
+            if (optionsData.length === 0) {
+                console.error("Nenhuma linha de dados válida após parsing.");
+                loadingIndicator.innerHTML = `<span class="text-red-600 font-bold">ERRO FATAL:</span> Falha ao parsear os dados.`;
+                return;
+            }
+            currentData = sortData([...optionsData], sortColumn, sortDirection);
+            renderTable(currentData);
+            setupSorting();
+            const strikeHeader = document.querySelector('[data-column="strike"]');
+            if (strikeHeader) strikeHeader.textContent += ' ▲';
+            loadingIndicator.classList.add('hidden');
+            document.getElementById('controls').classList.remove('hidden');
+            document.getElementById('tableWrapper').classList.remove('hidden');
+            calculateAndRenderStrategy();
+        }
+
+        async function fetchDataAndRender() {
+            loadingIndicator.classList.remove('hidden');
+            loadingIndicator.innerHTML = 'Tentando carregar opcoes_final_tratado.csv...';
+
+            // Tenta vários caminhos relativos (quando servido via HTTP)
+            const candidates = [
+                './opcoes_final_tratado.csv',
+                '/opcoes_final_tratado.csv',
+                './src/opcoes_final_tratado.csv',
+                '../opcoes_final_tratado.csv',
+                'opcoes_final_tratado.csv'
+            ];
+            let csvText = null;
+            for (const url of candidates) {
+                try {
+                    const resp = await fetch(url, { cache: 'no-store' });
+                    if (resp.ok) {
+                        csvText = await resp.text();
+                        console.log(`CSV carregado de: ${url}`);
+                        break;
+                    } else {
+                        console.warn(`Não encontrado em ${url} (status ${resp.status})`);
+                    }
+                } catch (err) {
+                    console.warn(`Erro ao buscar ${url}:`, err && err.message ? err.message : err);
+                }
+            }
+
+            // Se não carregou, usa fallback MOCK mas informa ao usuário e permite carregar localmente
+            if (!csvText) {
+                console.warn('CSV real não encontrado — usando dados mockados em memória. Você pode carregar o CSV gerado usando o botão "Carregar CSV".');
+                loadingIndicator.innerHTML = 'CSV não encontrado via HTTP. Use o botão "Carregar CSV" para selecionar o arquivo gerado localmente ou continue com mocks.';
+                csvText = MOCK_CSV_DATA.join('\n');
+            }
+
+            // Converte CSV para array de linhas (tratamento simples que respeita aspas)
+            processCsvText(csvText);
+        }
+
+        // Hook do input file e botão
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('csvFileInput');
+            const btn = document.getElementById('loadCsvBtn');
+            if (input) {
+                input.addEventListener('change', (ev) => {
+                    const files = ev.target.files;
+                    if (files && files.length > 0) {
+                        handleLocalFile(files[0]);
+                    }
+                });
+            }
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    if (input && input.files && input.files.length > 0) {
+                        handleLocalFile(input.files[0]);
+                    } else {
+                        alert('Selecione um arquivo .csv usando o campo à esquerda antes de clicar em Carregar CSV.');
+                    }
+                });
+            }
+        });
 
         /**
          * Alterna entre as views de Tabela e Estratégia
@@ -577,7 +876,7 @@
                 calculateAndRenderStrategy(); 
             }
         }
-
+ 
         // Inicialização
         document.addEventListener('DOMContentLoaded', fetchDataAndRender);
     </script>

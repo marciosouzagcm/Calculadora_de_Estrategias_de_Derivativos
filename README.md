@@ -201,9 +201,52 @@ Para dúvidas ou sugestões, abra uma issue ou entre em contato.
 
 ---
 
+# Como executar (resumo rápido)
+
+- Erro comum: "Cannot find module './optimization_core.js'" ocorre quando você tenta executar um arquivo .js que não existe. Soluções:
+  1. Executar o TypeScript diretamente com ts-node (sem compilar):
+     - npm run process-csv            # executa src/processador_opcoes.ts
+     - npm run optimize-ts           # tenta executar src/optimization_core.ts (crie o arquivo .ts se necessário)
+  2. Compilar e executar com node:
+     - npm run build
+     - node dist/processador_opcoes.js
+     - node dist/optimization_core.js  (após criar/compilar)
+
+- Se quiser abrir a interface HTML local (options_analyzer.html):
+  - Sirva a pasta por HTTP (recomendado): npm i -g serve && serve . 
+  - Ou use o botão "Carregar CSV" na UI para importar o arquivo opcoes_final_tratado.csv gerado localmente.
+
+Notas:
+- Se `src/optimization_core.ts` não existir, crie-o (ou altere o script "optimize-ts" para o caminho correto).
+- Evite executar: `ts-node optimization_core.js` — chame o arquivo correto (com extensão .ts) ou use node em arquivos compilados em `dist/`.
+
+---
+
+## Comandos rápidos (execute a partir da raiz do projeto)
+
+- Gerar o CSV usando o processador (sem compilar):
+```bash
+npm run process-csv
+# equivalente a: npx ts-node src/processador_opcoes.ts
+```
+
+- Servir a pasta `src` por HTTP (para evitar problemas de CORS ao abrir options_analyzer.html):
+```bash
+npm run serve-src
+# abre src/ em http://localhost:5174 (usa npx serve)
+```
+
+- Compilar e executar (opcional):
+```bash
+npm run build
+node dist/processador_opcoes.js
+```
+
+Observações:
+- Não execute `npm run ...` dentro de `src/`. Abra um terminal na raiz do projeto (`c:\Users\DELL\Calculadora_de_Estrategias_de_Derivativos`) antes de rodar os comandos.
+- Se preferir carregar o CSV sem servidor, use o botão "Carregar CSV" na UI (input file) e selecione `opcoes_final_tratado.csv` gerado pelo processador.
+
+---
+
 **Licença:** ISC  
-<<<<<<< HEAD
 **Versão:** 1.0.0
-=======
-**Versão:** 1.0.0
->>>>>>> c577ee1b68ee67b1bff893f0ab6ca6ad35182fd9

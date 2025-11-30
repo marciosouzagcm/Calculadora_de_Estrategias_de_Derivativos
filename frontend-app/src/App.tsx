@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { Target, TrendingUp, TrendingDown, Scale, Plus, Minus, X, Trash2, Zap, Clock, DollarSign, Activity } from 'lucide-react';
+import { Activity, Clock, DollarSign, Minus, Plus, Scale, Target, Trash2, TrendingUp, X, Zap } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 // =========================================================================
 // 1. Tipos e Interfaces (TypeScript)
@@ -182,17 +182,17 @@ const calculateStrategyMetrics = (legs: OptionLeg[], spotPrices: number[]): { ma
 
 const OptionStrategyAnalyzer: React.FC = () => {
     // === States Principais ===
-    const [spotPrice, setSpotPrice] = useState<number>(100.00);
+    const [spotPrice, setSpotPrice] = useState<number>(143.50); // BBAS3 real
     const [analysisType, setAnalysisType] = useState<AnalysisType>("Otimização Geral (Todos os Spreads)");
-    const [selectedStrategyId, setSelectedStrategyId] = useState<number | null>(null);
+    const [selectedStrategyId, setSelectedStrategyId] = useState<number | null>(null); // Será definido automaticamente
 
     // Parâmetros Black-Scholes
-    const [volatility, setVolatility] = useState<number>(0.20); // 20%
+    const [volatility, setVolatility] = useState<number>(0.25); // 25% - mais realista
     const [riskFreeRate, setRiskFreeRate] = useState<number>(0.10); // 10%
-    const [daysToExpiry, setDaysToExpiry] = useState<number>(30); // 30 dias
+    const [daysToExpiry, setDaysToExpiry] = useState<number>(9); // 9 dias (próximo vencimento)
 
     // Range de strikes de simulação
-    const simulatedStrikes = useMemo(() => [80, 90, 100, 110, 120, 130], []);
+    const simulatedStrikes = useMemo(() => [130, 135, 140, 145, 150, 155], []);
     const T = daysToExpiry / 365; // Tempo em anos
 
     // Estratégia Manual
@@ -373,14 +373,23 @@ const OptionStrategyAnalyzer: React.FC = () => {
     }, [allStrategies, analysisType, isManualMode]);
 
 
-    // === Estratégia Selecionada e Dados do Gráfico ===
-    const selectedStrategy = useMemo(() => {
-        if (selectedStrategyId === null && filteredStrategies.length > 0) {
-            // Seleciona a melhor ranqueada por padrão (ou a manual se for a primeira)
-            return filteredStrategies[0];
+    // === PRÉ-SELEÇÃO AUTOMÁTICA (NOVO) ===
+    const effectiveSelectedStrategyId = useMemo(() => {
+        if (isManualMode && allStrategies.find(s => s.id === 9999)) {
+            return 9999; // Manual override
         }
-        return filteredStrategies.find(s => s.id === selectedStrategyId) || null;
-    }, [selectedStrategyId, filteredStrategies]);
+        // Se já tem seleção manual, retorna ela
+        if (selectedStrategyId !== null) {
+            return selectedStrategyId;
+        }
+        // Caso contrário, auto-seleciona a primeira (melhor ranqueada)
+        return filteredStrategies.length > 0 ? filteredStrategies[0].id : null;
+    }, [selectedStrategyId, filteredStrategies, isManualMode, allStrategies]);
+
+    const selectedStrategy = useMemo(() => {
+        return filteredStrategies.find(s => s.id === effectiveSelectedStrategyId) || 
+               allStrategies.find(s => s.id === effectiveSelectedStrategyId) || null;
+    }, [effectiveSelectedStrategyId, filteredStrategies, allStrategies]);
 
 
     // Cria os dados para o gráfico de Payoff
@@ -584,7 +593,7 @@ const OptionStrategyAnalyzer: React.FC = () => {
                     Analisador de Estratégias de Opções
                 </h1>
                 <p className="text-gray-500 mt-1">
-                    Calcule e Otimize as métricas de risco/retorno e o Payoff no vencimento usando a **estrutura Black-Scholes**.
+                    Calcule e Otimize as métricas de risco/retorno e o Payoff no vencimento usando a estrutura Black-Scholes.
                 </p>
             </header>
 
@@ -600,7 +609,7 @@ const OptionStrategyAnalyzer: React.FC = () => {
                         </span>
                         <input
                             type="text"
-                            value="BOVA11 (Simulação)"
+                            value="BBAS3 (Banco do Brasil)"
                             readOnly
                             className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white font-semibold text-gray-900"
                         />
@@ -616,7 +625,7 @@ const OptionStrategyAnalyzer: React.FC = () => {
                         value={spotPrice}
                         onChange={(e) => setSpotPrice(parseFloat(e.target.value) || 0)}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        placeholder="100.00"
+                        placeholder="143.50"
                     />
                 </div>
 
@@ -727,7 +736,7 @@ const OptionStrategyAnalyzer: React.FC = () => {
                                 key={strategy.id}
                                 onClick={() => setSelectedStrategyId(strategy.id)}
                                 className={`p-4 rounded-lg cursor-pointer transition-all duration-200 
-                                    ${selectedStrategy?.id === strategy.id 
+                                    ${effectiveSelectedStrategyId === strategy.id
                                         ? 'bg-indigo-100 border-2 border-indigo-600 shadow-md' 
                                         : 'bg-white border border-gray-200 hover:bg-gray-50'
                                     }`}
@@ -907,7 +916,7 @@ const OptionStrategyAnalyzer: React.FC = () => {
                                 Analisador de Estratégias
                             </p>
                             <p className="text-sm text-gray-500 mt-1">
-                                Selecione uma estratégia no ranking otimizado ou crie uma no painel manual para visualizar os detalhes e o gráfico de Payoff.
+                                Carregando primeira estratégia...
                             </p>
                         </div>
                     )}

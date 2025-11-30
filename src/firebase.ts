@@ -1,9 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 
 
 const firebaseConfig = {
-	// ...substitua pelas suas credenciais do Firebase...
 	apiKey: "SUA_API_KEY",
 	authDomain: "SEU_AUTH_DOMAIN",
 	projectId: "SEU_PROJECT_ID",
@@ -15,19 +14,35 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-(async () => {
+// Chama a função de persistência dinamicamente (evita erro de named export durante bundling)
+async function tryEnablePersistence() {
+	if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
+		console.warn('[Firebase] IndexedDB não disponível — pulando ativação de persistência.');
+		return;
+	}
+
 	try {
-		await enableIndexedDbPersistence(db);
-		console.log("🔥 [Firebase] Persistência IndexedDB ativada!");
-	} catch (err: any) {
-		if (err && err.code === 'failed-precondition') {
-			console.warn("[Firebase] Persistência não ativada: múltiplas abas abertas.");
-		} else if (err && err.code === 'unimplemented') {
-			console.warn("[Firebase] Persistência não suportada neste navegador/ambiente.");
+		const firestoreModule: any = await import('firebase/firestore');
+		// Tenta os nomes possíveis (enableIndexedDbPersistence no SDK modular, fallback para enablePersistence)
+		const enableFn = firestoreModule.enableIndexedDbPersistence || firestoreModule.enablePersistence;
+		if (typeof enableFn === 'function') {
+			await enableFn(db);
+			console.log("🔥 [Firebase] Persistência IndexedDB do Firestore ativada!");
 		} else {
-			console.error("[Firebase] Erro ao habilitar persistência:", err);
+			console.warn("[Firebase] Nenhuma função de persistência disponível no módulo firestore importado.");
+		}
+	} catch (err: any) {
+		// Tratamento de erros conhecidos
+		if (err && err.code === 'failed-precondition') {
+			console.warn("[Firebase] Persistência não ativada: múltiplas abas ou navegador não suportado.");
+		} else if (err && err.code === 'unimplemented') {
+			console.warn("[Firebase] Persistência não ativada: Recurso não suportado neste ambiente.");
+		} else {
+			console.error("[Firebase] Erro ao habilitar a persistência dinamicamente:", err);
 		}
 	}
-})();
+}
+
+tryEnablePersistence();
 
 export { db };

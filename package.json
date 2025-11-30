@@ -21,8 +21,11 @@
   },
   "scripts": {
     "build": "tsc",
+    "process-csv": "ts-node src/processador_opcoes.ts",
+    "process-and-copy": "npm run process-csv && node scripts/copyCsv.js",
+    "serve-src": "npx serve src --listen 5174",
     "dev": "ts-node src/index.ts",
-    "start": "node index.js",
+    "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

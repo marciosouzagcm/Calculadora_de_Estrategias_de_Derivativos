@@ -9,6 +9,18 @@
   <body>
     <div id="root"></div>
 
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Caminho relativo: funciona com dev server (Vite/Create React App) -->
+    <script type="module" src="./src/main.tsx"></script>
+    
+    <!-- 
+      INSTRUÇÕES DE USO:
+      1. Na raiz do projeto (frontend-app/), execute:
+         npm run dev
+         (ou similar conforme seu vite.config.ts/package.json)
+      
+      2. Abra http://localhost:5173 (ou a porta indicada) no navegador
+      
+      3. NÃO abra este arquivo localmente (file://) — não funciona com módulos ES6
+    -->
   </body>
 </html>

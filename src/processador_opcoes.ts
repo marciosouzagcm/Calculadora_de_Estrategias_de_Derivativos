@@ -1,7 +1,9 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as XLSX from 'xlsx';
-import { createObjectCsvWriter, CsvWriter } from 'csv-writer';
+// Substituição: usar require() para compatibilidade com Node (CommonJS)
+declare var require: any;
+const fs: any = require('fs');
+const path: any = require('path');
+const XLSX: any = require('xlsx');
+const { createObjectCsvWriter }: any = require('csv-writer');
 
 // =========================================================================
 // 1. Configurações e Tipagem
@@ -55,8 +57,8 @@ const FATOR_CORRECAO_ESCALA_PRECO: number = 100.0;
 const FATOR_CORRECAO_ESCALA_GREGA: number = 10000.0;
 const FATOR_CORRECAO_ESCALA_VI: number = 100.0;
 
-// Caminho padrão
-const CAMINHO_PADRAO: string = "C:\\Users\\DELL\\Downloads\\Opções BOVA11 - CALLs e PUTs - lista, pesquisa e cotações (2).xlsx";
+// Caminho padrão (corrigido: barras escapadas e uso de path.resolve)
+const CAMINHO_PADRAO: string = path.resolve('C:\\Users\\DELL\\Downloads\\Opções BBAS3 - CALLs e PUTs - lista, pesquisa e cotações (1).xlsx')
 // =========================================================================
 
 /**
@@ -304,13 +306,18 @@ async function processarDadosOpcoes(nomeArquivoExcel: string, nomeArquivoSaida: 
     // --- 4. Salvar no CSV ---
     const colunasParaSalvar = COLUNAS_FINAIS.filter(c => df_final.some(row => row[c] !== undefined));
     
-    // Configuração do CSV Writer
-    const csvWriter: CsvWriter<ProcessedOptionData> = createObjectCsvWriter({
+    // Configuração do CSV Writer (removida tipagem CsvWriter inexistente)
+    const csvWriter = createObjectCsvWriter({
         path: nomeArquivoSaida,
         header: colunasParaSalvar.map(name => ({ id: name, title: name })),
-    }) as CsvWriter<ProcessedOptionData>;
+    });
 
-    await csvWriter.writeRecords(df_final);
+    try {
+        await csvWriter.writeRecords(df_final);
+    } catch (err: any) {
+        console.error("Erro ao gravar o arquivo CSV:", err && err.message ? err.message : err);
+        throw err;
+    }
 
     console.log("===================================================================");
     console.log(`SUCESSO! CSV limpo e formatado gerado: ${nomeArquivoSaida}`);
