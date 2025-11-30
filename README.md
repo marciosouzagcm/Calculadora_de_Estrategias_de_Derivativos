@@ -202,4 +202,8 @@ Para dúvidas ou sugestões, abra uma issue ou entre em contato.
 ---
 
 **Licença:** ISC  
+<<<<<<< HEAD
 **Versão:** 1.0.0
+=======
+**Versão:** 1.0.0
+>>>>>>> c577ee1b68ee67b1bff893f0ab6ca6ad35182fd9
