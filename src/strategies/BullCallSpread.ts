@@ -1,0 +1,163 @@
+// src/strategies/BullCallSpread.ts
+import { IStrategy } from '../interfaces/IStrategy';
+import { Greeks, NaturezaOperacao, OptionLeg, ProfitLossValue, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
+
+// Constantes fictícias (assumindo que estas existem no seu ambiente)
+const FEES = 0.50; 
+const LOT_SIZE = 1; 
+
+// Função auxiliar para gerar a string de display
+function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
+    const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
+    const strikeStr = strike?.toFixed(2) || 'N/A';
+    const action = direction === 'COMPRA' ? 'C' : 'V';
+    return `${action}-${typeInitial} ${leg.ativo_subjacente} K${strikeStr}`;
+}
+
+export class BullCallSpread implements IStrategy {
+    
+    public readonly name: string = 'Bull Call Spread (Débito)';
+    public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'ALTA'; // Visão: Alta
+    
+    getDescription(): string {
+        return 'Estratégia de Alta (Bullish) a Débito. Compra Call de strike baixo (K1) e Vende Call de strike alto (K2).';
+    }
+
+    getLegCount(): number {
+        return 2;
+    }
+    
+    generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
+        const points: Array<{ assetPrice: number; profitLoss: number }> = [];
+        const K1 = (metrics.pernas.find(p => p.direction === 'COMPRA')?.derivative.strike) ?? 0;
+        const K2 = (metrics.pernas.find(p => p.direction === 'VENDA')?.derivative.strike) ?? 0;
+
+        if (K1 > 0 && K2 > K1 && metrics.breakEvenPoints.length > 0) {
+            const bep = metrics.breakEvenPoints[0] as number;
+            
+            // Ponto 1: Prejuízo Máximo (Abaixo de K1)
+            points.push({ assetPrice: K1 - 5, profitLoss: -metrics.max_loss as number }); 
+            // Ponto 2: Breakeven Point
+            points.push({ assetPrice: bep, profitLoss: 0 }); 
+            // Ponto 3: Lucro Máximo (Acima de K2)
+            points.push({ assetPrice: K2 + 5, profitLoss: metrics.max_profit as number }); 
+        }
+        return points;
+    }
+
+    calculateMetrics(legData: OptionLeg[]): StrategyMetrics | null {
+        if (legData.length !== 2) return null;
+
+        const callLegs = legData.filter(leg => leg.tipo === 'CALL').sort((a, b) => (a.strike ?? 0) - (b.strike ?? 0));
+        
+        if (callLegs.length !== 2) return null;
+
+        const K1_long = callLegs[0]; // Strike Menor (Compra)
+        const K2_short = callLegs[1]; // Strike Maior (Venda)
+        
+        const K1 = K1_long.strike;
+        const K2 = K2_short.strike;
+
+        if (K1 === null || K2 === null || K1 >= K2 || K1_long.vencimento !== K2_short.vencimento) return null;
+
+        // --- 1. Fluxo de Caixa ---
+        const multiplicadorContrato = LOT_SIZE; 
+        // Net Premium: Prêmio Compra K1 - Prêmio Venda K2. Deve ser positivo (Débito).
+        const netPremiumUnitario = K1_long.premio - K2_short.premio;
+        
+        if (netPremiumUnitario <= 0) return null; // Deve ser um Débito Líquido
+
+        const cashFlowBruto = netPremiumUnitario * multiplicadorContrato;
+        const natureza: NaturezaOperacao = 'DÉBITO';
+        const cash_flow_liquido = cashFlowBruto + FEES; // O débito líquido é o débito bruto + taxas
+
+        // --- 2. Risco e Retorno ---
+        const widthUnitario = K2 - K1; 
+        const width = widthUnitario * multiplicadorContrato; // 📢 CAMPO NOVO
+        
+        // Risco Máximo (Max Loss): Débito líquido (custo total da operação)
+        const risco_maximo: ProfitLossValue = cash_flow_liquido; 
+        const max_loss: ProfitLossValue = risco_maximo;
+
+        // Lucro Máximo (Max Profit): Largura do Spread - Débito Bruto - Taxas
+        const lucro_maximo_total = width - cashFlowBruto - FEES;
+        const lucro_maximo: ProfitLossValue = lucro_maximo_total;
+        const max_profit: ProfitLossValue = lucro_maximo;
+
+        // --- 3. Pontos Chave ---
+        // Breakeven (Call: K1 + Débito Líquido Unitário)
+        const breakeven = K1 + netPremiumUnitario; 
+        const breakEvenPoints = [breakeven]; // 📢 CAMPO NOVO
+        
+        // Lucro Máximo é atingido quando o preço do ativo é >= K2
+        const minPriceToMaxProfit = K2; // 📢 CAMPO NOVO
+        const maxPriceToMaxProfit = widthUnitario > 0 ? 1000000 : 0; // Valor alto, simulando ilimitado no limite superior, mas limitado pelo strike K2
+
+        // --- 4. Gregas ---
+        const greeks: Greeks = {
+            delta: (K1_long.gregas_unitarias.delta ?? 0) * 1 + (K2_short.gregas_unitarias.delta ?? 0) * -1,
+            gamma: (K1_long.gregas_unitarias.gamma ?? 0) * 1 + (K2_short.gregas_unitarias.gamma ?? 0) * -1,
+            theta: (K1_long.gregas_unitarias.theta ?? 0) * 1 + (K2_short.gregas_unitarias.theta ?? 0) * -1,
+            vega: (K1_long.gregas_unitarias.vega ?? 0) * 1 + (K2_short.gregas_unitarias.vega ?? 0) * -1,
+        };
+
+        // --- 5. Pernas ---
+        const pernas: StrategyLeg[] = [
+            { derivative: K1_long, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K1_long, 'COMPRA', K1) },
+            { derivative: K2_short, direction: 'VENDA', multiplier: 1, display: generateDisplay(K2_short, 'VENDA', K2) },
+        ];
+        
+        const roi = (max_profit as number) / (max_loss as number); 
+
+        // --- 6. Agregação Final (Preenchendo TODOS os campos requeridos) ---
+        return {
+            // --- Identificação e Resumo ---
+            name: this.name,
+            asset: K1_long.ativo_subjacente,
+            spread_type: 'VERTICAL CALL',
+            vencimento: K1_long.vencimento,
+            expiration: K1_long.vencimento, // 📢 CAMPO NOVO
+            dias_uteis: K1_long.dias_uteis ?? 0, 
+            strike_description: `R$ ${K1?.toFixed(2)} / R$ ${K2?.toFixed(2)}`,
+            
+            // --- Fluxo de Caixa e Natureza ---
+            net_premium: netPremiumUnitario, 
+            cash_flow_bruto: cashFlowBruto,
+            cash_flow_liquido: cash_flow_liquido,
+            initialCashFlow: -cashFlowBruto, // 📢 CAMPO NOVO (Débito inicial deve ser negativo)
+            natureza: natureza,
+
+            // --- Risco e Retorno ---
+            risco_maximo: risco_maximo,
+            lucro_maximo: lucro_maximo, 
+            max_profit: max_profit,
+            max_loss: max_loss,
+            
+            current_pnl: 0, 
+            current_price: 0, 
+
+            // --- Pontos Chave ---
+            breakEvenPoints: breakEvenPoints, // 📢 CAMPO NOVO
+            breakeven_low: breakeven, 
+            breakeven_high: breakeven, 
+            
+            // --- Propriedades de Estrutura ---
+            width: width, // 📢 CAMPO NOVO
+            minPriceToMaxProfit: minPriceToMaxProfit, // 📢 CAMPO NOVO
+            maxPriceToMaxProfit: maxPriceToMaxProfit, // 📢 CAMPO NOVO
+            
+            // --- Métrica de Performance e Priorização ---
+            risco_retorno_unitario: roi, 
+            rentabilidade_max: roi,
+            roi: roi, // 📢 CAMPO NOVO
+            margem_exigida: max_loss as number,
+            probabilidade_sucesso: 0, 
+            score: 0, 
+            should_close: false,
+            
+            // --- Detalhes ---
+            pernas: pernas, 
+            greeks: greeks, 
+        } as StrategyMetrics;
+    }
+}

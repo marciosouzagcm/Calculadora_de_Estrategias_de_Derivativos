@@ -1,38 +1,35 @@
 {
   "compilerOptions": {
-    // ESSENCIAL: Diz ao TypeScript para compilar 'import' para 'require',
-    // resolvendo o erro "Cannot use import statement outside a module" (Módulos ES -> Módulos CJS).
+    // ESSENCIAL: Diz ao TypeScript para compilar 'import' para 'require' (ES Modules -> CommonJS).
     "module": "CommonJS",
     
-    // Alvo de saída do JavaScript (versão moderna com async/await e promessas)
+    // Alvo de saída do JavaScript (versão moderna)
     "target": "ES2020",
     
-    // RECOMENDADO: Garante que o TypeScript use as regras de resolução de módulos do Node.js,
-    // o que é crucial para encontrar seus arquivos de interfaces e estratégias corretamente.
+    // RECOMENDADO: Garante que o TypeScript use as regras de resolução de módulos do Node.js.
     "moduleResolution": "Node",
     
-    // Permite que módulos ES (ex: bibliotecas) sejam tratados como CJS (CommonJS), crucial para muitas dependências
+    // Permite que módulos ES sejam tratados como CJS, crucial para muitas dependências
     "esModuleInterop": true,
     
-    // Pasta raiz onde estão seus arquivos TypeScript
-    "rootDir": "./src",
+    // CORRIGIDO: O "rootDir" agora aponta para o diretório atual do projeto.
+    // Isso é importante para o ts-node e para a estrutura de pastas.
+    "rootDir": "./", 
     
-    // [ADICIONADO/CORRIGIDO] Pasta onde o JavaScript compilado será gerado (ex: para build de produção)
-    // Se você usa apenas 'ts-node', não terá arquivos .js, mas é uma boa prática configurar.
+    // Pasta onde o JavaScript compilado será gerado (usado apenas se "noEmit" for "false")
     "outDir": "./dist", 
     
-    // Configurações de tipagem rigorosa (boa prática para código seguro)
+    // Configurações de tipagem rigorosa (boa prática)
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     
-    // Não é necessário gerar arquivos .js no disco, pois estamos usando ts-node (ou similar),
-    // que compila e executa o código "in-memory". Mantenha se usa ts-node.
-    // Altere para "noEmit": false se for fazer o build de produção (`tsc`)
+    // Mantido como "true" para usar o ts-node sem gerar arquivos .js no disco.
     "noEmit": true 
   },
-  // Inclui apenas os arquivos .ts (e .tsx, se houver) dentro da pasta src
-  "include": ["src/**/*.ts", "src/**/*.tsx"], 
-  // Exclui a pasta de módulos
-  "exclude": ["node_modules"]
+  // CORRIGIDO: Inclui todos os arquivos .ts (e .tsx) na raiz e em todas as subpastas.
+  "include": ["**/*.ts", "**/*.tsx"], 
+  
+  // Exclui as pastas que não contêm código-fonte a ser processado.
+  "exclude": ["node_modules", "dist"]
 }

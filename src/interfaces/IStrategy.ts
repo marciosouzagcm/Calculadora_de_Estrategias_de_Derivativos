@@ -1,13 +1,14 @@
+// src/interfaces/IStrategy.ts
+
 /**
  * @fileoverview Interface que define o contrato para todas as classes de Estratégia.
  * Qualquer estratégia (VerticalSpread, Butterfly, Condor, etc.) deve implementar esta interface (Strategy Pattern).
  */
 
-// [REVISÃO] Importar StrategyLeg, que contém a direção (Compra/Venda) e multiplicador, e não apenas o dado do ativo.
-import { StrategyLeg, StrategyMetrics } from './Types'; // Assumindo que o arquivo revisado se chama 'types'
+// Importamos OptionLeg (o dado bruto que virá do PayoffCalculator) e StrategyMetrics
+import { OptionLeg, StrategyMetrics } from './Types';
 
 // --- Constantes Comuns ---
-// [BOA PRÁTICA] Estas constantes devem ser usadas internamente pelas implementações de IStrategy ou em um arquivo de configuração.
 export const LOT_SIZE = 100; // Tamanho padrão do lote (Ex: 100 ações por contrato)
 export const FEES = 44.00; // Exemplo de custos totais (corretagem, emolumentos, etc.) por montagem.
 
@@ -16,7 +17,7 @@ export const FEES = 44.00; // Exemplo de custos totais (corretagem, emolumentos,
  * Garante que todas as estratégias possuam as propriedades e métodos essenciais.
  */
 export interface IStrategy {
-    // [BOA PRÁTICA] Propriedades somente leitura
+    // Propriedades somente leitura
     readonly name: string; // Ex: 'Bull Call Spread'
     
     // Visão de mercado esperada para que a estratégia seja vantajosa
@@ -24,20 +25,20 @@ export interface IStrategy {
 
     /**
      * Calcula todas as métricas financeiras (P/L, Breakeven, Gregas Agregadas) da estratégia.
-     * * [REVISÃO] O método deve receber StrategyLeg[] para saber se é COMPRA/VENDA e qual a quantidade.
-     * [REVISÃO] Removidos fees e lotSize dos parâmetros. A classe deve gerenciar essas constantes internamente (via construtor ou import).
-     * * @param legs Array contendo a definição das pernas, incluindo direção, multiplicador e os dados do derivativo.
+     * * **[CORREÇÃO CRÍTICA]**: Recebe OptionLeg[] do PayoffCalculator.ts. 
+     * A classe implementadora é responsável por converter OptionLeg[] em StrategyLeg[] 
+     * (atribuindo a 'direction' e 'multiplier') internamente.
+     * * @param legs Array contendo apenas os dados brutos das opções (OptionLeg).
      * @returns Um objeto StrategyMetrics contendo os resultados ou null se a montagem for inválida.
      */
     calculateMetrics(
-        legs: StrategyLeg[], 
+        legs: OptionLeg[], // <-- CORRIGIDO: Aceita OptionLeg[] para compatibilidade com PayoffCalculator.ts
     ): StrategyMetrics | null;
 
     /**
      * Opcional: Renderiza o gráfico de Payoff. 
      * Um método para gerar os pontos do gráfico de P&L em função do preço do subjacente no vencimento.
-     * * [SUGESTÃO] Adicionar um método para o gráfico (Payoff) para ser um requisito da interface.
-     * @param metrics As métricas calculadas, necessárias para definir os limites do gráfico.
+     * * @param metrics As métricas calculadas, necessárias para definir os limites do gráfico.
      * @returns Array de pontos (Preço do Ativo, Lucro/Prejuízo).
      */
     generatePayoff(

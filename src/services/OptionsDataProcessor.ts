@@ -3,8 +3,9 @@
  * Em um projeto real, esta classe faria a leitura, validação e cálculo de dados (dias úteis, gregas, etc.).
  * Mantemos a versão mock para focar na implementação da lógica das estratégias.
  */
-// [REVISÃO] Importar OptionLeg e Greeks para garantir a conformidade dos dados mockados com os tipos definidos.
-import { OptionLeg, Greeks } from './Types; // Assumindo que o arquivo revisado se chama 'types'
+// [CORREÇÃO 1]: O caminho de importação deve ser ajustado para 'OptionLeg' e 'Greeks' 
+// vindo do arquivo de tipos, que assumimos estar em '../interfaces/Types'.
+import { Greeks, OptionLeg } from '../interfaces/Types'; 
 
 // Definição de uma constante para o multiplicador padrão dos contratos (geralmente 100 na B3)
 const CONTRACT_MULTIPLIER = 100;

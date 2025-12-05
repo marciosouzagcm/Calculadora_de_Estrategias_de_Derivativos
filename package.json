@@ -8,9 +8,11 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.10.1",
-    "ts-node": "^10.0.0",
-    "typescript": "^5.0.0"
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   },
   "name": "calculadora_de_estrategias_de_derivativos",
   "version": "1.0.0",
