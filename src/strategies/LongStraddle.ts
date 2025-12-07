@@ -2,8 +2,7 @@
 import { IStrategy } from '../interfaces/IStrategy';
 import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao, ProfitLossValue } from '../interfaces/Types';
 
-// Constantes fictícias (assumindo que estas existem no seu ambiente)
-const FEES = 0.50; 
+// Constantes fictícias
 const LOT_SIZE = 1; 
 
 // Função auxiliar para gerar a string de display
@@ -27,38 +26,48 @@ export class LongStraddle implements IStrategy {
         return 2;
     }
     
+    /**
+     * 🎯 CORREÇÃO CRÍTICA: Lógica de cálculo de PnL no Payoff revisada.
+     */
     generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
         const points: Array<{ assetPrice: number; profitLoss: number }> = [];
         const strike = metrics.pernas[0].derivative.strike ?? 0;
         
-        // Garante que max_loss é um número (já que é um valor finito nesta estratégia)
+        // Custo Líquido da operação, que é o prejuízo máximo
         const maxLossValue = metrics.max_loss as number; 
 
         if (strike > 0 && metrics.breakEvenPoints.length === 2) {
             const bep1 = metrics.breakEvenPoints[0] as number;
             const bep2 = metrics.breakEvenPoints[1] as number;
             
-            // Ponto 1: Lucro Alto na Baixa (Ponto bem abaixo do BEP 1)
-            // profitLoss: Ponto (BEP1 - 5) - K + Prêmios = (K - 5) - K + Prêmios = -5 + Prêmios = 5 * LOT_SIZE - maxLossValue (Aproximação)
-            points.push({ assetPrice: bep1 - 5, profitLoss: 5 * LOT_SIZE - maxLossValue }); // 📢 CORRIGIDO TS2363
-            // Ponto 2: Breakeven Point 1
-            points.push({ assetPrice: bep1, profitLoss: 0 }); 
-            // Ponto 3: Perda Máxima (No Strike Central K)
-            points.push({ assetPrice: strike, profitLoss: -maxLossValue }); 
-            // Ponto 4: Breakeven Point 2
-            points.push({ assetPrice: bep2, profitLoss: 0 }); 
-            // Ponto 5: Lucro Alto na Alta (Ponto bem acima do BEP 2)
-            // profitLoss: Ponto (BEP2 + 5) - K - Prêmios = (K + Prêmios + 5) - K - Prêmios = 5 * LOT_SIZE - maxLossValue (Aproximação)
-            points.push({ assetPrice: bep2 + 5, profitLoss: 5 * LOT_SIZE - maxLossValue }); // 📢 CORRIGIDO TS2363
+            // Gerar 5 pontos-chave para plotagem
+            // Pontos: abaixo do BEP 1, BEP 1, Strike, BEP 2, acima do BEP 2
+            const pricePoints = [
+                bep1 - 5,
+                bep1, 
+                strike, 
+                bep2, 
+                bep2 + 5
+            ];
+            
+            // Loop para calcular PnL em cada ponto
+            for (const S of pricePoints) {
+                // Lucro da Call (max(0, S - K)) + Lucro da Put (max(0, K - S)) - Custo Total
+                const pnl = Math.max(0, S - strike) + Math.max(0, strike - S) - maxLossValue;
+                points.push({ assetPrice: S, profitLoss: pnl });
+            }
         }
         return points;
     }
 
-    calculateMetrics(legData: OptionLeg[]): StrategyMetrics | null {
+    /**
+     * @inheritdoc IStrategy.calculateMetrics
+     */
+    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
         if (legData.length !== 2) return null;
 
         const callLeg = legData.find(leg => leg.tipo === 'CALL');
-        const putLeg = legData.find(leg => leg.tipo === 'PUT');
+        const putLeg = legData.find(leg => leg.tipo === 'PUT'); 
         
         if (!callLeg || !putLeg || callLeg.strike !== putLeg.strike || callLeg.vencimento !== putLeg.vencimento) return null;
 
@@ -71,7 +80,9 @@ export class LongStraddle implements IStrategy {
         
         const cashFlowBruto = netPremiumUnitario * multiplicadorContrato;
         const natureza: NaturezaOperacao = 'DÉBITO';
-        const cash_flow_liquido = cashFlowBruto + FEES; // Débito Líquido = Débito Bruto + Taxas
+        
+        const totalFees = feePerLeg * 2; // 2 pernas
+        const cash_flow_liquido = cashFlowBruto + totalFees; // Débito Líquido = Débito Bruto + Taxas
 
         // --- 2. Risco e Retorno ---
         // Risco Máximo (Max Loss): Custo total (Débito Líquido)
@@ -88,19 +99,17 @@ export class LongStraddle implements IStrategy {
         const breakeven2 = (K ?? 0) + netPremiumUnitario;
         const breakEvenPoints = [breakeven1, breakeven2]; 
         
-        // Lucro Máximo é atingido fora dos BEPs, não é um preço fixo
         const minPriceToMaxProfit = breakeven2; // Acima do BEP Superior
         const maxPriceToMaxProfit = breakeven1; // Abaixo do BEP Inferior
         
-        // Width: 0, pois os strikes são iguais
         const width = 0; 
 
         // --- 4. Gregas ---
         const greeks: Greeks = {
             delta: (callLeg.gregas_unitarias.delta ?? 0) * 1 + (putLeg.gregas_unitarias.delta ?? 0) * 1,
-            gamma: (callLeg.gregas_unitarias.gamma ?? 0) * 1 + (putLeg.gregas_unitarias.gamma ?? 0) * 1,
-            theta: (callLeg.gregas_unitarias.theta ?? 0) * 1 + (putLeg.gregas_unitarias.theta ?? 0) * 1,
-            vega: (callLeg.gregas_unitarias.vega ?? 0) * 1 + (putLeg.gregas_unitarias.vega ?? 0) * 1,
+            gamma: (callLeg.gregas_unitarias.gamma ?? 0) * 1 + (putLeg.gregas_unitarias.gamma ?? 0) * 1, // Gamma positivo
+            theta: (callLeg.gregas_unitarias.theta ?? 0) * 1 + (putLeg.gregas_unitarias.theta ?? 0) * 1, // Theta negativo
+            vega: (callLeg.gregas_unitarias.vega ?? 0) * 1 + (putLeg.gregas_unitarias.vega ?? 0) * 1, // Vega positivo
         };
 
         // --- 5. Pernas ---
@@ -109,8 +118,7 @@ export class LongStraddle implements IStrategy {
             { derivative: putLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(putLeg, 'COMPRA', K) },
         ];
         
-        // ROI é tecnicamente infinito, mas usamos 99999 para fins práticos em sistemas.
-        const roi = 99999; 
+        const roi = Infinity; 
 
         // --- 6. Agregação Final (Preenchendo TODOS os campos requeridos) ---
         return {
@@ -122,6 +130,9 @@ export class LongStraddle implements IStrategy {
             expiration: callLeg.vencimento, 
             dias_uteis: callLeg.dias_uteis ?? 0, 
             strike_description: `R$ ${K?.toFixed(2)}`,
+            
+            // ✅ CORREÇÃO: Inclusão da propriedade 'asset_price'
+            asset_price: assetPrice, 
             
             // --- Fluxo de Caixa e Natureza ---
             net_premium: netPremiumUnitario, 

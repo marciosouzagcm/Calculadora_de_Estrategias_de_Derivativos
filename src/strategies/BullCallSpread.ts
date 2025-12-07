@@ -2,8 +2,7 @@
 import { IStrategy } from '../interfaces/IStrategy';
 import { Greeks, NaturezaOperacao, OptionLeg, ProfitLossValue, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
 
-// Constantes fictícias (assumindo que estas existem no seu ambiente)
-const FEES = 0.50; 
+// Constantes fictícias (mantidas apenas para referência)
 const LOT_SIZE = 1; 
 
 // Função auxiliar para gerar a string de display
@@ -32,7 +31,7 @@ export class BullCallSpread implements IStrategy {
         const K1 = (metrics.pernas.find(p => p.direction === 'COMPRA')?.derivative.strike) ?? 0;
         const K2 = (metrics.pernas.find(p => p.direction === 'VENDA')?.derivative.strike) ?? 0;
 
-        if (K1 > 0 && K2 > K1 && metrics.breakEvenPoints.length > 0) {
+        if (K1 < K2 && K1 > 0 && metrics.breakEvenPoints.length > 0) {
             const bep = metrics.breakEvenPoints[0] as number;
             
             // Ponto 1: Prejuízo Máximo (Abaixo de K1)
@@ -45,14 +44,19 @@ export class BullCallSpread implements IStrategy {
         return points;
     }
 
-    calculateMetrics(legData: OptionLeg[]): StrategyMetrics | null {
+    /**
+     * @inheritdoc IStrategy.calculateMetrics
+     * 🎯 CORREÇÃO: Inclusão dos parâmetros 'assetPrice' e 'feePerLeg'
+     */
+    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
         if (legData.length !== 2) return null;
 
-        const callLegs = legData.filter(leg => leg.tipo === 'CALL').sort((a, b) => (a.strike ?? 0) - (b.strike ?? 0));
+        // Ordena por strike ascendente
+        const callLegs = legData.filter(leg => leg.tipo === 'CALL').sort((a: OptionLeg, b: OptionLeg) => (a.strike ?? 0) - (b.strike ?? 0));
         
         if (callLegs.length !== 2) return null;
 
-        const K1_long = callLegs[0]; // Strike Menor (Compra)
+        const K1_long = callLegs[0];  // Strike Menor (Compra)
         const K2_short = callLegs[1]; // Strike Maior (Venda)
         
         const K1 = K1_long.strike;
@@ -69,29 +73,31 @@ export class BullCallSpread implements IStrategy {
 
         const cashFlowBruto = netPremiumUnitario * multiplicadorContrato;
         const natureza: NaturezaOperacao = 'DÉBITO';
-        const cash_flow_liquido = cashFlowBruto + FEES; // O débito líquido é o débito bruto + taxas
+        
+        const totalFees = feePerLeg * 2; 
+        const cash_flow_liquido = cashFlowBruto + totalFees; // Débito líquido = Débito Bruto + Taxas
 
         // --- 2. Risco e Retorno ---
         const widthUnitario = K2 - K1; 
-        const width = widthUnitario * multiplicadorContrato; // 📢 CAMPO NOVO
+        const width = widthUnitario * multiplicadorContrato; 
         
         // Risco Máximo (Max Loss): Débito líquido (custo total da operação)
         const risco_maximo: ProfitLossValue = cash_flow_liquido; 
         const max_loss: ProfitLossValue = risco_maximo;
 
         // Lucro Máximo (Max Profit): Largura do Spread - Débito Bruto - Taxas
-        const lucro_maximo_total = width - cashFlowBruto - FEES;
+        const lucro_maximo_total = width - cashFlowBruto - totalFees;
         const lucro_maximo: ProfitLossValue = lucro_maximo_total;
         const max_profit: ProfitLossValue = lucro_maximo;
 
         // --- 3. Pontos Chave ---
         // Breakeven (Call: K1 + Débito Líquido Unitário)
         const breakeven = K1 + netPremiumUnitario; 
-        const breakEvenPoints = [breakeven]; // 📢 CAMPO NOVO
+        const breakEvenPoints = [breakeven]; 
         
         // Lucro Máximo é atingido quando o preço do ativo é >= K2
-        const minPriceToMaxProfit = K2; // 📢 CAMPO NOVO
-        const maxPriceToMaxProfit = widthUnitario > 0 ? 1000000 : 0; // Valor alto, simulando ilimitado no limite superior, mas limitado pelo strike K2
+        const minPriceToMaxProfit = K2; 
+        const maxPriceToMaxProfit = Infinity; 
 
         // --- 4. Gregas ---
         const greeks: Greeks = {
@@ -116,15 +122,18 @@ export class BullCallSpread implements IStrategy {
             asset: K1_long.ativo_subjacente,
             spread_type: 'VERTICAL CALL',
             vencimento: K1_long.vencimento,
-            expiration: K1_long.vencimento, // 📢 CAMPO NOVO
+            expiration: K1_long.vencimento, 
             dias_uteis: K1_long.dias_uteis ?? 0, 
             strike_description: `R$ ${K1?.toFixed(2)} / R$ ${K2?.toFixed(2)}`,
+            
+            // 🎯 CORREÇÃO CRÍTICA: Incluir a propriedade 'asset_price'
+            asset_price: assetPrice, 
             
             // --- Fluxo de Caixa e Natureza ---
             net_premium: netPremiumUnitario, 
             cash_flow_bruto: cashFlowBruto,
             cash_flow_liquido: cash_flow_liquido,
-            initialCashFlow: -cashFlowBruto, // 📢 CAMPO NOVO (Débito inicial deve ser negativo)
+            initialCashFlow: -cashFlowBruto, 
             natureza: natureza,
 
             // --- Risco e Retorno ---
@@ -137,19 +146,19 @@ export class BullCallSpread implements IStrategy {
             current_price: 0, 
 
             // --- Pontos Chave ---
-            breakEvenPoints: breakEvenPoints, // 📢 CAMPO NOVO
+            breakEvenPoints: breakEvenPoints, 
             breakeven_low: breakeven, 
             breakeven_high: breakeven, 
             
             // --- Propriedades de Estrutura ---
-            width: width, // 📢 CAMPO NOVO
-            minPriceToMaxProfit: minPriceToMaxProfit, // 📢 CAMPO NOVO
-            maxPriceToMaxProfit: maxPriceToMaxProfit, // 📢 CAMPO NOVO
+            width: width, 
+            minPriceToMaxProfit: minPriceToMaxProfit, 
+            maxPriceToMaxProfit: maxPriceToMaxProfit, 
             
             // --- Métrica de Performance e Priorização ---
             risco_retorno_unitario: roi, 
             rentabilidade_max: roi,
-            roi: roi, // 📢 CAMPO NOVO
+            roi: roi, 
             margem_exigida: max_loss as number,
             probabilidade_sucesso: 0, 
             score: 0, 

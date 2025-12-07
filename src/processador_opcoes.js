@@ -66,7 +66,7 @@ var FATOR_CORRECAO_ESCALA_PRECO = 100.0;
 var FATOR_CORRECAO_ESCALA_GREGA = 10000.0;
 var FATOR_CORRECAO_ESCALA_VI = 100.0;
 // Caminho padrão (corrigido: barras escapadas e uso de path.resolve)
-var CAMINHO_PADRAO = path.resolve('C:\\Users\\DELL\\Downloads\\Opções BOVA11 - CALLs e PUTs - lista, pesquisa e cotações (5).xlsx');
+var CAMINHO_PADRAO = path.resolve('C:\\Users\\DELL\\Downloads\\Opções BOVA11 - CALLs e PUTs - lista, pesquisa e cotações (6).xlsx');
 // =========================================================================
 /**
  * Tenta inferir o ticker base do nome do arquivo.

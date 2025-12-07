@@ -2,8 +2,7 @@
 import { IStrategy } from '../interfaces/IStrategy';
 import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao, ProfitLossValue } from '../interfaces/Types';
 
-// Constantes fictícias (assumindo que estas existem no seu ambiente)
-const FEES = 0.50; 
+// Constantes fictícias
 const LOT_SIZE = 1; 
 
 // Função auxiliar para gerar a string de display
@@ -20,6 +19,7 @@ export class ShortStraddle implements IStrategy {
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA'; // Visão: Baixa Volatilidade
     
     getDescription(): string {
+        // 🎯 CORREÇÃO: Removida a tag de imagem que estava causando erro de sintaxe.
         return 'Estratégia de Baixa Volatilidade a Crédito. Vende Call e Put no mesmo Strike e Vencimento. Risco Ilimitado.';
     }
 
@@ -31,7 +31,6 @@ export class ShortStraddle implements IStrategy {
         const points: Array<{ assetPrice: number; profitLoss: number }> = [];
         const strike = metrics.pernas[0].derivative.strike ?? 0;
 
-        // Garante que max_profit é um número (é um valor finito nesta estratégia)
         const maxProfitValue = metrics.max_profit as number; 
 
         if (strike > 0 && metrics.breakEvenPoints.length === 2) {
@@ -52,7 +51,10 @@ export class ShortStraddle implements IStrategy {
         return points;
     }
 
-    calculateMetrics(legData: OptionLeg[]): StrategyMetrics | null {
+    /**
+     * @inheritdoc IStrategy.calculateMetrics
+     */
+    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
         if (legData.length !== 2) return null;
 
         const callLeg = legData.find(leg => leg.tipo === 'CALL');
@@ -64,34 +66,30 @@ export class ShortStraddle implements IStrategy {
 
         // --- 1. Fluxo de Caixa ---
         const multiplicadorContrato = LOT_SIZE; 
-        // Crédito: Prêmio Call Vendida + Prêmio Put Vendida
         const netPremiumUnitario = callLeg.premio + putLeg.premio;
         
         const cashFlowBruto = netPremiumUnitario * multiplicadorContrato;
         const natureza: NaturezaOperacao = 'CRÉDITO';
-        const cash_flow_liquido = cashFlowBruto - FEES; // Crédito Líquido = Crédito Bruto - Taxas
+        
+        const totalFees = feePerLeg * 2; // 2 pernas
+        const cash_flow_liquido = cashFlowBruto - totalFees; // Crédito Líquido = Crédito Bruto - Taxas
 
         // --- 2. Risco e Retorno ---
-        // Lucro Máximo (Max Profit): Crédito Líquido recebido
         const lucro_maximo: ProfitLossValue = cash_flow_liquido; 
         const max_profit: ProfitLossValue = lucro_maximo;
 
-        // Risco Máximo (Max Loss): Ilimitado
         const risco_maximo: ProfitLossValue = Infinity; 
         const max_loss: ProfitLossValue = risco_maximo;
 
         // --- 3. Pontos Chave ---
-        // Breakeven Points (Dois pontos)
         const breakeven1 = (K ?? 0) - netPremiumUnitario;
         const breakeven2 = (K ?? 0) + netPremiumUnitario;
-        const breakEvenPoints = [breakeven1, breakeven2]; // ✅ INCLUÍDO
+        const breakEvenPoints = [breakeven1, breakeven2]; 
         
-        // Lucro Máximo é atingido no strike central K
-        const minPriceToMaxProfit = K; // ✅ INCLUÍDO
-        const maxPriceToMaxProfit = K; // ✅ INCLUÍDO
+        const minPriceToMaxProfit = K; 
+        const maxPriceToMaxProfit = K; 
         
-        // Width: 0, pois os strikes são iguais
-        const width = 0; // ✅ INCLUÍDO
+        const width = 0; 
 
         // --- 4. Gregas ---
         const greeks: Greeks = {
@@ -107,8 +105,7 @@ export class ShortStraddle implements IStrategy {
             { derivative: putLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(putLeg, 'VENDA', K) },
         ];
         
-        // ROI é zero ou NaN (pois o risco é infinito), usamos 0
-        const roi = 0; // ✅ INCLUÍDO
+        const roi = 0; 
 
         // --- 6. Agregação Final (Preenchendo TODOS os campos requeridos) ---
         return {
@@ -117,15 +114,18 @@ export class ShortStraddle implements IStrategy {
             asset: callLeg.ativo_subjacente,
             spread_type: 'STRADDLE', 
             vencimento: callLeg.vencimento,
-            expiration: callLeg.vencimento, // ✅ INCLUÍDO
+            expiration: callLeg.vencimento, 
             dias_uteis: callLeg.dias_uteis ?? 0, 
             strike_description: `R$ ${K?.toFixed(2)}`,
+            
+            // ✅ CORREÇÃO: Inclusão da propriedade 'asset_price'
+            asset_price: assetPrice, 
             
             // --- Fluxo de Caixa e Natureza ---
             net_premium: netPremiumUnitario, 
             cash_flow_bruto: cashFlowBruto,
             cash_flow_liquido: cash_flow_liquido,
-            initialCashFlow: cashFlowBruto, // ✅ INCLUÍDO (Crédito inicial deve ser positivo)
+            initialCashFlow: cashFlowBruto, 
             natureza: natureza,
 
             // --- Risco e Retorno ---
@@ -138,20 +138,20 @@ export class ShortStraddle implements IStrategy {
             current_price: 0, 
 
             // --- Pontos Chave ---
-            breakEvenPoints: breakEvenPoints, // ✅ INCLUÍDO
+            breakEvenPoints: breakEvenPoints, 
             breakeven_low: breakeven1, 
             breakeven_high: breakeven2, 
             
             // --- Propriedades de Estrutura ---
-            width: width, // ✅ INCLUÍDO
-            minPriceToMaxProfit: minPriceToMaxProfit, // ✅ INCLUÍDO
-            maxPriceToMaxProfit: maxPriceToMaxProfit, // ✅ INCLUÍDO
+            width: width, 
+            minPriceToMaxProfit: minPriceToMaxProfit, 
+            maxPriceToMaxProfit: maxPriceToMaxProfit, 
             
             // --- Métrica de Performance e Priorização ---
             risco_retorno_unitario: roi, 
             rentabilidade_max: roi,
-            roi: roi, // ✅ INCLUÍDO
-            margem_exigida: max_profit as number, // A margem exigida é, no mínimo, o lucro máximo.
+            roi: roi, 
+            margem_exigida: max_profit as number,
             probabilidade_sucesso: 0, 
             score: 0, 
             should_close: false,

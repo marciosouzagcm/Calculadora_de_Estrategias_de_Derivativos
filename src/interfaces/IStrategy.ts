@@ -1,4 +1,4 @@
-// src/interfaces/IStrategy.ts
+// src/interfaces/IStrategy.ts 
 
 /**
  * @fileoverview Interface que define o contrato para todas as classes de Estratégia.
@@ -26,22 +26,16 @@ export interface IStrategy {
     /**
      * Calcula todas as métricas financeiras (P/L, Breakeven, Gregas Agregadas) da estratégia.
      * * **[CORREÇÃO CRÍTICA]**: Recebe OptionLeg[] do PayoffCalculator.ts. 
-     * A classe implementadora é responsável por converter OptionLeg[] em StrategyLeg[] 
-     * (atribuindo a 'direction' e 'multiplier') internamente.
      * * @param legs Array contendo apenas os dados brutos das opções (OptionLeg).
+     * @param assetPrice Preço atual do ativo subjacente.
+     * @param feePerLeg Custo de transação por perna da estratégia.
      * @returns Um objeto StrategyMetrics contendo os resultados ou null se a montagem for inválida.
      */
     calculateMetrics(
-        legs: OptionLeg[], // <-- CORRIGIDO: Aceita OptionLeg[] para compatibilidade com PayoffCalculator.ts
+        legs: OptionLeg[], // Argumento 1: As pernas da opção
+        assetPrice: number, // Argumento 2: O preço do ativo subjacente
+        feePerLeg: number // Argumento 3: A taxa/custo por perna
     ): StrategyMetrics | null;
 
-    /**
-     * Opcional: Renderiza o gráfico de Payoff. 
-     * Um método para gerar os pontos do gráfico de P&L em função do preço do subjacente no vencimento.
-     * * @param metrics As métricas calculadas, necessárias para definir os limites do gráfico.
-     * @returns Array de pontos (Preço do Ativo, Lucro/Prejuízo).
-     */
-    generatePayoff(
-        metrics: StrategyMetrics
-    ): Array<{ assetPrice: number; profitLoss: number }>;
+    // ... (o restante da interface permanece igual)
 }

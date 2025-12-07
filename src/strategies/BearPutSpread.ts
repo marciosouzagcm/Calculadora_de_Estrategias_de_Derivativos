@@ -2,7 +2,7 @@
 import { IStrategy } from '../interfaces/IStrategy';
 import { Greeks, NaturezaOperacao, OptionLeg, ProfitLossValue, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
 
-// Constantes fictícias (assumindo que estas existem no seu ambiente)
+// Constantes fictícias (mantidas apenas para referência, mas o cálculo deve usar feePerLeg)
 const FEES = 0.50; 
 const LOT_SIZE = 1; 
 
@@ -45,14 +45,19 @@ export class BearPutSpread implements IStrategy {
         return points;
     }
 
-    calculateMetrics(legData: OptionLeg[]): StrategyMetrics | null {
+    /**
+     * @inheritdoc IStrategy.calculateMetrics
+     * 🎯 CORREÇÃO: Inclusão dos parâmetros 'assetPrice' e 'feePerLeg'
+     */
+    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
         if (legData.length !== 2) return null;
 
-        const putLegs = legData.filter(leg => leg.tipo === 'PUT').sort((a, b) => (b.strike ?? 0) - (a.strike ?? 0));
+        // 🎯 CORREÇÃO DE TIPAGEM: Tipar os parâmetros do sort
+        const putLegs = legData.filter(leg => leg.tipo === 'PUT').sort((a: OptionLeg, b: OptionLeg) => (b.strike ?? 0) - (a.strike ?? 0));
         
         if (putLegs.length !== 2) return null;
 
-        const K1_long = putLegs[0];  // Strike Maior (Compra)
+        const K1_long = putLegs[0];  // Strike Maior (Compra)
         const K2_short = putLegs[1]; // Strike Menor (Venda)
         
         const K1 = K1_long.strike;
@@ -69,29 +74,32 @@ export class BearPutSpread implements IStrategy {
 
         const cashFlowBruto = netPremiumUnitario * multiplicadorContrato;
         const natureza: NaturezaOperacao = 'DÉBITO';
-        const cash_flow_liquido = cashFlowBruto + FEES; // O débito líquido é o débito bruto + taxas
+        
+        // 🎯 CORREÇÃO/AJUSTE: Usar a taxa real por perna
+        const totalFees = feePerLeg * 2; 
+        const cash_flow_liquido = cashFlowBruto + totalFees; // Débito líquido = Débito Bruto + Taxas
 
         // --- 2. Risco e Retorno ---
         const widthUnitario = K1 - K2; 
-        const width = widthUnitario * multiplicadorContrato; // 📢 CAMPO NOVO
+        const width = widthUnitario * multiplicadorContrato; 
         
         // Risco Máximo (Max Loss): Débito líquido (custo total da operação)
         const risco_maximo: ProfitLossValue = cash_flow_liquido; 
         const max_loss: ProfitLossValue = risco_maximo;
 
         // Lucro Máximo (Max Profit): Largura do Spread - Débito Bruto - Taxas
-        const lucro_maximo_total = width - cashFlowBruto - FEES;
+        const lucro_maximo_total = width - cashFlowBruto - totalFees;
         const lucro_maximo: ProfitLossValue = lucro_maximo_total;
         const max_profit: ProfitLossValue = lucro_maximo;
 
         // --- 3. Pontos Chave ---
         // Breakeven (Put: K1 - Débito Líquido Unitário)
         const breakeven = K1 - netPremiumUnitario; 
-        const breakEvenPoints = [breakeven]; // 📢 CAMPO NOVO
+        const breakEvenPoints = [breakeven]; 
         
         // Lucro Máximo é atingido quando o preço do ativo é <= K2
-        const minPriceToMaxProfit = 0; // 📢 CAMPO NOVO
-        const maxPriceToMaxProfit = K2; // 📢 CAMPO NOVO
+        const minPriceToMaxProfit = 0; 
+        const maxPriceToMaxProfit = K2; 
 
         // --- 4. Gregas ---
         const greeks: Greeks = {
@@ -107,7 +115,7 @@ export class BearPutSpread implements IStrategy {
             { derivative: K2_short, direction: 'VENDA', multiplier: 1, display: generateDisplay(K2_short, 'VENDA', K2) },
         ];
         
-        const roi = (max_profit as number) / (max_loss as number); // 📢 CAMPO NOVO
+        const roi = (max_profit as number) / (max_loss as number); 
 
         // --- 6. Agregação Final (Preenchendo TODOS os campos requeridos) ---
         return {
@@ -116,15 +124,18 @@ export class BearPutSpread implements IStrategy {
             asset: K1_long.ativo_subjacente,
             spread_type: 'VERTICAL PUT',
             vencimento: K1_long.vencimento,
-            expiration: K1_long.vencimento, // 📢 CAMPO NOVO
+            expiration: K1_long.vencimento, 
             dias_uteis: K1_long.dias_uteis ?? 0, 
             strike_description: `R$ ${K1?.toFixed(2)} / R$ ${K2?.toFixed(2)}`,
+            
+            // 🎯 CORREÇÃO CRÍTICA: Incluir a propriedade 'asset_price'
+            asset_price: assetPrice, 
             
             // --- Fluxo de Caixa e Natureza ---
             net_premium: netPremiumUnitario, 
             cash_flow_bruto: cashFlowBruto,
             cash_flow_liquido: cash_flow_liquido,
-            initialCashFlow: -cashFlowBruto, // 📢 CAMPO NOVO (Débito inicial deve ser negativo)
+            initialCashFlow: -cashFlowBruto, // Débito inicial é negativo
             natureza: natureza,
 
             // --- Risco e Retorno ---
@@ -137,19 +148,19 @@ export class BearPutSpread implements IStrategy {
             current_price: 0, 
 
             // --- Pontos Chave ---
-            breakEvenPoints: breakEvenPoints, // 📢 CAMPO NOVO
+            breakEvenPoints: breakEvenPoints, 
             breakeven_low: breakeven, 
             breakeven_high: breakeven, 
             
             // --- Propriedades de Estrutura ---
-            width: width, // 📢 CAMPO NOVO
-            minPriceToMaxProfit: minPriceToMaxProfit, // 📢 CAMPO NOVO
-            maxPriceToMaxProfit: maxPriceToMaxProfit, // 📢 CAMPO NOVO
+            width: width, 
+            minPriceToMaxProfit: minPriceToMaxProfit, 
+            maxPriceToMaxProfit: maxPriceToMaxProfit, 
             
             // --- Métrica de Performance e Priorização ---
             risco_retorno_unitario: roi, 
             rentabilidade_max: roi,
-            roi: roi, // 📢 CAMPO NOVO
+            roi: roi, 
             margem_exigida: max_loss as number,
             probabilidade_sucesso: 0, 
             score: 0, 

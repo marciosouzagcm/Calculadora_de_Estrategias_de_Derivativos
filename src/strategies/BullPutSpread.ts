@@ -1,9 +1,8 @@
 // src/strategies/BullPutSpread.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao, ProfitLossValue } from '../interfaces/Types';
+import { Greeks, NaturezaOperacao, OptionLeg, ProfitLossValue, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
 
-// Constantes fictícias (assumindo que estas existem no seu ambiente)
-const FEES = 0.50; 
+// Constantes fictícias (mantidas apenas para referência)
 const LOT_SIZE = 1; 
 
 // Função auxiliar para gerar a string de display
@@ -17,10 +16,10 @@ function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: 
 export class BullPutSpread implements IStrategy {
     
     public readonly name: string = 'Bull Put Spread (Crédito)';
-    public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'ALTA'; // Visão: Alta
+    public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'ALTA'; // Visão: Alta/Neutra
     
     getDescription(): string {
-        return 'Estratégia de Alta (Bullish) a Crédito. Vende Put de strike alto (K1) e Compra Put de strike baixo (K2).';
+        return 'Estratégia de Alta/Neutra (Bullish) a Crédito. Vende Put de strike alto (K1) e Compra Put de strike baixo (K2).';
     }
 
     getLegCount(): number {
@@ -29,7 +28,6 @@ export class BullPutSpread implements IStrategy {
     
     generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
         const points: Array<{ assetPrice: number; profitLoss: number }> = [];
-        // K1 é o Strike Vendido (Maior), K2 é o Strike Comprado (Menor)
         const K1 = (metrics.pernas.find(p => p.direction === 'VENDA')?.derivative.strike) ?? 0;
         const K2 = (metrics.pernas.find(p => p.direction === 'COMPRA')?.derivative.strike) ?? 0;
 
@@ -46,15 +44,19 @@ export class BullPutSpread implements IStrategy {
         return points;
     }
 
-    calculateMetrics(legData: OptionLeg[]): StrategyMetrics | null {
+    /**
+     * @inheritdoc IStrategy.calculateMetrics
+     * 🎯 CORREÇÃO: Inclusão dos parâmetros 'assetPrice' e 'feePerLeg'
+     */
+    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
         if (legData.length !== 2) return null;
 
-        // Ordenamos do maior strike para o menor (K1 > K2)
-        const putLegs = legData.filter(leg => leg.tipo === 'PUT').sort((a, b) => (b.strike ?? 0) - (a.strike ?? 0));
+        // Ordena por strike descendente
+        const putLegs = legData.filter(leg => leg.tipo === 'PUT').sort((a: OptionLeg, b: OptionLeg) => (b.strike ?? 0) - (a.strike ?? 0));
         
         if (putLegs.length !== 2) return null;
 
-        const K1_short = putLegs[0];  // Strike Maior (Venda)
+        const K1_short = putLegs[0];  // Strike Maior (Venda)
         const K2_long = putLegs[1]; // Strike Menor (Compra)
         
         const K1 = K1_short.strike;
@@ -67,22 +69,25 @@ export class BullPutSpread implements IStrategy {
         // Net Premium: Prêmio Venda K1 - Prêmio Compra K2. Deve ser positivo (Crédito).
         const netPremiumUnitario = K1_short.premio - K2_long.premio;
         
-        if (netPremiumUnitario <= 0) return null; // Deve ser um Crédito Líquido
+        if (netPremiumUnitario <= 0) return null; // Deve ser um Crédito Líquido antes das taxas
 
         const cashFlowBruto = netPremiumUnitario * multiplicadorContrato;
         const natureza: NaturezaOperacao = 'CRÉDITO';
-        const cash_flow_liquido = cashFlowBruto - FEES;
+        
+        const totalFees = feePerLeg * 2; 
+        // Crédito líquido = Crédito Bruto - Taxas
+        const cash_flow_liquido = cashFlowBruto - totalFees; 
 
         // --- 2. Risco e Retorno ---
         const widthUnitario = K1 - K2; 
         const width = widthUnitario * multiplicadorContrato; 
         
-        // Lucro Máximo (Max Profit): Crédito Líquido recebido
+        // Lucro Máximo (Max Profit): Crédito líquido (prêmio total recebido - taxas)
         const lucro_maximo: ProfitLossValue = cash_flow_liquido; 
         const max_profit: ProfitLossValue = lucro_maximo;
 
         // Risco Máximo (Max Loss): Largura do Spread - Crédito Bruto + Taxas
-        const risco_maximo_total = width - cashFlowBruto + FEES;
+        const risco_maximo_total = width - cashFlowBruto + totalFees;
         const risco_maximo: ProfitLossValue = risco_maximo_total;
         const max_loss: ProfitLossValue = risco_maximo;
 
@@ -93,7 +98,7 @@ export class BullPutSpread implements IStrategy {
         
         // Lucro Máximo é atingido quando o preço do ativo é >= K1
         const minPriceToMaxProfit = K1; 
-        const maxPriceToMaxProfit = widthUnitario > 0 ? 1000000 : 0; 
+        const maxPriceToMaxProfit = Infinity; 
 
         // --- 4. Gregas ---
         const greeks: Greeks = {
@@ -118,15 +123,18 @@ export class BullPutSpread implements IStrategy {
             asset: K1_short.ativo_subjacente,
             spread_type: 'VERTICAL PUT',
             vencimento: K1_short.vencimento,
-            expiration: K1_short.vencimento, // Incluído
+            expiration: K1_short.vencimento, 
             dias_uteis: K1_short.dias_uteis ?? 0, 
             strike_description: `R$ ${K1?.toFixed(2)} / R$ ${K2?.toFixed(2)}`,
+            
+            // 🎯 CORREÇÃO CRÍTICA: Incluir a propriedade 'asset_price'
+            asset_price: assetPrice, 
             
             // --- Fluxo de Caixa e Natureza ---
             net_premium: netPremiumUnitario, 
             cash_flow_bruto: cashFlowBruto,
             cash_flow_liquido: cash_flow_liquido,
-            initialCashFlow: cashFlowBruto, // Incluído (Crédito inicial deve ser positivo)
+            initialCashFlow: cashFlowBruto, // Crédito inicial é positivo
             natureza: natureza,
 
             // --- Risco e Retorno ---
@@ -139,19 +147,19 @@ export class BullPutSpread implements IStrategy {
             current_price: 0, 
 
             // --- Pontos Chave ---
-            breakEvenPoints: breakEvenPoints, // Incluído
+            breakEvenPoints: breakEvenPoints, 
             breakeven_low: breakeven, 
             breakeven_high: breakeven, 
             
             // --- Propriedades de Estrutura ---
-            width: width, // Incluído
-            minPriceToMaxProfit: minPriceToMaxProfit, // Incluído
-            maxPriceToMaxProfit: maxPriceToMaxProfit, // Incluído
+            width: width, 
+            minPriceToMaxProfit: minPriceToMaxProfit, 
+            maxPriceToMaxProfit: maxPriceToMaxProfit, 
             
             // --- Métrica de Performance e Priorização ---
             risco_retorno_unitario: roi, 
             rentabilidade_max: roi,
-            roi: roi, // Incluído
+            roi: roi, 
             margem_exigida: max_loss as number,
             probabilidade_sucesso: 0, 
             score: 0, 
