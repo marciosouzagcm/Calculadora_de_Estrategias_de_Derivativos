@@ -59,7 +59,7 @@ const FATOR_CORRECAO_ESCALA_VI: number = 100.0;
 
 // Caminho padrão (corrigido: barras escapadas e uso de path.resolve)
 const CAMINHO_PADRAO = "C:\\Users\\DELL\\Downloads\\Opções BBAS3 - CALLs e PUTs - lista, pesquisa e cotações.xlsx";
-// =========================================================================
+// ========================================================================================================================
 
 /**
  * Tenta inferir o ticker base do nome do arquivo.

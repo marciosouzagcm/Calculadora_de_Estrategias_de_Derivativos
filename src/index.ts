@@ -1,11 +1,10 @@
-// src/index.ts (CÓDIGO FINAL CORRIGIDO V3)
+// src/index.ts (CÓDIGO FINAL CORRIGIDO V8 - Filtro Universal por Natureza)
 
 // --- 1. Importações (Ajuste os caminhos conforme sua estrutura) ---
 import { PayoffCalculator } from './services/PayoffCalculator'; 
 import { OptionLeg, StrategyMetrics, ProfitLossValue } from './interfaces/Types'; 
 import { readOptionsDataFromCSV } from './services/csvReader'; 
 import * as readline from 'readline'; 
-import { stdout } from 'process';
 
 // =========================================================================
 //                             CONSTANTES GLOBAIS
@@ -49,11 +48,13 @@ function formatStrategyOutput(metrics: StrategyMetrics, payoffCurve: { price: nu
     console.log(`======================================================`);
     
     const totalFees = metrics.pernas.length * FEE_PER_LEG;
-    const initialCashFlowTotal = metrics.initialCashFlow as number * LOT_SIZE;
-    
-    // CORREÇÃO ESSENCIAL: Garante que o custo do prêmio (que é negativo em initialCashFlowTotal)
-    // seja somado corretamente com as taxas para obter o desembolso total.
-    const totalDisbursement = Math.abs(initialCashFlowTotal) + totalFees; 
+    const initialCashFlowTotal = (metrics.initialCashFlow as number) * LOT_SIZE;
+    
+    // Calcula o risco total da operação
+    // metrics.risco_maximo é o valor unitário (negativo para Débito/Crédito)
+    const riskUnitary = (metrics.risco_maximo as number) ?? 0; 
+    // O risco total é o valor absoluto do risco unitário * lote + taxas
+    const totalRisk = Math.abs(riskUnitary * LOT_SIZE) + totalFees;
 
     console.log(`\n${'Ativo Subjacente:'.padEnd(30)} ${metrics.asset}`);
     console.log(`${'Preço do Ativo (S):'.padEnd(30)} R$ ${metrics.asset_price.toFixed(2)}`);
@@ -63,14 +64,18 @@ function formatStrategyOutput(metrics: StrategyMetrics, payoffCurve: { price: nu
     
     console.log(`\n--- FLUXO DE CAIXA ---`);
     console.log(`${'Fluxo de Caixa (Prêmios):'.padEnd(30)} ${formatValue(metrics.initialCashFlow)} ${metrics.natureza === 'DÉBITO' ? '(Custo Bruto)' : '(Crédito Bruto)'}`);
-    // EXIBIÇÃO DO CUSTO REAL TOTAL
-    console.log(`${'DESEMBOLSO TOTAL (CUSTO):'.padEnd(30)} R$ ${totalDisbursement.toFixed(2)}`); 
+    // EXIBIÇÃO DO FLUXO LÍQUIDO (custo com taxas para débito, ou crédito descontado taxas para crédito)
+    const initialNetFlow = initialCashFlowTotal - (metrics.natureza === 'DÉBITO' ? totalFees : -totalFees);
+    console.log(`${'FLUXO DE CAIXA LÍQUIDO:'.padEnd(30)} R$ ${initialNetFlow.toFixed(2)}`); 
 
     console.log(`\n--- RISCO E RETORNO (Líquido de Taxas) ---`);
-    // Lucro Máximo Líquido = Lucro Máximo Bruto (em R$/ação) - Taxas (em R$/ação)
-    console.log(`${'Lucro Máximo (Líquido):'.padEnd(30)} ${formatValue((metrics.max_profit as number) - (totalFees / LOT_SIZE))}`); 
-    // Prejuízo Máximo Líquido = Risco Total (igual ao Desembolso Total, pois é uma estratégia de débito com risco limitado)
-    console.log(`${'Prejuízo Máximo (Risco Total):'.padEnd(30)} R$ ${totalDisbursement.toFixed(2)}`); 
+    // Lucro Máximo Líquido 
+    const maxProfitValue = metrics.max_profit === 'Ilimitado' ? Infinity : (metrics.max_profit as number);
+    const maxProfitLiquid = maxProfitValue === Infinity ? 'Ilimitado' : formatValue(maxProfitValue * LOT_SIZE - totalFees); 
+    console.log(`${'Lucro Máximo (Líquido):'.padEnd(30)} ${maxProfitLiquid}`); 
+    
+    // Prejuízo Máximo Líquido (Risco Total)
+    console.log(`${'Prejuízo Máximo (Risco Total):'.padEnd(30)} R$ ${totalRisk.toFixed(2)}`); 
     
     console.log(`\n--- PONTOS CHAVE ---`);
     metrics.breakEvenPoints.forEach((bep, index) => {
@@ -85,18 +90,14 @@ function formatStrategyOutput(metrics: StrategyMetrics, payoffCurve: { price: nu
     });
     
     console.log(`\n--- AMOSTRA DA CURVA DE PAYOFF ---`);
-    const currentPriceUsed = payoffCurve.find(p => p.price.toFixed(2) === metrics.asset_price.toFixed(2)) 
-        || { price: metrics.asset_price, pnl: metrics.current_pnl * LOT_SIZE || 0 }; 
-    
-    console.log(`(PnL no preço atual R$ ${currentPriceUsed.price.toFixed(2)}: R$ ${currentPriceUsed.pnl.toFixed(2)})`);
-    
     const samplePoints = payoffCurve
         .sort((a, b) => a.price - b.price) 
         .filter((_, index) => index % 10 === 0)
         .slice(0, 5);
     
     samplePoints.forEach(point => {
-        console.log(`Preço R$ ${point.price.toFixed(2)} -> PnL R$ ${(point.pnl * LOT_SIZE).toFixed(2)}`);
+        // O PayoffCalculator já retorna o PnL total (x LOT_SIZE), ajustado para taxas.
+        console.log(`Preço R$ ${point.price.toFixed(2)} -> PnL R$ ${point.pnl.toFixed(2)}`);
     });
     
     console.log(`\n======================================================\n`);
@@ -106,24 +107,41 @@ function formatStrategyOutput(metrics: StrategyMetrics, payoffCurve: { price: nu
 //                             FUNÇÕES DE FILTRAGEM
 // =========================================================================================================================
 
-function filterByCostRatio(strategies: StrategyMetrics[], maxCostRatioPercent: number): StrategyMetrics[] {
-    const maxRatio = maxCostRatioPercent / 100;
+function filterByCostRatio(strategies: StrategyMetrics[], maxRatioPercent: number): StrategyMetrics[] {
+    const maxRatio = maxRatioPercent / 100;
     
-    const debitStrategies = strategies.filter(s => 
-        s.natureza === 'DÉBITO' && 
-        s.max_profit !== Infinity 
+    // Filtra estratégias com lucro máximo finito
+    const strategiesWithFiniteProfit = strategies.filter(s => 
+        s.max_profit !== 'Ilimitado' && s.max_profit !== Infinity 
     );
 
-    const filtered = debitStrategies.filter(metrics => {
-        const cost = Math.abs(metrics.initialCashFlow as number); 
+    const filtered = strategiesWithFiniteProfit.filter(metrics => {
         const maxProfit = metrics.max_profit as number;
         
-        if (maxProfit <= 0 || cost <= 0) {
+        // 1. Descartar se o Lucro Máximo Bruto for zero ou negativo
+        if (maxProfit <= 0) {
             return false;
         }
 
-        // Filtro: Custo / Lucro Máximo deve ser menor ou igual ao limite (0.40)
-        return (cost / maxProfit) <= maxRatio;
+        let efficiencyRatio: number;
+
+        // 2. Definir a Razão de Eficiência com base na natureza da operação
+        if (metrics.natureza === 'DÉBITO') {
+            // DÉBITO: Custo Unitário / Lucro Máximo Unitário
+            const cost = Math.abs(metrics.cash_flow_bruto as number); // Usar o fluxo BRUTO (Custo/Prêmio)
+            if (cost <= 0) return false;
+            efficiencyRatio = cost / maxProfit; 
+        } else if (metrics.natureza === 'CRÉDITO' || metrics.natureza === 'NEUTRA') {
+            // CRÉDITO/NEUTRA: Risco Máximo Unitário / Lucro Máximo Unitário
+            const risk = Math.abs(metrics.margem_exigida as number); // margem_exigida = risco máximo unitário (positivo)
+            if (risk <= 0) return false; // Deve haver risco para a razão ser calculada
+            efficiencyRatio = risk / maxProfit;
+        } else {
+            return false; // Ignora operações de natureza desconhecida
+        }
+        
+        // 3. O Filtro: A Razão de Eficiência deve ser menor ou igual ao limite
+        return efficiencyRatio <= maxRatio;
     });
 
     return filtered;
@@ -164,21 +182,29 @@ async function runStrategyCalculator() {
         return;
     }
 
-    // 3. CAPTURA DA ESTRATÉGIA DESEJADA
+    // 3. CAPTURA DA ESTRATÉGIA DESEJADA E O FILTRO DE CUSTO/LUCRO
     console.log(`\nQual estratégia deseja analisar? (Selecione o número)`);
     Object.entries(strategyOptionsMap).forEach(([key, value]) => {
         console.log(`[${key}] ${value}`);
     });
     
     const strategyChoiceNumStr: string = await prompt(`Sua escolha (1-${Object.keys(strategyOptionsMap).length}): `);
-    rl.close(); 
-
     const strategyChoiceNum = parseInt(strategyChoiceNumStr);
     const chosenStrategy = strategyOptionsMap[strategyChoiceNum] || 'QUALQUER'; 
     
+    let MAX_COST_RATIO = 40; // Valor padrão 40%
+
+    // PERGUNTA O FILTRO DE EFICIÊNCIA SEMPRE
+    const ratioStr = await prompt(`\nQual é o CUSTO/RISCO MÁXIMO (em %) do Lucro Máximo desejado? (Padrão: 40) `);
+    const inputRatio = parseInt(ratioStr);
+    if (!isNaN(inputRatio) && inputRatio > 0) {
+        MAX_COST_RATIO = inputRatio;
+    }
+
     console.log(`\n[INFO] Ticker do Ativo: ${assetTicker}`);
     console.log(`[INFO] Preço do Ativo Subjacente: R$ ${CURRENT_ASSET_PRICE.toFixed(2)}`);
     console.log(`[INFO] Estratégia Escolhida: ${chosenStrategy}`);
+    console.log(`[INFO] Filtro Custo/Risco Máximo: ${MAX_COST_RATIO}%`);
     
     // 4. CARREGAR DADOS REAIS DO CSV
     console.log(`[INFO] Carregando dados do arquivo: ${CSV_FILE_PATH}`);
@@ -191,6 +217,7 @@ async function runStrategyCalculator() {
         
         if (filteredOptions.length === 0) {
             console.error(`[ERRO CRÍTICO] Nenhuma opção encontrada no CSV para o ativo: ${assetTicker}.`);
+            rl.close();
             return;
         }
 
@@ -202,6 +229,7 @@ async function runStrategyCalculator() {
         if (error instanceof Error) {
             console.error(`Detalhes: ${error.message}`);
         }
+        rl.close();
         return; 
     }
     
@@ -209,42 +237,55 @@ async function runStrategyCalculator() {
     const calculator = new PayoffCalculator(optionsData, FEE_PER_LEG, LOT_SIZE);
     let allCalculatedStrategies = calculator.findAndCalculateSpreads(CURRENT_ASSET_PRICE); 
     
-    // FILTRAGEM PELO TIPO ESCOLHIDO PELO USUÁRIO
-    if (chosenStrategy !== 'QUALQUER' && allCalculatedStrategies.length > 0) {
-        allCalculatedStrategies = allCalculatedStrategies.filter(s => s.name.toUpperCase().includes(chosenStrategy));
-        console.log(`[FILTRO] ${allCalculatedStrategies.length} estratégias do tipo ${chosenStrategy} encontradas.`);
-    }
-
     if (allCalculatedStrategies.length === 0) {
-        console.log("Nenhuma estratégia válida foi encontrada com os dados/filtro fornecidos.");
+        console.log("Nenhuma estratégia válida foi encontrada com os dados fornecidos.");
+        rl.close();
         return;
     }
 
-    // 6. Filtrar e Exibir a melhor Operação: 40% Custo/Ganho + Ranqueamento Risco/Retorno
+    // 5.1. FILTRAGEM PELO TIPO ESCOLHIDO PELO USUÁRIO.
+    if (chosenStrategy !== 'QUALQUER' && chosenStrategy !== 'OTIMIZAR') {
+        allCalculatedStrategies = allCalculatedStrategies.filter(s => s.name.toUpperCase().includes(chosenStrategy));
+        console.log(`[FILTRO TIPO] ${allCalculatedStrategies.length} estratégias do tipo ${chosenStrategy} encontradas.`);
+    }
+
+    // 6. Aplicar o Filtro Universal de Custo/Risco e Ranqueamento
     
-    const MAX_COST_RATIO = 40;
+    console.log(`\n[FILTRO C/R] Aplicando filtro de Custo/Risco Máximo (${MAX_COST_RATIO}%)...`);
+    
+    // 🎯 APLICAÇÃO UNIVERSAL DO FILTRO 🎯
     const costRatioCandidates = filterByCostRatio(allCalculatedStrategies, MAX_COST_RATIO); 
 
+    const filterTitle = `CUSTO/RISCO <= ${MAX_COST_RATIO}% DO LUCRO MÁXIMO (MELHOR RELAÇÃO)`;
+
     console.log("\n=====================================================================================");
-    console.log(`\t\t🥇 MELHOR ESTRATÉGIA: RANQUEADA PELO MELHOR RISCO-RETORNO (CUSTO/LUCRO) 🥇`); 
+    console.log(`\t\t🥇 MELHOR ESTRATÉGIA: RANQUEADA PELA MAIOR EFICIÊNCIA (RAZÃO) 🥇`); 
     console.log("=======================================================================================\n");
 
     if (costRatioCandidates.length > 0) {
         
-        // 🚨 ORDENAÇÃO CHAVE: PELO MELHOR RISCO/RETORNO (MENOR RATIO CUSTO/LUCRO) 🚨
+        // 🚨 ORDENAÇÃO CHAVE: PELO MELHOR RATIO DE EFICIÊNCIA (Custo/Lucro ou Risco/Lucro) 🚨
         costRatioCandidates.sort((a, b) => {
-            const aCost = Math.abs(a.initialCashFlow as number);
-            const aProfit = a.max_profit as number;
             
-            const bCost = Math.abs(b.initialCashFlow as number);
-            const bProfit = b.max_profit as number;
+            // Lógica de cálculo da razão para ranqueamento
+            const calculateRatio = (metrics: StrategyMetrics): number => {
+                const maxProfit = metrics.max_profit as number;
+                if (maxProfit <= 0) return Infinity;
 
-            // Calcula o Ratio Custo/Lucro para ranqueamento
-            // Quanto menor, melhor.
-            const aRatio = aProfit > 0 ? aCost / aProfit : Infinity; 
-            const bRatio = bProfit > 0 ? bCost / bProfit : Infinity;
+                if (metrics.natureza === 'DÉBITO') {
+                    const cost = Math.abs(metrics.cash_flow_bruto as number);
+                    return cost > 0 ? cost / maxProfit : Infinity;
+                } else if (metrics.natureza === 'CRÉDITO' || metrics.natureza === 'NEUTRA') {
+                    const risk = Math.abs(metrics.margem_exigida as number);
+                    return risk > 0 ? risk / maxProfit : Infinity;
+                }
+                return Infinity;
+            };
 
-            return aRatio - bRatio; // Ordenação crescente: o menor ratio (melhor) vai para o início
+            const aRatio = calculateRatio(a); 
+            const bRatio = calculateRatio(b);
+
+            return aRatio - bRatio; // Ordenação crescente: o menor ratio (melhor eficiência) vai para o início
         });
         
         const bestRatioStrategy = costRatioCandidates[0]; 
@@ -252,14 +293,15 @@ async function runStrategyCalculator() {
         // Calcula a curva de Payoff
         const curve = calculator.calculatePayoffCurve(bestRatioStrategy, CURRENT_ASSET_PRICE);
         
-        formatStrategyOutput(bestRatioStrategy, curve, `Custo <= ${MAX_COST_RATIO}% do Lucro Máximo (Melhor Risco/Retorno)`);
+        formatStrategyOutput(bestRatioStrategy, curve, filterTitle);
         
-        console.log(`[INFO] ${costRatioCandidates.length} estratégias atendem ao critério Custo/Ganho (${MAX_COST_RATIO}%).`);
+        console.log(`[INFO] ${costRatioCandidates.length} estratégias atendem ao critério de Custo/Risco.`);
     } else {
-        console.log(`Nenhuma estratégia de débito com lucro fixo atendeu ao critério Custo <= ${MAX_COST_RATIO}% do Ganho.`);
+        console.log(`Nenhuma estratégia atendeu ao critério de Custo/Risco Máximo (${MAX_COST_RATIO}%).`);
     }
     
     console.log("Processo de Análise de Estratégias Finalizado.");
+    rl.close();
 }
 
 runStrategyCalculator();
