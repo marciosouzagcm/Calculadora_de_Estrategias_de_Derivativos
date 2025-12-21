@@ -68,11 +68,13 @@ PERNAS (Lote: 1000):
 
 ```
 
-⚡ Instalação e UsoClonar e Instalar:Bashnpm install
+⚡ Instalação e Uso
 
-Modo Desenvolvimento:Bashnpm run dev
+Clonar e Instalar:Bash npm install
 
-Executar Testes de Gregas:Bashnpm test
+Modo Desenvolvimento:Bash npm run dev
+
+Executar Testes de Gregas:Bash npm test
 
 Aviso Legal: Esta ferramenta é para fins de estudo e análise técnica. 
 Operações com derivativos envolvem alto risco. Sempre valide seus cálculos antes de operar.
