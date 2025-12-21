@@ -1,84 +1,74 @@
-🚀 Calculadora de Estratégias de DerivativosUma aplicação robusta em TypeScript para cálculo, análise e otimização de estratégias com opções financeiras. É uma refatoração de um script Python, utilizando arquitetura modular e baseada em Programação Orientada a Objetos (POO).
+🚀 Calculadora de Estratégias de Derivativos
+
+Uma aplicação de alta performance para cálculo, análise e otimização de estratégias de opções. 
+O sistema processa grandes volumes de dados de mercado para identificar oportunidades com base em métricas reais, custos operacionais e sensibilidade grega.
+
+🎯 Visão Geral
+
+Esta calculadora transcende a teoria, integrando o modelo Black-Scholes com a realidade do mercado brasileiro. 
+Ela automatiza a busca por montagens lucrativas, descontando taxas e calculando a exposição direcional (Delta Net) em tempo real.
+
+🧠 Diferenciais da Versão V25Arquitetura POO Escalável: 
+
+Refatoração completa para TypeScript, permitindo a adição de novas estratégias via herança de classe.
+Integração de Gregas: Cálculo consolidado de Delta, Gamma, Theta e Vega por estratégia.
+Análise Líquida: Diferenciação real entre Fluxo Bruto e Lucro/Prejuízo Líquido (incluindo taxas por perna).
+Motor de ROI: Filtro avançado que prioriza estratégias com o melhor retorno sobre o risco.
 
 
-🎯 Objetivo do ProjetoCarregar dados de opções (arquivo CSV), identificar montagens válidas de estratégias e calcular métricas financeiras essenciais para suportar decisões de investimento.Estratégias Suportadas (Implementadas)Spreads Verticais (Bull/Bear Call/Put)Butterfly Spreads (Long Call/Put)Straddle Spreads (Long/Short)Calendar Spreads (Trava Horizontal de Linha - THL)Strangle SpreadsCondor Spreads
-
-
-📊 Métricas Financeiras CalculadasMétricaDescriçãoFluxo de Caixa (Bruto)Custo ou receita total apenas dos prêmios (sem taxas).DESEMBOLSO TOTALCusto real da montagem (Prêmios $\pm$ Taxas) — Base para Risco Máximo Líquido.Lucro Máximo (Líquido)Ganho teórico máximo da estratégia descontado das taxas.Risco Máximo (Líquido)Prejuízo teórico máximo, igual ao DESEMBOLSO TOTAL (para estratégias de débito limitadas).BreakevensPreços onde o P/L é zero.Gregas LíquidasDelta, Gamma, Theta, Vega agregados (Black-Scholes).Score de OtimizaçãoMétrica Risco/Retorno ajustada por probabilidade e liquidez.
-
-
-📚 Conceitos EssenciaisO que são Opções?Derivativos que conferem ao titular o direito (não obrigação) de comprar ou vender um ativo subjacente a um preço predeterminado (Strike) em data específica (Vencimento).CALL: Opção de compraPUT: Opção de vendaEstratégias com Opções (Spreads)Combinação de duas ou mais operações para atingir um perfil de risco/recompensa específico.Spreads Verticais (Travas): Mesma data de vencimento, Strikes diferentes (limita risco e lucro).Calendar Spread (Trava Horizontal): Mesmo Strike, Vencimentos diferentes (lucra com a passagem do tempo, Theta).Straddle/Strangle: Envolvem compra/venda de Call e Put, ideais para alta ou baixa volatilidade.
-
-
-🗂️ Arquitetura do CódigoA arquitetura modular é ideal para adicionar novas estratégias (p. ex., RatioSpread.ts) e cálculos (p. ex., volatilidade).src/
-├── interfaces/
-│   ├── Derivative.ts       # Tipagens: OptionLeg, StrategyMetrics, Greeks
-│   └── IStrategy.ts        # Interface base para estratégias
-├── services/
-│   ├── BlackScholesModel.ts     # Cálculo teórico de preço e Gregas
-│   ├── StrategyFilter.ts        # Filtragem por critérios (Delta, Prêmio, Custo/Lucro)
-│   ├── OptionsDataProcessor.ts  # Leitura e limpeza do CSV
-│   ├── csvReader.ts             # Leitura do CSV
-│   └── PayoffCalculator.ts      # Orquestração de cálculos
-├── strategies/
-│   ├── VerticalSpread.ts        
-│   ├── ButterflySpread.ts        
-│   ├── StraddleSpread.ts        
-│   ├── CalendarSpread.ts        # NOVO: Trava Horizontal de Linha
-│   ├── StrangleSpread.ts        
-│   └── CondorSpread.ts
-├── utils/
-│   └── FinancialUtils.ts        
-├── index.ts                     # Ponto de entrada (CLI)
-└── firebase.ts                  
-tests/
-└── strategies.test.ts 
-
-
-Descrição dos Arquivos Chave (Atualizada)ArquivoResponsabilidadeIStrategy.tsInterface base — todas as estratégias implementam calculateMetrics(spotPrice).BlackScholesModel.tsPreço teórico e Gregas (Delta, Gamma, Theta, Vega) de uma opção.StrategyFilter.tsRefina estratégias por Delta líquido, prêmio e Relação Custo/Lucro.PayoffCalculator.tsOrquestrador: busca montagens, calcula todas as estratégias, incorpora custos operacionais.index.tsFluxo principal, interação com usuário, relatório final ajustado para valores líquidos.
-
-
-🛠️ Instalação e ExecuçãoPré-requisitosNode.js (v16+)npm ou yarnts-node (para execução rápida de desenvolvimento)Passo 1: Instalar DependênciasBashnpm install
-Passo 2: Preparar DadosCertifique-se de que o arquivo opcoes_final_tratado.csv está na raiz do projeto.Passo 3: Compilar e Executar (Modo Produção)Bashnpm run build
-node dist/index.js
-Passo 4: Executar (Modo Desenvolvimento)É o método utilizado nos exemplos, que executa o TypeScript diretamente:Bashnpm run dev
-# Equivalente a: npx ts-node src/index.ts
-O aplicativo solicitará o Ticker do ativo e o Tipo de estratégia a ser analisada.📦 Scripts DisponíveisJSON{
-  "build": "tsc",
-  "dev": "ts-node src/index.ts",
-  "test": "jest",
-  "process-csv": "npx ts-node src/processador_opcoes.ts",
-  "serve-src": "npx serve src"
-}
+🛠️ Estratégias SuportadasCategoriaEstratégias ImplementadasPerfil de RiscoDirecionaisBull/Bear Call Spread, Bull/Bear Put SpreadRisco LimitadoVolatilidadeLong/Short Straddle, Long/Short StrangleExplosão de Vol / LateralidadeRenda/TempoCalendar Spread (THL), Iron CondorDecaimento do ThetaEstruturadasButterfly Spread, Iron ButterflyAlvo de Preço Específico
 
 
 
-📖 Exemplo de Saída (Ajustada)======================================================
-                        📊 LONG CALENDAR SPREAD (DÉBITO) 📊
-======================================================
-Ativo Subjacente:              BBAS3
-...
-Taxas Totais (Estimado):       R$ 44.00
+📊 Métricas e Inteligência Financeira
 
---- FLUXO DE CAIXA ---
-Fluxo de Caixa (Prêmios):      R$ -25.00 (Custo Bruto)
-DESEMBOLSO TOTAL (CUSTO):      R$ 69.00  <-- Custo Real da Montagem
+A calculadora fornece um relatório detalhado para cada montagem encontrada:
 
---- RISCO E RETORNO (Líquido de Taxas) ---
-Lucro Máximo (Líquido):        R$ 18.50  <-- Ganho Máximo Real
-Prejuízo Máximo (Risco Total): R$ 69.00  <-- Risco Máximo Real
-
---- PONTOS CHAVE ---
-Breakeven Point 1:             R$ 20.82
-Breakeven Point 2:             R$ 21.57
-...
+Delta Net: Indica se a estratégia é "Altista", "Baixista" ou "Delta Neutra".
+Theta Net: Mede o impacto diário da passagem do tempo no valor da montagem.
+ROI Real: Cálculo baseado no capital em risco, já descontando FEE_PER_LEG.Break-Even Points: Identificação exata dos pontos de equilíbrio no vencimento.
 
 
+🏗️ Arquitetura do SistemaO projeto segue princípios de Clean Code e Solid, facilitando a expansão para módulos Web:Plaintextsrc/
+├── 📂 interfaces/      # Definições rigorosas (StrategyMetrics, OptionLeg, Greeks)
+├── 📂 strategies/      # Lógica isolada de cada spread (POO)
+├── 📂 services/        # Orquestradores: PayoffCalculator, csvReader
+├── 📂 utils/           # Formatadores e utilitários matemáticos
+└── index.ts            # Ponto de entrada CLI (V25)
 
-📝 Notas ImportantesOs cálculos de Gregas utilizam o modelo Black-Scholes para precisão teórica.A aplicação assume opções estilo europeu (exercício apenas no vencimento).Taxas e custos operacionais (FEE_PER_LEG) são cruciais e estão corretamente integrados nos cálculos de Risco/Retorno Líquido e Desembolso Total.O filtro de otimização prioriza a menor relação Custo/Lucro Bruto entre as estratégias de débito.
 
-🚀 Próximas Melhorias[ ] Suporte a estratégias complexas de 4 pernas (Iron Condor, Ratio Spread)[ ] Interface web com React/TypeScript[ ] Integração com APIs de cotações em tempo real[ ] Dashboard de análise interativa e gráfico de PayoffGetty Images[ ] Exportação de relatórios (PDF/Excel)
+📖 Exemplo de Saída Real (ABEV3)Abaixo, um exemplo da saída gerada pelo sistema para uma operação de Straddle:Plaintext[#1] LONG STRADDLE (DÉBITO) (STRADDLE)
+
+--------------------------------------------------------------------------------
+Vencimento: 2026-01-16    | Natureza: DÉBITO      | ROI: ∞ (ILIMITADO)
+Delta Net:   0.00 | Theta Net:  -0.0145 | Taxa Total Operação: R$ 44,00
+Break-Even Points: 11.85 / 13.55
+Fluxo Inicial (Lote): -R$ 850,00 | Lucro Máx Líq: ILIMITADO
+Risco Máximo Total:   R$ 894,00
+
+PERNAS (Lote: 1000):
+  Sentido | Espécie | Símbolo           | Strike  | Prêmio (Un) | Delta Un.
+  [C]     | CALL    | ABEVA134          |   12.70 |        0.76 | 0.00
+  [C]     | PUT     | ABEVM134          |   12.70 |        0.09 | 0.00
+
+--------------------------------------------------------------------------------
+
+📅 Roadmap de Desenvolvimento
 
 
+[x] Refatoração para TypeScript e POO.
+[x] Integração de Gregas Consolidadas.
+[x] Sistema de filtragem por ROI e Lote.
+[ ] Fase 3 (Próxima): Implementação de Mock API (Express) para servir dados.
+[ ] Fase 4: Interface Gráfica (React + Tailwind) com Gráficos de Payoff dinâmicos.
+[ ] Fase 5: Integração com WebSockets para cotações em tempo real.
 
-📧 SuportePara dúvidas ou sugestões, abra uma issue ou entre em contato.Licença: ISC  Versão: 1.0.1 (Após correção do Risco/Retorno Líquido)
+
+⚡ Instalação e UsoClonar e Instalar:Bashnpm install
+
+Modo Desenvolvimento:Bashnpm run dev
+
+Executar Testes de Gregas:Bashnpm test
+
+Aviso Legal: Esta ferramenta é para fins de estudo e análise técnica. 
+Operações com derivativos envolvem alto risco. Sempre valide seus cálculos antes de operar.

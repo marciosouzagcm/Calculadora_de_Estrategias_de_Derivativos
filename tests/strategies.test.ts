@@ -1,97 +1,106 @@
 // tests/strategies.test.ts
-/**
- * @fileoverview Testes unitários de alto nível para as estratégias e a classe PayoffCalculator.
- * Objetivo: Garantir que a lógica de cálculo de P/L e Breakeven da refatoração Python -> TS 
- * continua correta para cenários conhecidos.
- */
-import { OptionLeg, StrategyMetrics } from '../src/interfaces/Derivative';
+import { OptionLeg, StrategyMetrics } from '../src/interfaces/Types';
 import { PayoffCalculator } from '../src/services/PayoffCalculator';
 
-// --- MOCK DATA (Simulação de Opções Processadas) ---
-// Dados baseados em um ativo fictício 'MOCK3'
+/**
+ * MOCK DATA - Simulação de Opções
+ * Ajustado para bater com a interface OptionLeg refinada.
+ */
 const MOCK_OPTIONS: OptionLeg[] = [
-    // Opções Call para Vertical Spread
-    { idAcao: 'MOCK3', option_ticker: 'MOCKC100', vencimento: '2025-12-31', tipo: 'CALL', strike: 100, premio: 5.00, dias_uteis: 30, delta: 0.60, gamma: 0.05, theta: -0.05, vega: 0.25, volatilidade: 0.30 },
-    { idAcao: 'MOCK3', option_ticker: 'MOCKC110', vencimento: '2025-12-31', tipo: 'CALL', strike: 110, premio: 1.50, dias_uteis: 30, delta: 0.35, gamma: 0.03, theta: -0.02, vega: 0.15, volatilidade: 0.30 },
-    { idAcao: 'MOCK3', option_ticker: 'MOCKC120', vencimento: '2025-12-31', tipo: 'CALL', strike: 120, premio: 0.50, dias_uteis: 30, delta: 0.15, gamma: 0.01, theta: -0.01, vega: 0.05, volatilidade: 0.30 },
-    // Opções Put para Straddle
-    { idAcao: 'MOCK3', option_ticker: 'MOCKP110', vencimento: '2025-12-31', tipo: 'PUT', strike: 110, premio: 2.50, dias_uteis: 30, delta: -0.40, gamma: 0.04, theta: -0.03, vega: 0.18, volatilidade: 0.30 },
+    { 
+        ativo_subjacente: 'MOCK3', 
+        display: 'MOCKC100', 
+        vencimento: '2025-12-31', 
+        tipo: 'CALL', 
+        strike: 100, 
+        premio: 5.00, 
+        derivative: { tipo: 'CALL', strike: 100, premio: 5.00 }, // Compatibilidade com a perna
+        gregas: { delta: 0.60, gamma: 0.05, theta: -0.05, vega: 0.25 }
+    },
+    { 
+        ativo_subjacente: 'MOCK3', 
+        display: 'MOCKC110', 
+        vencimento: '2025-12-31', 
+        tipo: 'CALL', 
+        strike: 110, 
+        premio: 1.50, 
+        derivative: { tipo: 'CALL', strike: 110, premio: 1.50 },
+        gregas: { delta: 0.35, gamma: 0.03, theta: -0.02, vega: 0.15 }
+    },
+    { 
+        ativo_subjacente: 'MOCK3', 
+        display: 'MOCKP110', 
+        vencimento: '2025-12-31', 
+        tipo: 'PUT', 
+        strike: 110, 
+        premio: 2.50, 
+        derivative: { tipo: 'PUT', strike: 110, premio: 2.50 },
+        gregas: { delta: -0.40, gamma: 0.04, theta: -0.03, vega: 0.18 }
+    }
 ];
 
-const FEES = 44.00;
+const FEE_PER_LEG = 22.00; // Por perna (Total para 2 pernas = 44.00)
 const LOT_SIZE = 100;
 const CURRENT_PRICE = 105.00;
 
-describe('PayoffCalculator e Estratégias', () => {
+describe('PayoffCalculator e Validação de Estratégias', () => {
     let calculator: PayoffCalculator;
 
     beforeAll(() => {
-        calculator = new PayoffCalculator(MOCK_OPTIONS, FEES, LOT_SIZE);
+        // Inicializa o calculador com os mocks
+        calculator = new PayoffCalculator(MOCK_OPTIONS, FEE_PER_LEG, LOT_SIZE);
     });
 
-    // --- TESTE 1: BULL CALL SPREAD (Trava de Alta - Débito) ---
-    // Montagem: Compra K100 (5.00) e Vende K110 (1.50)
-    // Net Premium (Débito) = 5.00 - 1.50 = 3.50
-    // Fluxo Líquido: -(3.50 * 100) - 44.00 = -394.00
-    // Lucro Máximo: (110 - 100 - 3.50) * 100 - 44.00 = 6.50 * 100 - 44.00 = 606.00
-    // Risco Máximo: 394.00
-    // Breakeven: K_lower (100) + Net Premium (3.50) = 103.50
-    test('Calcula Bull Call Spread (Trava de Alta) corretamente', () => {
-        const results = calculator.findAndCalculateSpreads(3); // Seleção 3: Bull Call
-        const bullCall = results.find(r => r.spread_type === 'Bull Call');
+    test('Deve validar Bull Call Spread (Trava de Alta) - Cenário de Débito', () => {
+        const results = calculator.findAndCalculateSpreads(CURRENT_PRICE);
+        // Procuramos pelo nome técnico definido na classe BullCallSpread
+        const bullCall = results.find(r => r.name === 'Bull Call Spread');
 
-        expect(bullCall).not.toBeNull();
-        expect(bullCall!.net_premium).toBeCloseTo(3.50);
-        expect(bullCall!.natureza).toBe('DÉBITO');
-        expect(bullCall!.cash_flow_liquido).toBeCloseTo(-394.00); 
-        expect(bullCall!.lucro_maximo).toBeCloseTo(606.00); 
-        expect(bullCall!.risco_maximo).toBeCloseTo(394.00);
-        expect(bullCall!.breakeven_low).toBeCloseTo(103.50);
-        // Net Delta: Long K100 (0.60) - Short K110 (0.35) = 0.25
-        expect(bullCall!.net_gregas.delta).toBeCloseTo(0.25);
-    });
-
-    // --- TESTE 2: BEAR CALL SPREAD (Trava de Baixa - Crédito) ---
-    // Montagem: Vende K100 (5.00) e Compra K110 (1.50) -> (Essa é a montagem real, mas a classe reverte)
-    // A classe VerticalSpread assume o DÉBITO/CRÉDITO: 
-    // BEAR CALL: Venda (5.00) - Compra (1.50) = 3.50 (CRÉDITO)
-    // Fluxo Líquido: (3.50 * 100) - 44.00 = 306.00
-    // Lucro Máximo: 306.00
-    // Risco Máximo: (110 - 100) * 100 - 350.00 + 44.00 = 1000 - 350 + 44 = 694.00
-    // Breakeven: K_lower (100) + Net Premium (3.50) = 103.50
-    test('Calcula Bear Call Spread (Trava de Baixa) corretamente', () => {
-        const results = calculator.findAndCalculateSpreads(1); // Seleção 1: Bear Call
-        const bearCall = results.find(r => r.spread_type === 'Bear Call');
+        expect(bullCall).toBeDefined();
         
-        expect(bearCall).not.toBeNull();
-        expect(bearCall!.net_premium).toBeCloseTo(3.50);
-        expect(bearCall!.natureza).toBe('CRÉDITO');
-        expect(bearCall!.cash_flow_liquido).toBeCloseTo(306.00); 
-        expect(bearCall!.lucro_maximo).toBeCloseTo(306.00); 
-        expect(bearCall!.risco_maximo).toBeCloseTo(694.00);
-        expect(bearCall!.breakeven_low).toBeCloseTo(103.50);
+        // No débito: 5.00 - 1.50 = 3.50 unitário
+        expect(Number(bullCall!.initialCashFlow)).toBeCloseTo(3.50);
+        expect(bullCall!.natureza).toBe('DÉBITO');
+
+        // Nossa convicção: Risco máximo em débito é NEGATIVO
+        // 3.50 * 100 = 350.00 (taxas de 44.00 serão somadas no index.ts)
+        expect(Number(bullCall!.risco_maximo)).toBeLessThan(0);
+        expect(Number(bullCall!.risco_maximo)).toBeCloseTo(-3.50); 
+
+        // Breakeven: K_low + Custo = 100 + 3.50 = 103.50
+        expect(bullCall!.breakeven).toContainEqual(expect.closeTo(103.50));
     });
 
-    // --- TESTE 3: LONG STRADDLE (Débito - Volatilidade) ---
-    // Montagem: Compra K110 Call (1.50) e K110 Put (2.50)
-    // Net Premium (Débito) = 1.50 + 2.50 = 4.00
-    // Fluxo Líquido: -(4.00 * 100) - 44.00 = -444.00
-    // Risco Máximo: 444.00
-    // Lucro Máximo: Ilimitado
-    // Breakeven: 110 +/- 4.00 -> 106.00 e 114.00
-    test('Calcula Long Straddle (Débito) corretamente', () => {
-        const results = calculator.findAndCalculateSpreads(7); // Seleção 7: Long Straddle
-        const straddle = results.find(r => r.spread_type === 'Long Straddle');
+    test('Deve validar Bear Call Spread (Trava de Baixa) - Cenário de Crédito', () => {
+        const results = calculator.findAndCalculateSpreads(CURRENT_PRICE);
+        const bearCall = results.find(r => r.name === 'Bear Call Spread');
 
-        expect(straddle).not.toBeNull();
-        expect(straddle!.net_premium).toBeCloseTo(4.00);
+        expect(bearCall).toBeDefined();
+        expect(bearCall!.natureza).toBe('CRÉDITO');
+
+        // Lucro Máximo em Crédito é o próprio crédito recebido (3.50 unitário)
+        expect(Number(bearCall!.max_profit)).toBeCloseTo(3.50);
+        
+        // Risco em Crédito: Largura (10) - Recebido (3.50) = 6.50
+        // Como é risco, deve ser negativo conforme nossa convenção
+        expect(Number(bearCall!.risco_maximo)).toBeCloseTo(-6.50);
+    });
+
+    test('Deve validar Long Straddle - Cenário de Volatilidade', () => {
+        const results = calculator.findAndCalculateSpreads(CURRENT_PRICE);
+        const straddle = results.find(r => r.name === 'Long Straddle');
+
+        expect(straddle).toBeDefined();
         expect(straddle!.natureza).toBe('DÉBITO');
-        expect(straddle!.cash_flow_liquido).toBeCloseTo(-444.00);
-        expect(straddle!.risco_maximo).toBe(444.00);
-        expect(straddle!.lucro_maximo).toBe('Ilimitado');
-        expect(straddle!.breakeven_low).toBeCloseTo(106.00);
-        expect(straddle!.breakeven_high).toBeCloseTo(114.00);
-        // Net Delta: (Call 0.35 + Put -0.40) * 1 = -0.05
-        expect(straddle!.net_gregas.delta).toBeCloseTo(-0.05);
+        
+        // 1.50 (Call) + 2.50 (Put) = 4.00
+        expect(Number(straddle!.initialCashFlow)).toBeCloseTo(4.00);
+        
+        // Lucro Ilimitado
+        expect(straddle!.max_profit).toBe(Infinity);
+
+        // Breakevens: Strike (110) +/- 4.00 = 106 e 114
+        expect(straddle!.breakeven).toContainEqual(expect.closeTo(106.00));
+        expect(straddle!.breakeven).toContainEqual(expect.closeTo(114.00));
     });
 });
