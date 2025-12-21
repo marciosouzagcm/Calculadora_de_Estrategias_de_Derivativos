@@ -29,13 +29,16 @@ Theta Net: Mede o impacto diário da passagem do tempo no valor da montagem.
 ROI Real: Cálculo baseado no capital em risco, já descontando FEE_PER_LEG.Break-Even Points: Identificação exata dos pontos de equilíbrio no vencimento.
 
 
-🏗️ Arquitetura do SistemaO projeto segue princípios de Clean Code e Solid, facilitando a expansão para módulos Web:Plaintextsrc/
+🏗️ Arquitetura do SistemaO projeto segue princípios de Clean Code e Solid, facilitando a expansão para módulos 
+
+```text
+Web:Plaintextsrc/
 ├── 📂 interfaces/      # Definições rigorosas (StrategyMetrics, OptionLeg, Greeks)
 ├── 📂 strategies/      # Lógica isolada de cada spread (POO)
 ├── 📂 services/        # Orquestradores: PayoffCalculator, csvReader
 ├── 📂 utils/           # Formatadores e utilitários matemáticos
 └── index.ts            # Ponto de entrada CLI (V25)
-
+```
 
 📖 Exemplo de Saída Real (ABEV3)Abaixo, um exemplo da saída gerada pelo sistema para uma operação de Straddle:Plaintext[#1] LONG STRADDLE (DÉBITO) (STRADDLE)
 
@@ -52,7 +55,7 @@ PERNAS (Lote: 1000):
   [C]     | PUT     | ABEVM134          |   12.70 |        0.09 | 0.00
 
 --------------------------------------------------------------------------------
-
+```text
 📅 Roadmap de Desenvolvimento
 
 
@@ -63,6 +66,7 @@ PERNAS (Lote: 1000):
 [ ] Fase 4: Interface Gráfica (React + Tailwind) com Gráficos de Payoff dinâmicos.
 [ ] Fase 5: Integração com WebSockets para cotações em tempo real.
 
+```
 
 ⚡ Instalação e UsoClonar e Instalar:Bashnpm install
 
