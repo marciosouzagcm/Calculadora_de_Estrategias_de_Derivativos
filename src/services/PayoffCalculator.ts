@@ -1,10 +1,12 @@
 import { IStrategy } from '../interfaces/IStrategy';
 import {
+    Greeks,
     OptionLeg,
     ProfitLossValue,
-    StrategyMetrics,
-    Greeks
+    StrategyMetrics
 } from '../interfaces/Types';
+
+import { BlackScholes } from './BlackScholes';
 
 // Importações das estratégias
 import { BearCallSpread } from '../strategies/BearCallSpread';
@@ -47,8 +49,6 @@ export class PayoffCalculator {
         this.feePerLeg = feePerLeg;
         this.lotSize = lotSize;
     }
-
-    // --- Métodos de Combinação (Mantidos conforme sua lógica) ---
 
     private findTwoLegCombinationsSameType(options: OptionLeg[], targetType: 'CALL' | 'PUT'): OptionLeg[][] {
         const combinations: OptionLeg[][] = [];
@@ -107,44 +107,62 @@ export class PayoffCalculator {
         return combinations;
     }
 
-    // --- Lógica de Consolidação e Normalização ---
+    private calculateNetGreeks(metrics: StrategyMetrics, currentAssetPrice: number): Greeks {
+        const SELIC = 0.1075;
 
-    /**
-     * Consolida as gregas das pernas individuais para a estratégia total
-     */
-    private calculateNetGreeks(metrics: StrategyMetrics): Greeks {
         return metrics.pernas.reduce((acc, leg) => {
             const factor = leg.direction === 'COMPRA' ? 1 : -1;
-            const unit = leg.derivative.gregas_unitarias;
+            const strikeSafe = leg.derivative.strike ?? 0;
+            let deltaEfetivo = leg.derivative.gregas_unitarias.delta ?? 0;
+
+            if (leg.derivative.tipo === 'CALL' || leg.derivative.tipo === 'PUT') {
+                if (Math.abs(deltaEfetivo) < 0.001 && strikeSafe > 0) {
+                    const tempoAnos = (leg.derivative.dias_uteis || 1) / 252;
+                    const volSafe = (leg.derivative.vol_implicita && leg.derivative.vol_implicita > 0) 
+                                    ? leg.derivative.vol_implicita : 0.35;
+
+                    deltaEfetivo = BlackScholes.calculateDelta(
+                        currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC, leg.derivative.tipo
+                    );
+                    (leg.derivative.gregas_unitarias as any).delta = deltaEfetivo;
+                }
+            } else if (leg.derivative.tipo === 'SUBJACENTE') {
+                deltaEfetivo = 1;
+                (leg.derivative.gregas_unitarias as any).delta = 1;
+            }
 
             return {
-                delta: (acc.delta ?? 0) + ((unit.delta ?? 0) * factor),
-                gamma: (acc.gamma ?? 0) + ((unit.gamma ?? 0) * factor),
-                theta: (acc.theta ?? 0) + ((unit.theta ?? 0) * factor),
-                vega: (acc.vega ?? 0) + ((unit.vega ?? 0) * factor),
+                delta: (acc.delta ?? 0) + (deltaEfetivo * factor),
+                gamma: (acc.gamma ?? 0) + ((leg.derivative.gregas_unitarias.gamma ?? 0) * factor),
+                theta: (acc.theta ?? 0) + ((leg.derivative.gregas_unitarias.theta ?? 0) * factor),
+                vega: (acc.vega ?? 0) + ((leg.derivative.gregas_unitarias.vega ?? 0) * factor),
             };
         }, { delta: 0, gamma: 0, theta: 0, vega: 0 } as Greeks);
     }
 
-    private normalizeMetrics(metrics: StrategyMetrics): StrategyMetrics {
-        // 1. Ajuste de Sinais para Débito
+    private normalizeMetrics(metrics: StrategyMetrics, currentAssetPrice: number): StrategyMetrics {
         if (metrics.natureza === 'DÉBITO') {
             const absLoss = Math.abs(Number(metrics.max_loss));
             metrics.max_loss = -absLoss as ProfitLossValue;
             metrics.risco_maximo = -absLoss as ProfitLossValue;
         }
 
-        // 2. Garantir preenchimento dos campos do seu Types.ts
         metrics.initialCashFlow = metrics.initialCashFlow ?? metrics.net_premium;
         metrics.breakEvenPoints = metrics.breakEvenPoints ?? [];
-        
-        // 3. Consolidar Gregas
-        metrics.greeks = this.calculateNetGreeks(metrics);
+        metrics.greeks = this.calculateNetGreeks(metrics, currentAssetPrice);
+
+        // Cálculo R:R (Risco/Retorno)
+        const risco = Math.abs(Number(metrics.risco_maximo || 0));
+        let lucro = 0;
+        if (typeof metrics.max_profit === 'number') lucro = metrics.max_profit;
+        else if (metrics.max_profit === 'Ilimitado') lucro = 999999; // Representação de infinito
+
+        (metrics as any).riskRewardRatio = lucro > 0 ? parseFloat((risco / lucro).toFixed(2)) : 99;
 
         return metrics;
     }
 
-    public findAndCalculateSpreads(currentAssetPrice: number): StrategyMetrics[] {
+    public findAndCalculateSpreads(currentAssetPrice: number, maxRR: number = 0.5): StrategyMetrics[] {
         const strategiesToRun = SPREAD_MAP[0];
         let results: StrategyMetrics[] = [];
 
@@ -155,7 +173,6 @@ export class PayoffCalculator {
 
         for (const sObj of strategiesToRun) {
             let combos: OptionLeg[][] = [];
-            
             if (sObj.strategy instanceof BullCallSpread || sObj.strategy instanceof BearCallSpread) combos = sameCall;
             else if (sObj.strategy instanceof BullPutSpread || sObj.strategy instanceof BearPutSpread) combos = samePut;
             else if (sObj.strategy instanceof LongStraddle || sObj.strategy instanceof ShortStraddle) combos = sameStrike;
@@ -165,8 +182,11 @@ export class PayoffCalculator {
                 try {
                     const res = sObj.strategy.calculateMetrics(combo, currentAssetPrice, this.feePerLeg);
                     if (res) {
-                        // Aplica as convicções de sinal e soma as gregas
-                        results.push(this.normalizeMetrics(res));
+                        const normalized = this.normalizeMetrics(res, currentAssetPrice);
+                        // Aplica o filtro de Risco/Retorno
+                        if ((normalized as any).riskRewardRatio <= maxRR) {
+                            results.push(normalized);
+                        }
                     }
                 } catch (e) {}
             }
