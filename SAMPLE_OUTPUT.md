@@ -1,99 +1,162 @@
 ```text
-  C:\Users\DELL\Calculadora_de_Estrategias_de_Derivativos\src>ts-node index.ts
+C:\Users\DELL\Calculadora_de_Estrategias_de_Derivativos\src>ts-node index.ts
 
 ====================================================
-   ANALISADOR DE ESTRATÉGIAS PROFISSIONAL V25
+    ANALISADOR DE ASSIMETRIA PROFISSIONAL V37.1
 ====================================================
-Ativo (Ex: PETR4): ABEV3
-Preço Atual do Ativo: 13,28
-ROI Mínimo Desejado %: 30
-Tamanho do Lote (Ex: 1000): 1000
+Ativo: ITUB4
+Preço Atual: 33,56
+Risco Máximo: 0.20
+Lote: 1000
 
-[SUCESSO] Foram encontradas 6 estratégias para ABEV3:
+>>> CATEGORIA: EXPLOSÃO
 
-[#1] LONG STRADDLE (DÉBITO) (STRADDLE)
+[#1] LONG STRADDLE (DÉBITO) | R:R Alvo: 0:1
 --------------------------------------------------------------------------------
-Vencimento: 2026-01-16   | Natureza: DÉBITO     | ROI: ∞ (ILIMITADO)
-Delta Net:   0.00 | Theta Net:  -0.0145 | Taxa Total Operação: R$ 44,00
-Break-Even Points: 11.85 / 13.55
-Fluxo Inicial (Lote): -R$ 850,00 | Lucro Máx Líq: ILIMITADO
-Risco Máximo Total:   R$ 894,00
+DETALHAMENTO DE TAXAS (LOTE 1000):
+  Entrada: R$ 44,00 | Reversão (Saída): R$ 44,00 | Ciclo Total: R$ 88,00
 
-PERNAS (Lote: 1000):
-  Sentido | Espécie | Símbolo           | Strike  | Prêmio (Un) | Delta Un.
-  [C]     | CALL    | ABEVA134          |   12.70 |        0.76 | 0.00
-  [C]     | PUT     | ABEVM134          |   12.70 |        0.09 | 0.00
---------------------------------------------------------------------------------
+ALVOS PARA 0 A 0 (PAGAR IDA + VOLTA):
+  > O conjunto deve valorizar até: R$ 3.43/un
 
-[#2] LONG STRANGLE (DÉBITO) (STRANGLE)
---------------------------------------------------------------------------------
-Vencimento: 2026-01-16   | Natureza: DÉBITO     | ROI: ∞ (ILIMITADO)
-Delta Net:   0.00 | Theta Net:  -0.0167 | Taxa Total Operação: R$ 44,00
-Break-Even Points: 12.05 / 13.55
-Fluxo Inicial (Lote): -R$ 650,00 | Lucro Máx Líq: ILIMITADO
-Risco Máximo Total:   R$ 694,00
+RESUMO FINANCEIRO:
+  Vencimento: 2026-02-20 | ROI: ∞
+  Lucro Máx Líq: ILIMITADO    | Risco Total: R$ 3.384,00
+  Break-Even: 35.06 / 41.74
 
-PERNAS (Lote: 1000):
-  Sentido | Espécie | Símbolo           | Strike  | Prêmio (Un) | Delta Un.
-  [C]     | PUT     | ABEVM134          |   12.70 |        0.09 | 0.00
-  [C]     | CALL    | ABEVA136          |   12.90 |        0.56 | 0.00
+GREGAS (NET) & RISCO:
+  Delta Net:   0.28 | Theta Net:  -0.0415
+  STOP LOSS SUGERIDO: -R$ 1.736,00 (Incluindo reversão)
+
+PERNAS:
+  [C] | CALL  | ITUBB406   | STK:  38.40 | PRM: R$    2.49
+  [C] | PUT   | ITUBN406   | STK:  38.40 | PRM: R$    0.85
 --------------------------------------------------------------------------------
 
-[#3] BULL CALL SPREAD (DÉBITO) (VERTICAL CALL)
+[#2] LONG STRADDLE (DÉBITO) | R:R Alvo: 0:1
 --------------------------------------------------------------------------------
-Vencimento: 2026-01-16   | Natureza: DÉBITO     | ROI: 218.88%
-Delta Net:  -0.04 | Theta Net:  -0.0066 | Taxa Total Operação: R$ 44,00
-Break-Even Points: 13.44
-Fluxo Inicial (Lote): -R$ 740,00 | Lucro Máx Líq: R$ 1.716,00
-Risco Máximo Total:   R$ 784,00
+DETALHAMENTO DE TAXAS (LOTE 1000):
+  Entrada: R$ 44,00 | Reversão (Saída): R$ 44,00 | Ciclo Total: R$ 88,00
 
-PERNAS (Lote: 1000):
-  Sentido | Espécie | Símbolo           | Strike  | Prêmio (Un) | Delta Un.
-  [C]     | CALL    | ABEVA134          |   12.70 |        0.76 | 0.00
-  [V]     | CALL    | ABEVA158          |   15.20 |        0.02 | 0.04
---------------------------------------------------------------------------------
+ALVOS PARA 0 A 0 (PAGAR IDA + VOLTA):
+  > O conjunto deve valorizar até: R$ 3.38/un
 
-[#4] BULL PUT SPREAD (CRÉDITO) (VERTICAL PUT)
---------------------------------------------------------------------------------
-Vencimento: 2026-01-16   | Natureza: CRÉDITO    | ROI: 141.78%
-Delta Net:  -0.00 | Theta Net:  -0.0037 | Taxa Total Operação: R$ 44,00
-Break-Even Points: 13.69
-Fluxo Inicial (Lote): R$ 1.510,00 | Lucro Máx Líq: R$ 1.466,00
-Risco Máximo Total:   R$ 1.034,00
+RESUMO FINANCEIRO:
+  Vencimento: 2026-02-20 | ROI: ∞
+  Lucro Máx Líq: ILIMITADO    | Risco Total: R$ 3.334,00
+  Break-Even: 34.91 / 41.49
 
-PERNAS (Lote: 1000):
-  Sentido | Espécie | Símbolo           | Strike  | Prêmio (Un) | Delta Un.
-  [V]     | PUT     | ABEVM158          |   15.20 |        1.60 | 0.00
-  [C]     | PUT     | ABEVM134          |   12.70 |        0.09 | 0.00
+GREGAS (NET) & RISCO:
+  Delta Net:   0.30 | Theta Net:  -0.0415
+  STOP LOSS SUGERIDO: -R$ 1.711,00 (Incluindo reversão)
+
+PERNAS:
+  [C] | CALL  | ITUBB404   | STK:  38.20 | PRM: R$    2.57
+  [C] | PUT   | ITUBN404   | STK:  38.20 | PRM: R$    0.72
 --------------------------------------------------------------------------------
 
-[#5] BEAR PUT SPREAD (DÉBITO) (VERTICAL PUT)
+[#3] LONG STRANGLE (DÉBITO) | R:R Alvo: 0:1
 --------------------------------------------------------------------------------
-Vencimento: 2026-01-16   | Natureza: DÉBITO     | ROI: 60.88%
-Delta Net:   0.00 | Theta Net:   0.0037 | Taxa Total Operação: R$ 44,00
-Break-Even Points: 13.69
-Fluxo Inicial (Lote): -R$ 1.510,00 | Lucro Máx Líq: R$ 946,00
-Risco Máximo Total:   R$ 1.554,00
+DETALHAMENTO DE TAXAS (LOTE 1000):
+  Entrada: R$ 44,00 | Reversão (Saída): R$ 44,00 | Ciclo Total: R$ 88,00
 
-PERNAS (Lote: 1000):
-  Sentido | Espécie | Símbolo           | Strike  | Prêmio (Un) | Delta Un.
-  [C]     | PUT     | ABEVM158          |   15.20 |        1.60 | 0.00
-  [V]     | PUT     | ABEVM134          |   12.70 |        0.09 | 0.00
---------------------------------------------------------------------------------
+ALVOS PARA 0 A 0 (PAGAR IDA + VOLTA):
+  > O conjunto deve valorizar até: R$ 3.30/un
 
-[#6] BEAR CALL SPREAD (CRÉDITO) (VERTICAL CALL)
---------------------------------------------------------------------------------
-Vencimento: 2026-01-16   | Natureza: CRÉDITO    | ROI: 46.28%
-Delta Net:   0.05 | Theta Net:   0.0058 | Taxa Total Operação: R$ 44,00
-Break-Even Points: 13.44
-Fluxo Inicial (Lote): R$ 740,00 | Lucro Máx Líq: R$ 696,00
-Risco Máximo Total:   R$ 1.504,00
+RESUMO FINANCEIRO:
+  Vencimento: 2026-02-20 | ROI: ∞
+  Lucro Máx Líq: ILIMITADO    | Risco Total: R$ 3.254,00
+  Break-Even: 34.99 / 41.61
 
-PERNAS (Lote: 1000):
-  Sentido | Espécie | Símbolo           | Strike  | Prêmio (Un) | Delta Un.
-  [V]     | CALL    | ABEVA134          |   12.70 |        0.76 | 0.00
-  [C]     | CALL    | ABEVA156          |   14.90 |        0.02 | 0.06
+GREGAS (NET) & RISCO:
+  Delta Net:   0.30 | Theta Net:  -0.0417
+  STOP LOSS SUGERIDO: -R$ 1.671,00 (Incluindo reversão)
+
+PERNAS:
+  [C] | PUT   | ITUBN404   | STK:  38.20 | PRM: R$    0.72
+  [C] | CALL  | ITUBB406   | STK:  38.40 | PRM: R$    2.49
 --------------------------------------------------------------------------------
 
-C:\Users\DELL\Calculadora_de_Estrategias_de_Derivativos\src>
+>>> CATEGORIA: ESTRUTURADAS
+
+[#1] BULL PUT SPREAD (CRÉDITO) | R:R Alvo: 0.07:1
+--------------------------------------------------------------------------------
+DETALHAMENTO DE TAXAS (LOTE 1000):
+  Entrada: R$ 44,00 | Reversão (Saída): R$ 44,00 | Ciclo Total: R$ 88,00
+
+ALVOS PARA 0 A 0 (PAGAR IDA + VOLTA):
+  > Recomprar a trava por no máximo: R$ 0.19/un
+
+RESUMO FINANCEIRO:
+  Vencimento: 2026-02-20 | ROI: 368.75%
+  Lucro Máx Líq: R$ 236,00    | Risco Total: R$ 64,00
+  Break-Even: 39.42
+
+GREGAS (NET) & RISCO:
+  Delta Net:   0.00 | Theta Net:  -0.0004
+  STOP LOSS SUGERIDO: -R$ 280,00 (Incluindo reversão)
+
+PERNAS:
+  [V] | PUT   | ITUBN418   | STK:  39.70 | PRM: R$    1.50
+  [C] | PUT   | ITUBN416   | STK:  39.40 | PRM: R$    1.22
+--------------------------------------------------------------------------------
+
+[#2] BEAR CALL SPREAD (CRÉDITO) | R:R Alvo: 0.11:1
+--------------------------------------------------------------------------------
+DETALHAMENTO DE TAXAS (LOTE 1000):
+  Entrada: R$ 44,00 | Reversão (Saída): R$ 44,00 | Ciclo Total: R$ 88,00
+
+ALVOS PARA 0 A 0 (PAGAR IDA + VOLTA):
+  > Recomprar a trava por no máximo: R$ 0.09/un
+
+RESUMO FINANCEIRO:
+  Vencimento: 2026-02-20 | ROI: 212.50%
+  Lucro Máx Líq: R$ 136,00    | Risco Total: R$ 64,00
+  Break-Even: 38.88
+
+GREGAS (NET) & RISCO:
+  Delta Net:   0.00 | Theta Net:  -0.0001
+  STOP LOSS SUGERIDO: -R$ 180,00 (Incluindo reversão)
+
+PERNAS:
+  [V] | CALL  | ITUBB409   | STK:  38.70 | PRM: R$    2.30
+  [C] | CALL  | ITUBB411   | STK:  38.90 | PRM: R$    2.12
+--------------------------------------------------------------------------------
+
+[#3] BEAR CALL SPREAD (CRÉDITO) | R:R Alvo: 0.18:1
+--------------------------------------------------------------------------------
+DETALHAMENTO DE TAXAS (LOTE 1000):
+  Entrada: R$ 44,00 | Reversão (Saída): R$ 44,00 | Ciclo Total: R$ 88,00
+
+ALVOS PARA 0 A 0 (PAGAR IDA + VOLTA):
+  > Recomprar a trava por no máximo: R$ 0.08/un
+
+RESUMO FINANCEIRO:
+  Vencimento: 2026-01-16 | ROI: 170.27%
+  Lucro Máx Líq: R$ 126,00    | Risco Total: R$ 74,00
+  Break-Even: 38.67
+
+GREGAS (NET) & RISCO:
+  Delta Net:  -0.01 | Theta Net:  -0.0004
+  STOP LOSS SUGERIDO: -R$ 170,00 (Incluindo reversão)
+
+PERNAS:
+  [V] | CALL  | ITUBA407   | STK:  38.50 | PRM: R$    1.60
+  [C] | CALL  | ITUBA409   | STK:  38.70 | PRM: R$    1.43
+--------------------------------------------------------------------------------
+
+=====================================================================================
+             SUMÁRIO DE OPORTUNIDADES (RANKING DE ASSIMETRIA)
+=====================================================================================
+ESTRATÉGIA                  | R:R        | RISCO TOTAL     | LUCRO LÍQ
+-------------------------------------------------------------------------------------
+Bull Put Spread (Crédito)   | 0.07       | R$ 64,00        | R$ 236,00
+Bear Call Spread (Crédito)  | 0.11       | R$ 64,00        | R$ 136,00
+Bear Call Spread (Crédito)  | 0.18       | R$ 74,00        | R$ 126,00
+Long Straddle (Débito)      | 0          | R$ 3.384,00     | ILIMITADO
+Long Straddle (Débito)      | 0          | R$ 3.334,00     | ILIMITADO
+Long Strangle (Débito)      | 0          | R$ 3.254,00     | ILIMITADO
+=====================================================================================
+Total de estratégias viáveis encontradas: 111
+=====================================================================================
   ```
