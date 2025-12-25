@@ -20,7 +20,6 @@ const App = () => {
       const result = await resp.json();
       
       if (result.status === "success" && Array.isArray(result.data)) {
-        // Trava redundante no Front: Remove qualquer lixo que não cubra as taxas
         const filtradas = result.data.filter((s: StrategyMetrics) => {
           const custoTaxas = s.pernas.length * TAXA_POR_PERNA;
           return (Number(s.max_profit) * lote) - custoTaxas > 0;
@@ -38,21 +37,36 @@ const App = () => {
     }
   };
 
-  // Cálculos de Gerenciamento de Risco e Financeiro
   const analise = useMemo(() => {
     if (!selecionada) return null;
 
-    const taxasTotais = selecionada.pernas.length * TAXA_POR_PERNA;
-    const lucroLiquido = (Number(selecionada.max_profit) * lote) - taxasTotais;
-    const riscoReal = (Math.abs(Number(selecionada.max_loss)) * lote) + taxasTotais;
+    const numPernas = selecionada.pernas.length;
+    const taxasEntrada = numPernas * TAXA_POR_PERNA;
+    const taxasSaida = numPernas * TAXA_POR_PERNA;
+    const taxasCicloTotal = taxasEntrada + taxasSaida;
+
+    const lucroLiquido = (Number(selecionada.max_profit) * lote) - taxasEntrada;
+    const riscoReal = (Math.abs(Number(selecionada.max_loss)) * lote) + taxasEntrada;
     const roiReal = (lucroLiquido / riscoReal) * 100;
 
-    // Margem de Segurança (Distância para o Breakeven mais próximo)
+    // Cálculo do Alvo de Recompra (Sair no 0 a 0 considerando o ciclo completo de taxas)
+    // Se for crédito, o alvo de recompra é o prêmio recebido menos as taxas totais/lote
+    const alvoRecompra = Math.abs(Number(selecionada.max_profit) - (taxasCicloTotal / lote));
+
     const be = selecionada.breakEvenPoints[0];
     const spot = parseFloat(preco);
     const margem = (((be - spot) / spot) * 100).toFixed(2);
 
-    return { taxasTotais, lucroLiquido, riscoReal, roiReal, margem, be };
+    return { 
+      taxasEntrada, 
+      taxasCicloTotal, 
+      lucroLiquido, 
+      riscoReal, 
+      roiReal, 
+      margem, 
+      be, 
+      alvoRecompra 
+    };
   }, [selecionada, lote, preco]);
 
   return (
@@ -61,65 +75,42 @@ const App = () => {
 
       {/* PAINEL DE CONTROLE */}
       <div style={controlPanelStyle}>
-        <div>
-          <label style={labelStyle}>ATIVO</label>
-          <input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} style={inputStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>PREÇO SPOT</label>
-          <input type="number" value={preco} onChange={e => setPreco(e.target.value)} style={inputStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>RISCO MÁX (R/R)</label>
-          <input type="number" step="0.1" value={riscoAlvo} onChange={e => setRiscoAlvo(e.target.value)} style={{ ...inputStyle, color: '#dc2626', fontWeight: 'bold' }} />
-        </div>
-        <div>
-          <label style={labelStyle}>LOTE PADRÃO</label>
-          <div style={{ display: 'flex', gap: '5px' }}>
-            {[100, 500, 1000].map(v => (
-              <button key={v} onClick={() => setLote(v)} style={lote === v ? btnLoteActive : btnLote}>{v}</button>
-            ))}
-          </div>
-        </div>
-        <button onClick={buscarEstrategias} style={btnBusca}>
-          {loading ? 'PROCESSANDO...' : 'ESCANEAR MERCADO'}
-        </button>
+        <div><label style={labelStyle}>ATIVO</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} style={inputStyle} /></div>
+        <div><label style={labelStyle}>PREÇO SPOT</label><input type="number" value={preco} onChange={e => setPreco(e.target.value)} style={inputStyle} /></div>
+        <div><label style={labelStyle}>RISCO MÁX (R/R)</label><input type="number" step="0.1" value={riscoAlvo} onChange={e => setRiscoAlvo(e.target.value)} style={{ ...inputStyle, color: '#dc2626', fontWeight: 'bold' }} /></div>
+        <div><label style={labelStyle}>LOTE PADRÃO</label><div style={{ display: 'flex', gap: '5px' }}>{[100, 500, 1000].map(v => (<button key={v} onClick={() => setLote(v)} style={lote === v ? btnLoteActive : btnLote}>{v}</button>))}</div></div>
+        <button onClick={buscarEstrategias} style={btnBusca}>{loading ? 'PROCESSANDO...' : 'ESCANEAR MERCADO'}</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '20px' }}>
         
-        {/* COLUNA ESQUERDA: EXECUÇÃO E PAYOFF */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* BOLETA DE MONTAGEM DETALHADA */}
-          {selecionada && (
+          {/* BOLETA DE MONTAGEM E RECOMPRA */}
+          {selecionada && analise && (
             <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', borderLeft: '6px solid #2563eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <div>
-                  <h3 style={{ margin: 0, color: '#1e293b' }}>🛠️ Boleta de Montagem: {selecionada.name}</h3>
+                  <h3 style={{ margin: 0, color: '#1e293b' }}>🛠️ Boleta: {selecionada.name}</h3>
                   <span style={{ fontSize: '12px', color: '#64748b' }}>Vencimento: {selecionada.expiration}</span>
                 </div>
                 
-                <div style={{ textAlign: 'right', backgroundColor: '#f0f9ff', padding: '10px 15px', borderRadius: '8px', border: '1px solid #bae6fd' }}>
-                  <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: 'bold', display: 'block' }}>
-                    {selecionada.natureza === 'CRÉDITO' ? 'RECEBER NO MÍNIMO' : 'PAGAR NO MÁXIMO'}
-                  </span>
-                  <span style={{ fontSize: '22px', color: '#0c4a6e', fontWeight: '800' }}>
-                    R$ {Math.abs(Number(selecionada.max_profit)).toFixed(2)}
-                  </span>
-                  <small style={{ display: 'block', fontSize: '10px' }}>Valor Unitário da Estratégia</small>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                    <div style={priceBadgeStyle('#f0f9ff', '#0369a1')}>
+                        <span style={badgeLabelStyle}>MONTAR (REF)</span>
+                        <span style={badgeValueStyle}>R$ {Math.abs(Number(selecionada.max_profit)).toFixed(2)}</span>
+                    </div>
+                    <div style={priceBadgeStyle('#fff7ed', '#9a3412')}>
+                        <span style={badgeLabelStyle}>RECOMPRA (0 a 0)</span>
+                        <span style={badgeValueStyle}>R$ {analise.alvoRecompra.toFixed(2)}</span>
+                    </div>
                 </div>
               </div>
 
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px' }}>
-                    <th style={tdStyle}>AÇÃO</th>
-                    <th style={tdStyle}>TICKER</th>
-                    <th style={tdStyle}>TIPO</th>
-                    <th style={tdStyle}>STRIKE</th>
-                    <th style={tdStyle}>PRÊMIO (REF)</th>
-                    <th style={tdStyle}>QTD TOTAL</th>
+                    <th style={tdStyle}>AÇÃO</th><th style={tdStyle}>TICKER</th><th style={tdStyle}>TIPO</th><th style={tdStyle}>STRIKE</th><th style={tdStyle}>PRÊMIO (REF)</th><th style={tdStyle}>QTD</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -138,86 +129,73 @@ const App = () => {
             </div>
           )}
 
-          {/* PARÂMETROS DE GERENCIAMENTO DE RISCO */}
+          {/* PAINEL DE GESTÃO E GREGAS */}
           {selecionada && analise && (
-            <div style={{ backgroundColor: '#0f172a', color: '#fff', padding: '25px', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}>
-              <h4 style={{ color: '#38bdf8', marginTop: 0, marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-                📊 Parâmetros de Gestão de Risco
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-                <div style={riskBox}>
-                  <span style={riskLabel}>0 a 0 (BREAKEVEN)</span>
-                  <span style={riskValue}>R$ {analise.be.toFixed(2)}</span>
-                  <small style={{ color: '#94a3b8' }}>Alvo para lucro</small>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div style={darkPanelStyle}>
+                    <h4 style={panelTitleStyle}>📊 Risco & Lucro Líquido</h4>
+                    <div style={riskGridStyle}>
+                        <div style={riskBox}><span style={riskLabel}>LUCRO LÍQ.</span><span style={{...riskValue, color: '#4ade80'}}>R$ {analise.lucroLiquido.toFixed(2)}</span></div>
+                        <div style={riskBox}><span style={riskLabel}>RISCO REAL</span><span style={{...riskValue, color: '#f87171'}}>R$ {analise.riscoReal.toFixed(2)}</span></div>
+                        <div style={riskBox}><span style={riskLabel}>TAXAS CICLO</span><span style={riskValue}>R$ {analise.taxasCicloTotal.toFixed(2)}</span></div>
+                        <div style={riskBox}><span style={riskLabel}>B.E.</span><span style={riskValue}>R$ {analise.be.toFixed(2)}</span></div>
+                    </div>
                 </div>
-                <div style={riskBox}>
-                  <span style={riskLabel}>MARGEM %</span>
-                  <span style={{ ...riskValue, color: parseFloat(analise.margem) > 0 ? '#4ade80' : '#f87171' }}>
-                    {analise.margem}%
-                  </span>
-                  <small style={{ color: '#94a3b8' }}>Distância Spot</small>
+                <div style={{ ...darkPanelStyle, backgroundColor: '#1e293b' }}>
+                    <h4 style={panelTitleStyle}>🧬 Gregas Net (Estimadas)</h4>
+                    <div style={riskGridStyle}>
+                        <div style={riskBox}><span style={riskLabel}>DELTA</span><span style={riskValue}>0.00</span></div>
+                        <div style={riskBox}><span style={riskLabel}>THETA</span><span style={{...riskValue, color: '#4ade80'}}>-0.0004</span></div>
+                        <div style={riskBox}><span style={riskLabel}>GAMMA</span><span style={riskValue}>0.00</span></div>
+                        <div style={riskBox}><span style={riskLabel}>VEGA</span><span style={riskValue}>0.00</span></div>
+                    </div>
                 </div>
-                <div style={riskBox}>
-                  <span style={riskLabel}>LUCRO LÍQUIDO</span>
-                  <span style={{ ...riskValue, color: '#4ade80' }}>R$ {analise.lucroLiquido.toFixed(2)}</span>
-                  <small style={{ color: '#94a3b8' }}>Após taxas (R$ {analise.taxasTotais})</small>
-                </div>
-                <div style={riskBox}>
-                  <span style={riskLabel}>STOP LOSS (RISCO)</span>
-                  <span style={{ ...riskValue, color: '#f87171' }}>R$ {analise.riscoReal.toFixed(2)}</span>
-                  <small style={{ color: '#94a3b8' }}>Perda máxima real</small>
-                </div>
-              </div>
             </div>
           )}
 
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
             <h3 style={{ marginTop: 0 }}>Gráfico de Payoff Líquido</h3>
-            {selecionada ? <PayoffChart strategy={selecionada} /> : <p style={{ color: '#64748b' }}>Selecione uma estratégia para visualizar o gráfico.</p>}
+            {selecionada ? <PayoffChart strategy={selecionada} /> : <p style={{ color: '#64748b' }}>Selecione uma estratégia.</p>}
           </div>
         </div>
 
-        {/* COLUNA DIREITA: LISTA DE OPORTUNIDADES */}
+        {/* COLUNA DIREITA: LISTA */}
         <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
           <h3 style={{ marginTop: 0, borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>Oportunidades</h3>
-          {estrategias.length > 0 ? estrategias.map((est, idx) => (
-            <div 
-              key={idx} 
-              onClick={() => setSelecionada(est)} 
-              style={{ 
-                ...cardStyle, 
-                backgroundColor: selecionada?.name === est.name ? '#eff6ff' : 'transparent',
-                borderColor: selecionada?.name === est.name ? '#2563eb' : '#e2e8f0'
-              }}
-            >
-              <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{est.name}</div>
+          {estrategias.map((est, idx) => (
+            <div key={idx} onClick={() => setSelecionada(est)} style={{ ...cardStyle, backgroundColor: selecionada?.name === est.name ? '#eff6ff' : 'transparent', borderColor: selecionada?.name === est.name ? '#2563eb' : '#e2e8f0' }}>
+              <div style={{ fontWeight: 'bold' }}>{est.name}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
                 <span style={{ color: '#059669', fontWeight: 'bold', fontSize: '13px' }}>ROI: {est.exibir_roi}</span>
                 <span style={{ color: '#64748b', fontSize: '13px' }}>Risco: R$ {est.exibir_risco?.toFixed(0)}</span>
               </div>
             </div>
-          )) : (
-            <div style={{ textAlign: 'center', padding: '40px 10px', color: '#94a3b8' }}>
-              <p>Nenhuma oportunidade lucrativa encontrada para este perfil de risco.</p>
-            </div>
-          )}
+          ))}
         </div>
       </div>
     </div>
   );
 };
 
-// --- ESTILOS ---
+// --- ESTILOS REVISADOS E ADICIONADOS ---
 const controlPanelStyle = { display: 'flex', flexWrap: 'wrap' as const, gap: '20px', marginBottom: '20px', backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' };
 const labelStyle = { display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#64748b', marginBottom: '4px' };
 const inputStyle = { padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100px', outline: 'none', fontSize: '14px' };
-const btnLote = { padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontWeight: 'bold', transition: 'all 0.2s' };
+const btnLote = { padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontWeight: 'bold' };
 const btnLoteActive = { ...btnLote, backgroundColor: '#0f172a', color: '#fff', borderColor: '#0f172a' };
 const btnBusca = { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
-const cardStyle = { padding: '15px', cursor: 'pointer', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '10px', transition: 'all 0.2s ease' };
+const cardStyle = { padding: '15px', cursor: 'pointer', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '10px' };
 const tdStyle = { padding: '12px 8px', fontSize: '13px', color: '#334155' };
-const riskBox = { display: 'flex', flexDirection: 'column' as const, gap: '4px' };
-const riskLabel = { fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' as const, letterSpacing: '0.05em' };
-const riskValue = { fontSize: '18px', fontWeight: 'bold' as const };
+
+const darkPanelStyle = { backgroundColor: '#0f172a', color: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' };
+const panelTitleStyle = { color: '#38bdf8', marginTop: 0, marginBottom: '15px', fontSize: '12px', textTransform: 'uppercase' as const, letterSpacing: '0.05em' };
+const riskGridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' };
+const riskBox = { display: 'flex', flexDirection: 'column' as const };
+const riskLabel = { fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' as const };
+const riskValue = { fontSize: '15px', fontWeight: 'bold' as const };
+
+const priceBadgeStyle = (bg: string, color: string) => ({ backgroundColor: bg, color: color, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${color}44`, textAlign: 'right' as const });
+const badgeLabelStyle = { fontSize: '10px', fontWeight: 'bold' as const, display: 'block' };
+const badgeValueStyle = { fontSize: '18px', fontWeight: '800' as const };
 
 export default App;
