@@ -5,15 +5,15 @@
 //
 // CORREÇÃO FINAL DE CAMINHO: Usamos './firebase'.
 // O USUÁRIO DEVE MOVER o arquivo firebase.ts para dentro da pasta 'src/'.
-import './firebase'; 
+import './firebase';
 // ----------------------------------------------------------------------
 
 // 2. IMPORTAÇÕES CRUCIAIS DO REACT (Necessárias para resolver o 'ReactDOM is not defined')
 import React from 'react';
-import ReactDOM from 'react-dom/client'; 
+import ReactDOM from 'react-dom/client';
 
-import App from './App.tsx'; 
-import './index.css'; 
+import App from './App.tsx';
+import './index.css';
 
 // Inicializa o aplicativo React
 const rootElement = document.getElementById('root');

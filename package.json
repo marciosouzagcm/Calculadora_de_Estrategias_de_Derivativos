@@ -1,36 +1,40 @@
 {
+  "name": "calculadora_de_estrategias_de_derivativos",
+  "version": "1.0.0",
+  "description": "Refatoração em TypeScript para cálculo e otimização de estratégias com opções.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "process-csv": "ts-node src/processador_opcoes.ts",
+    "process-and-copy": "npm run process-csv && node scripts/copyCsv.js",
+    "dev": "ts-node src/index.ts",
+    "api": "ts-node src/server.ts",
+    "serve-src": "npx serve src --listen 5174",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [],
+  "author": "Marcio Souza",
+  "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "csv-writer": "^1.6.0",
-    "firebase": "^12.6.0",
+    "express": "^5.0.0",
+    "firebase": "^10.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.10.1",
-    "ts-jest": "^29.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
-  },
-  "name": "calculadora_de_estrategias_de_derivativos",
-  "version": "1.0.0",
-  "description": "Este projeto é uma refatoração em TypeScript de um script Python para o cálculo e otimização de estratégias com opções. A arquitetura modular visa facilitar a escalabilidade e a adição de novas estratégias financeiras de forma organizada.",
-  "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
-  "scripts": {
-    "build": "tsc",
-    "process-csv": "ts-node src/processador_opcoes.ts",
-    "process-and-copy": "npm run process-csv && node scripts/copyCsv.js",
-    "serve-src": "npx serve src --listen 5174",
-    "dev": "ts-node src/index.ts",
-    "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+    "typescript": "^5.0.0"
+  }
 }
