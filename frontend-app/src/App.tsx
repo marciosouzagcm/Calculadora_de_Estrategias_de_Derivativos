@@ -22,7 +22,8 @@ const App = () => {
       if (result.status === "success" && Array.isArray(result.data)) {
         const filtradas = result.data.filter((s: StrategyMetrics) => {
           const custoTaxas = s.pernas.length * TAXA_POR_PERNA;
-          return (Number(s.max_profit) * lote) - custoTaxas > 0;
+          const lucro = typeof s.max_profit === 'number' ? s.max_profit : 0;
+          return (lucro * lote) - custoTaxas > 0;
         });
         
         setEstrategias(filtradas);
@@ -45,17 +46,18 @@ const App = () => {
     const taxasSaida = numPernas * TAXA_POR_PERNA;
     const taxasCicloTotal = taxasEntrada + taxasSaida;
 
-    const lucroLiquido = (Number(selecionada.max_profit) * lote) - taxasEntrada;
-    const riscoReal = (Math.abs(Number(selecionada.max_loss)) * lote) + taxasEntrada;
+    const maxProfitNum = typeof selecionada.max_profit === 'number' ? selecionada.max_profit : 0;
+    const maxLossNum = typeof selecionada.max_loss === 'number' ? selecionada.max_loss : 0;
+
+    const lucroLiquido = (maxProfitNum * lote) - taxasEntrada;
+    const riscoReal = (Math.abs(maxLossNum) * lote) + taxasEntrada;
     const roiReal = (lucroLiquido / riscoReal) * 100;
 
-    // Cálculo do Alvo de Recompra (Sair no 0 a 0 considerando o ciclo completo de taxas)
-    // Se for crédito, o alvo de recompra é o prêmio recebido menos as taxas totais/lote
-    const alvoRecompra = Math.abs(Number(selecionada.max_profit) - (taxasCicloTotal / lote));
+    const alvoRecompra = Math.abs(maxProfitNum - (taxasCicloTotal / lote));
 
-    const be = selecionada.breakEvenPoints[0];
+    const be = selecionada.breakEvenPoints[0] || 0;
     const spot = parseFloat(preco);
-    const margem = (((be - spot) / spot) * 100).toFixed(2);
+    const margem = spot !== 0 ? (((be - spot) / spot) * 100).toFixed(2) : "0.00";
 
     return { 
       taxasEntrada, 
@@ -119,7 +121,7 @@ const App = () => {
                       <td style={{ ...tdStyle, fontWeight: 'bold', color: p.direction === 'COMPRA' ? '#059669' : '#dc2626' }}>{p.direction}</td>
                       <td style={{ ...tdStyle, fontWeight: 'bold' }}>{p.derivative.option_ticker}</td>
                       <td style={tdStyle}>{p.derivative.tipo}</td>
-                      <td style={tdStyle}>R$ {p.derivative.strike.toFixed(2)}</td>
+                      <td style={tdStyle}>R$ {p.derivative.strike?.toFixed(2)}</td>
                       <td style={{ ...tdStyle, fontWeight: 'bold' }}>R$ {p.derivative.premio.toFixed(2)}</td>
                       <td style={tdStyle}>{(p.multiplier * lote).toLocaleString()}</td>
                     </tr>
@@ -129,7 +131,7 @@ const App = () => {
             </div>
           )}
 
-          {/* PAINEL DE GESTÃO E GREGAS */}
+          {/* PAINEL DE GESTÃO E GREGAS DINÂMICAS CORRIGIDAS */}
           {selecionada && analise && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div style={darkPanelStyle}>
@@ -142,12 +144,28 @@ const App = () => {
                     </div>
                 </div>
                 <div style={{ ...darkPanelStyle, backgroundColor: '#1e293b' }}>
-                    <h4 style={panelTitleStyle}>🧬 Gregas Net (Estimadas)</h4>
+                    <h4 style={panelTitleStyle}>🧬 Gregas Net (Carteira)</h4>
                     <div style={riskGridStyle}>
-                        <div style={riskBox}><span style={riskLabel}>DELTA</span><span style={riskValue}>0.00</span></div>
-                        <div style={riskBox}><span style={riskLabel}>THETA</span><span style={{...riskValue, color: '#4ade80'}}>-0.0004</span></div>
-                        <div style={riskBox}><span style={riskLabel}>GAMMA</span><span style={riskValue}>0.00</span></div>
-                        <div style={riskBox}><span style={riskLabel}>VEGA</span><span style={riskValue}>0.00</span></div>
+                        <div style={riskBox}>
+                          <span style={riskLabel}>DELTA</span>
+                          <span style={{...riskValue, color: (selecionada.greeks?.delta ?? 0) >= 0 ? '#4ade80' : '#f87171'}}>
+                            {selecionada.greeks?.delta ? selecionada.greeks.delta.toFixed(4) : "0.0000"}
+                          </span>
+                        </div>
+                        <div style={riskBox}>
+                          <span style={riskLabel}>THETA</span>
+                          <span style={{...riskValue, color: (selecionada.greeks?.theta ?? 0) >= 0 ? '#4ade80' : '#f87171'}}>
+                            {selecionada.greeks?.theta ? selecionada.greeks.theta.toFixed(4) : "0.0000"}
+                          </span>
+                        </div>
+                        <div style={riskBox}>
+                          <span style={riskLabel}>GAMMA</span>
+                          <span style={riskValue}>{selecionada.greeks?.gamma ? selecionada.greeks.gamma.toFixed(4) : "0.0000"}</span>
+                        </div>
+                        <div style={riskBox}>
+                          <span style={riskLabel}>VEGA</span>
+                          <span style={riskValue}>{selecionada.greeks?.vega ? selecionada.greeks.vega.toFixed(4) : "0.0000"}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -155,29 +173,41 @@ const App = () => {
 
           <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
             <h3 style={{ marginTop: 0 }}>Gráfico de Payoff Líquido</h3>
-            {selecionada ? <PayoffChart strategy={selecionada} /> : <p style={{ color: '#64748b' }}>Selecione uma estratégia.</p>}
+            {selecionada ? <PayoffChart strategy={selecionada} /> : <p style={{ color: '#64748b' }}>Selecione uma estratégia para visualizar o gráfico.</p>}
           </div>
         </div>
 
-        {/* COLUNA DIREITA: LISTA */}
+        {/* COLUNA DIREITA: LISTA DE OPORTUNIDADES */}
         <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
           <h3 style={{ marginTop: 0, borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>Oportunidades</h3>
-          {estrategias.map((est, idx) => (
-            <div key={idx} onClick={() => setSelecionada(est)} style={{ ...cardStyle, backgroundColor: selecionada?.name === est.name ? '#eff6ff' : 'transparent', borderColor: selecionada?.name === est.name ? '#2563eb' : '#e2e8f0' }}>
-              <div style={{ fontWeight: 'bold' }}>{est.name}</div>
+          {estrategias.length > 0 ? estrategias.map((est, idx) => (
+            <div 
+              key={idx} 
+              onClick={() => setSelecionada(est)} 
+              style={{ 
+                ...cardStyle, 
+                backgroundColor: selecionada?.name === est.name ? '#eff6ff' : 'transparent',
+                borderColor: selecionada?.name === est.name ? '#2563eb' : '#e2e8f0'
+              }}
+            >
+              <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{est.name}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
                 <span style={{ color: '#059669', fontWeight: 'bold', fontSize: '13px' }}>ROI: {est.exibir_roi}</span>
                 <span style={{ color: '#64748b', fontSize: '13px' }}>Risco: R$ {est.exibir_risco?.toFixed(0)}</span>
               </div>
             </div>
-          ))}
+          )) : (
+            <div style={{ textAlign: 'center', padding: '40px 10px', color: '#94a3b8' }}>
+              <p>Nenhuma oportunidade lucrativa encontrada.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// --- ESTILOS REVISADOS E ADICIONADOS ---
+// --- ESTILOS ---
 const controlPanelStyle = { display: 'flex', flexWrap: 'wrap' as const, gap: '20px', marginBottom: '20px', backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' };
 const labelStyle = { display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#64748b', marginBottom: '4px' };
 const inputStyle = { padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100px', outline: 'none', fontSize: '14px' };
@@ -186,14 +216,12 @@ const btnLoteActive = { ...btnLote, backgroundColor: '#0f172a', color: '#fff', b
 const btnBusca = { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
 const cardStyle = { padding: '15px', cursor: 'pointer', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '10px' };
 const tdStyle = { padding: '12px 8px', fontSize: '13px', color: '#334155' };
-
 const darkPanelStyle = { backgroundColor: '#0f172a', color: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' };
 const panelTitleStyle = { color: '#38bdf8', marginTop: 0, marginBottom: '15px', fontSize: '12px', textTransform: 'uppercase' as const, letterSpacing: '0.05em' };
 const riskGridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' };
 const riskBox = { display: 'flex', flexDirection: 'column' as const };
 const riskLabel = { fontSize: '10px', color: '#94a3b8', fontWeight: 'bold' as const };
 const riskValue = { fontSize: '15px', fontWeight: 'bold' as const };
-
 const priceBadgeStyle = (bg: string, color: string) => ({ backgroundColor: bg, color: color, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${color}44`, textAlign: 'right' as const });
 const badgeLabelStyle = { fontSize: '10px', fontWeight: 'bold' as const, display: 'block' };
 const badgeValueStyle = { fontSize: '18px', fontWeight: '800' as const };

@@ -111,31 +111,31 @@ export class PayoffCalculator {
         const SELIC = 0.1075;
 
         return metrics.pernas.reduce((acc, leg) => {
-            const factor = leg.direction === 'COMPRA' ? 1 : -1;
+            const totalFactor = (leg.direction === 'COMPRA' ? 1 : -1) * leg.multiplier;
             const strikeSafe = leg.derivative.strike ?? 0;
-            let deltaEfetivo = leg.derivative.gregas_unitarias.delta ?? 0;
+            
+            let unitarias = { ...leg.derivative.gregas_unitarias };
 
-            if (leg.derivative.tipo === 'CALL' || leg.derivative.tipo === 'PUT') {
-                if (Math.abs(deltaEfetivo) < 0.001 && strikeSafe > 0) {
-                    const tempoAnos = (leg.derivative.dias_uteis || 1) / 252;
-                    const volSafe = (leg.derivative.vol_implicita && leg.derivative.vol_implicita > 0) 
-                                    ? leg.derivative.vol_implicita : 0.35;
+            if ((leg.derivative.tipo === 'CALL' || leg.derivative.tipo === 'PUT') && strikeSafe > 0) {
+                const tempoAnos = Math.max(leg.derivative.dias_uteis || 1, 1) / 252;
+                const volSafe = (leg.derivative.vol_implicita && leg.derivative.vol_implicita > 0.01) 
+                                ? leg.derivative.vol_implicita : 0.35;
 
-                    deltaEfetivo = BlackScholes.calculateDelta(
-                        currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC, leg.derivative.tipo
-                    );
-                    (leg.derivative.gregas_unitarias as any).delta = deltaEfetivo;
-                }
+                unitarias = {
+                    delta: BlackScholes.calculateDelta(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC, leg.derivative.tipo),
+                    gamma: BlackScholes.calculateGamma(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC),
+                    theta: BlackScholes.calculateTheta(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC, leg.derivative.tipo),
+                    vega: BlackScholes.calculateVega(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC)
+                };
             } else if (leg.derivative.tipo === 'SUBJACENTE') {
-                deltaEfetivo = 1;
-                (leg.derivative.gregas_unitarias as any).delta = 1;
+                unitarias = { delta: 1, gamma: 0, theta: 0, vega: 0 };
             }
 
             return {
-                delta: (acc.delta ?? 0) + (deltaEfetivo * factor),
-                gamma: (acc.gamma ?? 0) + ((leg.derivative.gregas_unitarias.gamma ?? 0) * factor),
-                theta: (acc.theta ?? 0) + ((leg.derivative.gregas_unitarias.theta ?? 0) * factor),
-                vega: (acc.vega ?? 0) + ((leg.derivative.gregas_unitarias.vega ?? 0) * factor),
+                delta: (acc.delta ?? 0) + ((unitarias.delta ?? 0) * totalFactor),
+                gamma: (acc.gamma ?? 0) + ((unitarias.gamma ?? 0) * totalFactor),
+                theta: (acc.theta ?? 0) + ((unitarias.theta ?? 0) * totalFactor),
+                vega: (acc.vega ?? 0) + ((unitarias.vega ?? 0) * totalFactor),
             };
         }, { delta: 0, gamma: 0, theta: 0, vega: 0 } as Greeks);
     }
@@ -149,13 +149,20 @@ export class PayoffCalculator {
 
         metrics.initialCashFlow = metrics.initialCashFlow ?? metrics.net_premium;
         metrics.breakEvenPoints = metrics.breakEvenPoints ?? [];
-        metrics.greeks = this.calculateNetGreeks(metrics, currentAssetPrice);
+        
+        // CORREÇÃO DOS ERROS TS18047: Usando nullish coalescing para garantir Number
+        const calculatedGreeks = this.calculateNetGreeks(metrics, currentAssetPrice);
+        metrics.greeks = {
+            delta: Number((calculatedGreeks.delta ?? 0).toFixed(4)),
+            gamma: Number((calculatedGreeks.gamma ?? 0).toFixed(4)),
+            theta: Number((calculatedGreeks.theta ?? 0).toFixed(4)),
+            vega: Number((calculatedGreeks.vega ?? 0).toFixed(4))
+        };
 
-        // Cálculo R:R (Risco/Retorno)
         const risco = Math.abs(Number(metrics.risco_maximo || 0));
         let lucro = 0;
         if (typeof metrics.max_profit === 'number') lucro = metrics.max_profit;
-        else if (metrics.max_profit === 'Ilimitado') lucro = 999999; // Representação de infinito
+        else if (metrics.max_profit === 'Ilimitado') lucro = 999999;
 
         (metrics as any).riskRewardRatio = lucro > 0 ? parseFloat((risco / lucro).toFixed(2)) : 99;
 
@@ -183,7 +190,6 @@ export class PayoffCalculator {
                     const res = sObj.strategy.calculateMetrics(combo, currentAssetPrice, this.feePerLeg);
                     if (res) {
                         const normalized = this.normalizeMetrics(res, currentAssetPrice);
-                        // Aplica o filtro de Risco/Retorno
                         if ((normalized as any).riskRewardRatio <= maxRR) {
                             results.push(normalized);
                         }

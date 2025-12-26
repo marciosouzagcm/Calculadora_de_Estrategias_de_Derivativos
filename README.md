@@ -1,99 +1,82 @@
-🚀 Analisador de Assimetria de Derivativos (V37.1)
+🚀 Analisador de Assimetria de Derivativos (V38.0)
+"In the market, volatility is the price you pay for performance. In this system, volatility is a variable we price to win."
 
+📖 A Jornada: Da Teoria ao Motor de Execução
+A versão V38.0 marca um divisor de águas no projeto. O que começou como um analisador de spreads evoluiu para um Motor de Cálculo Estocástico completo. Deixamos de depender exclusivamente de dados externos e passamos a gerar nossa própria inteligência através de um núcleo matemático proprietário.
 
-📖 A Jornada: Do Ruído à Clareza Estatística
+🛡️ Diferenciais de Engenharia (O Novo Padrão)
+1. Núcleo Matemático Black-Scholes Nativo 🧠
+Diferente de sistemas que apenas replicam o que o terminal mostra, a V38.0 implementa sua própria classe BlackScholes.ts. Isso permite:
 
-No mercado de opções, muitos investidores operam baseados em intuição ou planilhas que ignoram a "fricção" do mundo real. Este projeto nasceu de uma necessidade pessoal: parar de cair em "trades de corretora".
+Independência de Dados: Se o seu CSV não trouxer as Gregas, o sistema as calcula do zero.
 
-A versão V37.1 evoluiu de uma calculadora teórica para um motor de gestão de risco, capaz de processar milhares de combinações de ativos (como #ITUB4) e filtrar apenas aquelas onde a matemática e as taxas estão, de fato, a favor do operador.
+Precisão de 4 Casas Decimais: Cálculos de Delta, Gamma, Theta e Vega com normalização de dias úteis (Base 252).
 
+Tratamento de Anomalias: Proteção contra divisões por zero e normalização automática de escala de strikes (correção de strikes fracionados).
 
-🛡️ Diferenciais de Engenharia (O "Pulo do Gato")
+2. Motor de Re-Calculo Net (Greeks Engine) 🧬
+O sistema agora consolida a exposição real da carteira (Net Position). Não olhamos para a perna individual, mas para o organismo financeiro como um todo:
 
-Diferente de calculadoras comuns, este sistema implementa camadas críticas de Gestão de Risco Profissional:
+Delta Net: Direcionalidade precisa da montagem.
 
-1. Filtro de Eficiência de Taxas (Round-Trip)
-O sistema projeta o custo total do ciclo de vida da operação (Entrada + Reversão).
+Theta Net: Decaimento temporal por dia útil (o "aluguel" da posição).
 
-Se as taxas consumirem mais de 60% do lucro potencial, a estratégia é sumariamente descartada.
+Gamma & Vega: Sensibilidade à aceleração do preço e mudanças na volatilidade implícita.
 
-O algoritmo exige que o lucro líquido seja, no mínimo, 1.5x superior aos custos fixos.
+3. Filtro de Eficiência de Taxas e ROI Líquido
 
-2. Alvo "Zero a Zero" (Break-Even de Tela)
-Uma métrica dinâmica que informa o preço exato que o conjunto de opções deve atingir no Home Broker para que a operação se pague integralmente, protegendo o capital principal contra o slippage e emolumentos.
+O algoritmo de filtragem foi endurecido. Agora, uma estratégia só é apresentada se sobreviver ao Stress Test de Fricção:
 
-3. Gestão de Risco Nativa & Gregas Net
-Delta Net: Exposição direcional consolidada.
+Descarte automático de operações onde as taxas consomem a margem de segurança.
 
-Theta Net: Impacto real da passagem do tempo no lucro da montagem.
+Cálculo de ROI baseado no risco total (Margem + Taxas de Ida e Volta).
 
-Stop Loss Sugerido: Cálculo automático de saída de emergência já incluindo os custos de fechamento das pernas.
-
-🏗️ Arquitetura e Estrutura
-O projeto utiliza TypeScript para garantir segurança de tipos em cálculos sensíveis e segue princípios de Clean Code.
+🏗️ Arquitetura de Software
+O projeto segue rigorosamente os princípios de SOLID e Clean Code, garantindo que a lógica de negócio esteja separada da infraestrutura.
 
 Plaintext
 
 src/
-├── 📂 interfaces/    # Contratos de tipos (Greeks, StrategyMetrics, OptionLeg)
-├── 📂 strategies/    # Lógica de spreads (Bull Put, Straddle, Strangle, etc)
-├── 📂 services/      # PayoffCalculator (Motor), csvReader (Ingestão de dados)
-├── 📂 utils/         # Utilitários de formatação e matemática financeira
-└── index.ts          # CLI Engine V37.1
+├── 📂 interfaces/    # Tipagem rigorosa para Gregas e Estratégias
+├── 📂 strategies/    # Algoritmos de Spreads (Bull/Bear, Straddle, Butterfly, etc)
+├── 📂 services/      
+│   ├── BlackScholes.ts      # Motor Matemático (Probabilidade e Estatística)
+│   ├── PayoffCalculator.ts  # O cérebro que orquestra as combinações
+│   ├── csvReader.ts         # Ingestão e sanitização de dados brutos
+│   └── StrategyService.ts   # Fachada para o Frontend/API
+└── server.ts         # Entry point da API de alta performance
 
-
-📊 Demonstração de Saída (Relatório Executivo)
-
-O sistema gera um relatório de alta legibilidade para tomada de decisão rápida:
+📊 Demonstração de Saída (Exemplo Real V38.0)
 
 Plaintext
 
-[#1] BULL PUT SPREAD (CRÉDITO) | R:R Alvo: 0.07:1
+🧬 Gregas Net da Estrutura (Lote 1000):
 --------------------------------------------------------------------------------
-DETALHAMENTO DE TAXAS (LOTE 1000):
-  Entrada: R$ 44,00 | Reversão: R$ 44,00 | Ciclo Total: R$ 88,00
-
-ALVOS PARA 0 A 0 (PAGAR IDA + VOLTA):
-  > Recomprar a trava por no máximo: R$ 0.19/un
-
-RESUMO FINANCEIRO:
-  Lucro Máx Líq: R$ 236,00   | Risco Total: R$ 64,00 | ROI: 368.75%
-  Break-Even: 39.42          | Delta Net: 0.00       | Theta Net: -0.0004
+DELTA: -0.0036  (Leve viés de baixa)
+THETA:  0.0262  (Ganhando R$ 26,20/dia por decaimento)
+GAMMA:  0.0039  (Aceleração moderada próxima ao strike)
+VEGA:   0.0001  (Imunidade a variações de volatilidade)
 --------------------------------------------------------------------------------
-Total de estratégias viáveis encontradas: 111
+ROI Esperado: 368.75% | Risco Máximo: R$ 64,00 | Lucro Máximo: R$ 236,00
 
 
-🛠️ Tecnologias e Ferramentas
+🎯 Roadmap de Evolução
 
-Linguagem: TypeScript / Node.js
+[x] Fase 3 (Concluída): Integração total com Black-Scholes e normalização de dados.
 
-Processamento: Algoritmos de busca em árvore para combinação de pernas.
+[ ] Fase 4 (What-if Analysis): Simulação de variação de preço (Spot) e Vol (IV) no gráfico de Payoff.
 
-Dados: Ingestão via CSV/JSON (preparado para API).
+[ ] Fase 5 (API REST): Disponibilização dos endpoints para consumo externo.
 
-Versionamento: Git (Fluxo de Rebase e Feature Branches).
-
-
-🎯 Próximas Metas (Roadmap de Aperfeiçoamento)
-
-O desenvolvimento é contínuo e focado em transformar dados em inteligência:
-
-[ ] Fase 4 (Simulação What-if): Implementar simulação de cenários (ex: "E se o ativo subir 5% amanhã, como fica meu lucro?").
-
-[ ] Fase 5 (API Express): Criar uma camada de serviço para servir os dados calculados para uma interface Web.
-
-[ ] Fase 6 (Dashboard React): Visualização gráfica de Payoff e curvas de sensibilidade (Gama e Vega).
-
-[ ] Fase 7 (WebSockets): Integração com cotações em tempo real para alertas via Telegram/Discord.
+[ ] Fase 6 (Visual Dashboard): Gráficos de superfície de volatilidade e curvas de lucro.
 
 
+🛠️ Como Executar
 
-⚡ Como Executar
+Instalação: npm install
 
-Instale as dependências: npm install
+Ambiente: Certifique-se de que o opcoes_final_tratado.csv está na raiz.
 
-Compile e rode: npm run dev (ou ts-node src/index.ts)
+Execução: npm run api
 
-⚠️ Aviso Legal: Esta ferramenta foi desenvolvida para fins de estudo de engenharia de software e análise técnica. Operações com derivativos envolvem alto risco. Nunca opere sem entender os riscos envolvidos.
-
-Mantido por Marcio Souza
+Mantido com rigor matemático por Marcio Souza. Aviso: O mercado financeiro é soberano. Esta ferramenta é um auxílio à decisão estatística, não uma garantia de retorno.

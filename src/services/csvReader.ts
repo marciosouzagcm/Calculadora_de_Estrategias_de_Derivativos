@@ -22,7 +22,9 @@ interface CsvRow {
 
 const parsePtBrFloat = (str: string): number => {
     if (!str) return 0;
-    const value = parseFloat(str.replace(',', '.'));
+    // Remove espaços e substitui vírgula por ponto para o parseFloat padrão
+    const cleanStr = str.trim().replace(',', '.');
+    const value = parseFloat(cleanStr);
     return isNaN(value) ? 0 : value;
 };
 
@@ -36,7 +38,10 @@ export async function readOptionsDataFromCSV(filePath: string, currentAssetPrice
     const csvContent = fs.readFileSync(fullPath, 'utf-8');
     const lines = csvContent.trim().split('\n');
     const dataLines = lines.slice(1);
-    const DELIMITER = ','; 
+    
+    // Detecta o delimitador (comum em CSVs brasileiros ser ';' ou ',')
+    const firstLine = dataLines[0] || "";
+    const DELIMITER = firstLine.includes(';') ? ';' : ','; 
     
     const optionsData: (OptionLeg | null)[] = dataLines.map((line) => {
         const columns = line.split(DELIMITER); 
@@ -47,7 +52,7 @@ export async function readOptionsDataFromCSV(filePath: string, currentAssetPrice
             ticker: columns[1]?.trim(),
             vencimento: columns[2]?.trim(),
             diasUteis: columns[3]?.trim(),
-            tipo: columns[4]?.trim() as 'CALL' | 'PUT',
+            tipo: columns[4]?.trim().toUpperCase() as 'CALL' | 'PUT',
             strike: columns[5]?.trim(),
             premioPct: columns[6]?.trim(), 
             volImplicita: columns[7]?.trim(),
@@ -60,22 +65,18 @@ export async function readOptionsDataFromCSV(filePath: string, currentAssetPrice
         
         let strikeValue = parsePtBrFloat(row.strike);
         
-        // --- NOVA LÓGICA DE NORMALIZAÇÃO DE ESCALA ---
-        // Se o strike for muito menor que o preço do ativo, ajustamos a escala.
-        // Exemplo BBAS3: Spot 21.42 e Strike 2.05 -> Multiplica por 10 para virar 20.50
-        // Exemplo CSAN3: Spot 5.27 e Strike 0.05 -> Multiplica por 100 para virar 5.00
-        
-        if (strikeValue > 0) {
-            // Enquanto o strike for menos que 1/5 do preço do ativo, sobe uma casa decimal
-            // Isso resolve tanto o caso de 10x quanto o de 100x automaticamente
+        // --- NORMALIZAÇÃO DE ESCALA DO STRIKE ---
+        if (strikeValue > 0 && currentAssetPrice > 0) {
             while (strikeValue < (currentAssetPrice / 5)) {
                 strikeValue *= 10;
             }
         }
 
         const premioValue = parsePtBrFloat(row.premioPct); 
-        const diasUteisValue = parseInt(row.diasUteis.trim());
-        
+        const diasUteisValue = parseInt(row.diasUteis.replace(/\D/g, '')); // Garante apenas números
+        const volValue = parsePtBrFloat(row.volImplicita);
+
+        // Mapeia as gregas do CSV
         const greeks: Greeks = {
             delta: parsePtBrFloat(row.delta),
             gamma: parsePtBrFloat(row.gamma),
@@ -83,6 +84,7 @@ export async function readOptionsDataFromCSV(filePath: string, currentAssetPrice
             vega: parsePtBrFloat(row.vega),
         };
 
+        // Filtro de sanidade: remove linhas com dados essenciais corrompidos
         if (strikeValue <= 0 || premioValue <= 0 || isNaN(diasUteisValue)) {
             return null;
         }
@@ -94,10 +96,10 @@ export async function readOptionsDataFromCSV(filePath: string, currentAssetPrice
             premio: premioValue, 
             vencimento: row.vencimento,
             dias_uteis: diasUteisValue,
-            gregas_unitarias: greeks,
+            gregas_unitarias: greeks, // Se vier 0, o PayoffCalculator recalculada usando Black-Scholes
             option_ticker: row.ticker,
             multiplicador_contrato: 100, 
-            vol_implicita: parsePtBrFloat(row.volImplicita),
+            vol_implicita: volValue > 0 ? volValue : 0.35, // Se a vol for 0 no CSV, assume 35% para as gregas existirem
         } as OptionLeg;
     });
 

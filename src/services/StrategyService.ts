@@ -34,19 +34,30 @@ export class StrategyService {
         const lucroLiquido = (profit * lot) - fees;
         const riscoTotal = (Math.abs(loss) * lot) + fees;
 
+        // CRÍTICO: Garantimos que o objeto greeks retornado pelo PayoffCalculator seja preservado
         return {
             ...s,
             exibir_roi: ((lucroLiquido / riscoTotal) * 100).toFixed(2) + '%',
             exibir_risco: riscoTotal,
-            max_profit: profit, // Valor unitário para a boleta
+            max_profit: profit, 
             max_loss: loss,
+            // Preserva as gregas calculadas anteriormente
+            greeks: s.greeks ? {
+                delta: s.greeks.delta,
+                gamma: s.greeks.gamma,
+                theta: s.greeks.theta,
+                vega: s.greeks.vega
+            } : { delta: 0, gamma: 0, theta: 0, vega: 0 },
             pernas: s.pernas.map(p => ({
                 ...p,
                 derivative: { 
                     ...p.derivative, 
                     strike: p.derivative.strike ?? 0, 
                     premio: p.derivative.premio ?? 0,
-                    tipo: p.derivative.tipo // CALL ou PUT
+                    tipo: p.derivative.tipo,
+                    // Garante que dados de volatilidade e tempo também sigam para o front se necessário
+                    vol_implicita: p.derivative.vol_implicita ?? 0,
+                    dias_uteis: p.derivative.dias_uteis ?? 0
                 }
             }))
         };
@@ -54,28 +65,41 @@ export class StrategyService {
 
     static async getOportunidades(ticker: string, price: number, maxRR: number, lot: number): Promise<StrategyMetrics[]> {
         const csvPath = this.getCsvPath();
+        
+        // 1. Lê os dados do CSV
         const options = await readOptionsDataFromCSV(csvPath, price);
-        const filtered = options.filter(o => o.ativo_subjacente.trim().toUpperCase() === ticker.trim().toUpperCase());
+        
+        // 2. Filtra pelo ativo desejado
+        const filtered = options.filter(o => 
+            o.ativo_subjacente.trim().toUpperCase() === ticker.trim().toUpperCase()
+        );
         
         if (filtered.length === 0) return [];
 
+        // 3. O PayoffCalculator agora é responsável por gerar as Gregas Net dentro de cada StrategyMetrics
         const calculator = new PayoffCalculator(filtered, this.FEE_PER_LEG, lot);
         const allResults = calculator.findAndCalculateSpreads(price, maxRR);
 
-        // FILTRO DE SEGURANÇA: Remove o que não cobre taxas
+        // 4. Filtra estratégias que não pagam nem as taxas
         const validResults = allResults.filter(s => {
             const fees = s.pernas.length * this.FEE_PER_LEG;
-            return (Number(s.max_profit) * lot) - fees > 0;
+            const profitValue = typeof s.max_profit === 'number' ? s.max_profit : 0;
+            return (profitValue * lot) - fees > 0;
         });
 
+        // 5. Seleciona a melhor variação de cada tipo de estratégia (Ex: a melhor Bull Call Spread)
         const bestPerStrategy = new Map<string, StrategyMetrics>();
         validResults.forEach(current => {
             const existing = bestPerStrategy.get(current.name);
-            if (!existing || this.calculateNumericROI(current, lot) > this.calculateNumericROI(existing, lot)) {
+            const currentROI = this.calculateNumericROI(current, lot);
+            const existingROI = existing ? this.calculateNumericROI(existing, lot) : -Infinity;
+
+            if (!existing || currentROI > existingROI) {
                 bestPerStrategy.set(current.name, current);
             }
         });
 
+        // 6. Formata e preserva as Gregas Net para o Frontend
         return Array.from(bestPerStrategy.values())
             .sort((a, b) => this.calculateNumericROI(b, lot) - this.calculateNumericROI(a, lot))
             .map(s => this.formatForFrontend(s, lot));
