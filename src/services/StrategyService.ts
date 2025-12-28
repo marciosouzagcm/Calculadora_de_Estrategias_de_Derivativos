@@ -1,107 +1,100 @@
-import { PayoffCalculator } from './PayoffCalculator';
-import { readOptionsDataFromCSV } from './csvReader';
+import { DatabaseService } from '../config/database';
+import { StrategyFactory } from '../factories/StrategyFactory';
 import { StrategyMetrics } from '../interfaces/Types';
-import * as path from 'path';
-import * as fs from 'fs';
 
 export class StrategyService {
-    private static FEE_PER_LEG = 22.00;
-    
-    private static getCsvPath(): string {
-        const pathsToTry = [
-            path.join(process.cwd(), 'src', 'opcoes_final_tratado.csv'),
-            path.join(process.cwd(), 'opcoes_final_tratado.csv'),
-        ];
-        for (const p of pathsToTry) {
-            if (fs.existsSync(p)) return p;
+    private static readonly FEE_PER_LEG = 1.10; 
+
+    static async getOportunidades(ticker: string, lot: number, manualPrice?: number): Promise<StrategyMetrics[]> {
+        const cleanTicker = ticker.trim().toUpperCase();
+        
+        // 1. Tenta buscar o preço spot
+        const spotPrice = manualPrice || await DatabaseService.getSpotPrice(cleanTicker);
+        
+        // 2. Busca TODAS as opções do ativo
+        let options = await DatabaseService.getOptionsByTicker(cleanTicker);
+
+        // Fallback para Ticker de 4 dígitos (Ex: BBAS3 -> BBAS)
+        if ((!options || options.length === 0) && cleanTicker.length > 4) {
+            const shortTicker = cleanTicker.substring(0, 4);
+            options = await DatabaseService.getOptionsByTicker(shortTicker);
         }
-        throw new Error(`Arquivo csv não encontrado.`);
+
+        console.log(`📊 DATABASE CHECK -> Ativo: ${cleanTicker} | Spot: ${spotPrice} | Opções encontradas: ${options?.length || 0}`);
+
+        if (!options || options.length === 0) {
+            console.error("❌ Erro Crítico: O Banco de Dados retornou ZERO linhas. Verifique a tabela 'opcoes'.");
+            return [];
+        }
+
+        const allStrategies = StrategyFactory.getAllStrategies();
+        const bestByCategory = new Map<string, StrategyMetrics>();
+
+        for (const strategy of allStrategies) {
+            try {
+                // calculateMetrics é onde a mágica (e os filtros) acontecem
+                const combinations = strategy.calculateMetrics(options, spotPrice, this.FEE_PER_LEG);
+                
+                const process = (m: StrategyMetrics) => {
+                    const formatted = this.formatForFrontend(m, lot);
+                    // REMOVEMOS TODOS OS FILTROS: Se a estratégia existe, ela vai para a tela
+                    this.updateBestMap(bestByCategory, formatted);
+                };
+
+                if (Array.isArray(combinations)) {
+                    combinations.forEach(process);
+                } else if (combinations) {
+                    process(combinations);
+                }
+            } catch (err) {
+                console.error(`❌ Erro na estratégia ${strategy.constructor.name}:`, err);
+            }
+        }
+
+        const finalResults = Array.from(bestByCategory.values())
+            .sort((a, b) => (b.roi || 0) - (a.roi || 0));
+
+        console.log(`✅ Resultado Final: ${finalResults.length} estratégias enviadas ao Front.`);
+        return finalResults;
     }
 
-    private static calculateNumericROI(s: StrategyMetrics, lot: number): number {
-        const profit = typeof s.max_profit === 'number' ? s.max_profit : 0;
-        const loss = typeof s.max_loss === 'number' ? s.max_loss : 0;
-        const fees = s.pernas.length * this.FEE_PER_LEG;
-        const lucroLiquido = (profit * lot) - fees;
-        const riscoTotal = (Math.abs(loss) * lot) + fees;
-        return riscoTotal <= 0 ? -1 : (lucroLiquido / riscoTotal);
+    private static updateBestMap(map: Map<string, StrategyMetrics>, current: StrategyMetrics) {
+        const existing = map.get(current.name);
+        if (!existing || (current.roi || 0) > (existing.roi || 0)) {
+            map.set(current.name, current);
+        }
     }
 
     private static formatForFrontend(s: StrategyMetrics, lot: number): StrategyMetrics {
-        const profit = typeof s.max_profit === 'number' ? s.max_profit : 0;
-        const loss = typeof s.max_loss === 'number' ? s.max_loss : 0;
-        const fees = s.pernas.length * this.FEE_PER_LEG;
-        const lucroLiquido = (profit * lot) - fees;
-        const riscoTotal = (Math.abs(loss) * lot) + fees;
+        const feesTotal = s.pernas.length * this.FEE_PER_LEG;
+        const grossProfit = (Number(s.max_profit) || 0) * lot;
+        const grossLoss = (Number(s.max_loss) || 0) * lot;
+        
+        const netProfit = grossProfit - feesTotal;
+        const netRisk = Math.abs(grossLoss) + feesTotal;
+        const finalROI = netRisk > 0 ? (netProfit / netRisk) : 0;
 
-        // CRÍTICO: Garantimos que o objeto greeks retornado pelo PayoffCalculator seja preservado
         return {
             ...s,
-            exibir_roi: ((lucroLiquido / riscoTotal) * 100).toFixed(2) + '%',
-            exibir_risco: riscoTotal,
-            max_profit: profit, 
-            max_loss: loss,
-            // Preserva as gregas calculadas anteriormente
-            greeks: s.greeks ? {
-                delta: s.greeks.delta,
-                gamma: s.greeks.gamma,
-                theta: s.greeks.theta,
-                vega: s.greeks.vega
-            } : { delta: 0, gamma: 0, theta: 0, vega: 0 },
-            pernas: s.pernas.map(p => ({
-                ...p,
-                derivative: { 
-                    ...p.derivative, 
-                    strike: p.derivative.strike ?? 0, 
-                    premio: p.derivative.premio ?? 0,
-                    tipo: p.derivative.tipo,
-                    // Garante que dados de volatilidade e tempo também sigam para o front se necessário
-                    vol_implicita: p.derivative.vol_implicita ?? 0,
-                    dias_uteis: p.derivative.dias_uteis ?? 0
-                }
-            }))
+            roi: finalROI,
+            exibir_roi: (finalROI * 100).toFixed(2) + '%',
+            exibir_risco: Number(netRisk.toFixed(2)),
+            max_profit: Number(netProfit.toFixed(2)),
+            max_loss: Number(netRisk.toFixed(2)),
+            initialCashFlow: Number((s.initialCashFlow * lot).toFixed(2)),
+            net_premium: Number((s.net_premium * lot).toFixed(2)),
+            greeks: {
+                delta: Number((s.greeks?.delta || 0).toFixed(4)),
+                gamma: Number((s.greeks?.gamma || 0).toFixed(4)),
+                theta: Number((s.greeks?.theta || 0).toFixed(4)),
+                vega: Number((s.greeks?.vega || 0).toFixed(4))
+            },
+            breakEvenPoints: s.breakEvenPoints ? s.breakEvenPoints.map(p => Number(p.toFixed(2))) : []
         };
     }
 
-    static async getOportunidades(ticker: string, price: number, maxRR: number, lot: number): Promise<StrategyMetrics[]> {
-        const csvPath = this.getCsvPath();
-        
-        // 1. Lê os dados do CSV
-        const options = await readOptionsDataFromCSV(csvPath, price);
-        
-        // 2. Filtra pelo ativo desejado
-        const filtered = options.filter(o => 
-            o.ativo_subjacente.trim().toUpperCase() === ticker.trim().toUpperCase()
-        );
-        
-        if (filtered.length === 0) return [];
-
-        // 3. O PayoffCalculator agora é responsável por gerar as Gregas Net dentro de cada StrategyMetrics
-        const calculator = new PayoffCalculator(filtered, this.FEE_PER_LEG, lot);
-        const allResults = calculator.findAndCalculateSpreads(price, maxRR);
-
-        // 4. Filtra estratégias que não pagam nem as taxas
-        const validResults = allResults.filter(s => {
-            const fees = s.pernas.length * this.FEE_PER_LEG;
-            const profitValue = typeof s.max_profit === 'number' ? s.max_profit : 0;
-            return (profitValue * lot) - fees > 0;
-        });
-
-        // 5. Seleciona a melhor variação de cada tipo de estratégia (Ex: a melhor Bull Call Spread)
-        const bestPerStrategy = new Map<string, StrategyMetrics>();
-        validResults.forEach(current => {
-            const existing = bestPerStrategy.get(current.name);
-            const currentROI = this.calculateNumericROI(current, lot);
-            const existingROI = existing ? this.calculateNumericROI(existing, lot) : -Infinity;
-
-            if (!existing || currentROI > existingROI) {
-                bestPerStrategy.set(current.name, current);
-            }
-        });
-
-        // 6. Formata e preserva as Gregas Net para o Frontend
-        return Array.from(bestPerStrategy.values())
-            .sort((a, b) => this.calculateNumericROI(b, lot) - this.calculateNumericROI(a, lot))
-            .map(s => this.formatForFrontend(s, lot));
+    private static ensureNumber(val: any): number {
+        const n = parseFloat(val);
+        return isNaN(n) ? 0 : n;
     }
 }

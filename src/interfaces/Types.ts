@@ -1,27 +1,52 @@
+/**
+ * Tipos fundamentais para o motor de estratégias de opções
+ */
+
 export type ProfitLossValue = number | 'Ilimitado' | 'Ilimitada';
 export type PositionDirection = 'COMPRA' | 'VENDA' | 'SUBJACENTE';
 export type NaturezaOperacao = 'DÉBITO' | 'CRÉDITO' | 'NEUTRA'; 
 
+/**
+ * Gregas Net ou Unitárias
+ */
 export interface Greeks {
-    readonly delta: number | null; 
-    readonly gamma: number | null; 
-    readonly theta: number | null; 
-    readonly vega: number | null; 
+    delta: number; 
+    gamma: number; 
+    theta: number; 
+    vega: number; 
 }
 
+/**
+ * Representação de uma opção vinda do Banco de Dados
+ */
 export interface OptionLeg {
-    readonly option_ticker: string; 
-    readonly ativo_subjacente: string; 
-    readonly vencimento: string; 
-    readonly dias_uteis: number; 
-    readonly tipo: 'CALL' | 'PUT' | 'SUBJACENTE'; 
-    readonly strike: number | null; 
-    readonly multiplicador_contrato: number; 
+    ticker?: string;           
+    option_ticker?: string;    
+    ativo_subjacente: string; 
+    vencimento: string; 
+    dias_uteis: number; 
+    tipo: 'CALL' | 'PUT' | 'SUBJACENTE'; 
+    strike: number | null; 
+    multiplicador_contrato?: number; 
+    
     premio: number; 
     vol_implicita: number | null; 
+    
+    /**
+     * Gregas calculadas/armazenadas
+     */
     gregas_unitarias: Greeks; 
+
+    // Campos auxiliares para facilitar o acesso direto
+    delta?: number;
+    gamma?: number;
+    theta?: number;
+    vega?: number;
 }
 
+/**
+ * Estrutura de uma perna dentro de uma estratégia montada
+ */
 export interface StrategyLeg {
     direction: PositionDirection; 
     multiplier: number; 
@@ -30,6 +55,9 @@ export interface StrategyLeg {
     side_display?: string; 
 }
 
+/**
+ * Interface Principal de Resultados das Estratégias
+ */
 export interface StrategyMetrics {
     name: string; 
     asset: string; 
@@ -43,6 +71,7 @@ export interface StrategyMetrics {
     initialCashFlow: number; 
     natureza: NaturezaOperacao;
 
+    // Valores teóricos (podem ser strings como "Ilimitado")
     max_profit: ProfitLossValue; 
     max_loss: ProfitLossValue;   
     lucro_maximo: ProfitLossValue; 
@@ -53,10 +82,12 @@ export interface StrategyMetrics {
     pernas: StrategyLeg[]; 
 
     /**
-     * Campos de exibição formatados (Opcionais para permitir a criação inicial nas estratégias)
+     * Propriedades de Gestão e Exibição (Calculadas pelo StrategyService)
+     * Adicionadas para resolver erros de compilação e alimentar o Frontend
      */
-    exibir_roi?: string;
-    exibir_risco?: number;
+    roi?: number;                 // Valor decimal (ex: 0.155) para ordenação
+    exibir_roi?: string;          // String formatada (ex: "15.50%")
+    exibir_risco?: number;        // Risco financeiro real (Perda + Taxas)
     stop_loss_sugerido?: string;
     alvo_zero_a_zero?: string;
 }

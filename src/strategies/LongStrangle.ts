@@ -1,22 +1,21 @@
 // src/strategies/LongStrangle.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao, ProfitLossValue } from '../interfaces/Types';
+import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao } from '../interfaces/Types';
 
-// Função auxiliar para gerar a string de display
 function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
     const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.ativo_subjacente} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
 }
 
 export class LongStrangle implements IStrategy {
     
-    public readonly name: string = 'Long Strangle (Débito)';
+    public readonly name: string = 'Long Strangle';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'VOLÁTIL'; 
     
     getDescription(): string {
-        return 'Compra de Call e Put com strikes diferentes. Mais barato que o Straddle, mas exige maior movimento.';
+        return 'Compra de Call e Put OTM com strikes diferentes. Mais barato que o Straddle, mas exige maior movimento.';
     }
 
     getLegCount(): number {
@@ -24,7 +23,7 @@ export class LongStrangle implements IStrategy {
     }
     
     generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; // Processado pelo motor de payoff central
+        return []; 
     }
 
     calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
@@ -38,12 +37,12 @@ export class LongStrangle implements IStrategy {
         const K_Put = putLeg.strike!;
         const K_Call = callLeg.strike!;
 
-        // Validação: No Strangle, o strike da Put é tipicamente menor que o da Call
+        // No Strangle, a Put deve ter strike menor que a Call (ambas OTM)
         if (K_Put >= K_Call) return null;
 
         // --- 1. Fluxo de Caixa (UNITÁRIO) ---
         const netPremiumUnitario = putLeg.premio + callLeg.premio;
-        if (netPremiumUnitario <= 0) return null;
+        if (netPremiumUnitario <= 0.01) return null;
 
         // --- 2. Risco e Retorno (UNITÁRIO) ---
         const max_loss = netPremiumUnitario; 
@@ -53,7 +52,6 @@ export class LongStrangle implements IStrategy {
         const breakeven_low = K_Put - netPremiumUnitario;
         const breakeven_high = K_Call + netPremiumUnitario;
         
-        // ROI arbitrário para ranking (estratégia de lucro infinito)
         const roi = 10; 
 
         // --- 4. Gregas ---
@@ -64,7 +62,6 @@ export class LongStrangle implements IStrategy {
             vega: (callLeg.gregas_unitarias.vega ?? 0) + (putLeg.gregas_unitarias.vega ?? 0),
         };
 
-        // --- 5. Pernas ---
         const pernas: StrategyLeg[] = [
             { derivative: putLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(putLeg, 'COMPRA', K_Put) },
             { derivative: callLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(callLeg, 'COMPRA', K_Call) },
@@ -76,7 +73,7 @@ export class LongStrangle implements IStrategy {
             spread_type: 'STRANGLE', 
             expiration: callLeg.vencimento, 
             dias_uteis: callLeg.dias_uteis ?? 0, 
-            strike_description: `P: ${K_Put.toFixed(2)} | C: ${K_Call.toFixed(2)}`,
+            strike_description: `P:${K_Put.toFixed(2)} | C:${K_Call.toFixed(2)}`,
             asset_price: assetPrice, 
             
             net_premium: -netPremiumUnitario,
@@ -88,7 +85,7 @@ export class LongStrangle implements IStrategy {
             risco_maximo: max_loss,
             lucro_maximo: max_profit,
             max_profit: max_profit,
-            max_loss: max_loss,
+            max_loss: -max_loss, // Negativo para o payoff
             
             current_pnl: 0, 
             current_price: assetPrice, 
@@ -98,13 +95,13 @@ export class LongStrangle implements IStrategy {
             breakeven_high: breakeven_high, 
             
             width: K_Call - K_Put, 
-            minPriceToMaxProfit: breakeven_high, 
-            maxPriceToMaxProfit: breakeven_low, 
+            minPriceToMaxProfit: 0, 
+            maxPriceToMaxProfit: Infinity, 
             
             risco_retorno_unitario: roi, 
-            rentabilidade_max: roi,
+            rentabilidade_max: roi * 100,
             roi: roi, 
-            margem_exigida: max_loss,
+            margem_exigida: 0, 
             probabilidade_sucesso: 0, 
             score: 0, 
             should_close: false,

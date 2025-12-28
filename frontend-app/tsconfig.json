@@ -16,6 +16,6 @@
     "outDir": "./dist",
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx", "frontend-app/src/firebase.ts"],
   "exclude": ["node_modules", "dist"]
 }

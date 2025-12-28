@@ -1,16 +1,17 @@
 // src/strategies/ButterflySpread.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, NaturezaOperacao, OptionLeg, ProfitLossValue, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
+import { Greeks, NaturezaOperacao, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
 
 function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null, qty: number = 1): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
     const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${qty}x ${action}-${typeInitial} ${leg.ativo_subjacente} K${strikeStr}`;
+    // Usando option_ticker para facilitar a identificação
+    return `${qty}x ${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
 }
 
 export class ButterflySpread implements IStrategy {
-    public readonly name: string = 'Long Butterfly Call (Débito)';
+    public readonly name: string = 'Long Butterfly Call';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA'; 
 
     getDescription(): string { return 'Estratégia neutra a débito. Lucro máximo no miolo (K2).'; }
@@ -19,7 +20,8 @@ export class ButterflySpread implements IStrategy {
     calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
         if (legData.length !== 3) return null;
         
-        const callLegs = legData.filter(leg => leg.tipo === 'CALL').sort((a, b) => (a.strike ?? 0) - (b.strike ?? 0));
+        // Garante a ordem dos strikes: Asa Inferior (K1) < Miolo (K2) < Asa Superior (K3)
+        const callLegs = [...legData].filter(leg => leg.tipo === 'CALL').sort((a, b) => (a.strike ?? 0) - (b.strike ?? 0));
         if (callLegs.length !== 3) return null;
 
         const [K1_l, K2_s, K3_l] = callLegs;
@@ -27,22 +29,27 @@ export class ButterflySpread implements IStrategy {
         const K2 = K2_s.strike!; 
         const K3 = K3_l.strike!;
 
-        // Validação de simetria (essencial para borboletas)
-        if (Math.abs((K2 - K1) - (K3 - K2)) > 0.1) return null;
+        // Validação de simetria e vencimento
+        const leftWing = K2 - K1;
+        const rightWing = K3 - K2;
+        if (Math.abs(leftWing - rightWing) > 0.11) return null; 
         if (K1_l.vencimento !== K2_s.vencimento || K2_s.vencimento !== K3_l.vencimento) return null;
 
         // --- 1. Fluxo de Caixa (UNITÁRIO) ---
-        // Custo = (Asas Compradas) - (2x Corpo Vendido)
+        // Custo = Preço pago nas pontas - Preço recebido no miolo (2x)
         const cashFlowBrutoUnitario = K1_l.premio + K3_l.premio - (K2_s.premio * 2);
         
-        // Se o custo for negativo ou zero, a montagem está distorcida (arbitragem)
-        if (cashFlowBrutoUnitario <= 0) return null; 
+        // Se o custo for irracional (negativo), a borboleta não existe no mercado real
+        if (cashFlowBrutoUnitario <= 0.01) return null; 
 
         // --- 2. Risco e Retorno (UNITÁRIO) ---
         const width = K2 - K1;
         const max_profit = width - cashFlowBrutoUnitario;
-        const max_loss = cashFlowBrutoUnitario; // Risco máximo em borboletas de débito é o prêmio pago
+        const max_loss = cashFlowBrutoUnitario; 
         const roi = max_profit / max_loss;
+
+        // Se o lucro máximo for menor ou igual a zero após montagem, descarta
+        if (max_profit <= 0) return null;
 
         // --- 3. Gregas ---
         const greeks: Greeks = {
@@ -58,7 +65,7 @@ export class ButterflySpread implements IStrategy {
             spread_type: 'BUTTERFLY CALL',
             expiration: K1_l.vencimento,
             dias_uteis: K1_l.dias_uteis ?? 0,
-            strike_description: `${K1.toFixed(2)} | ${K2.toFixed(2)} | ${K3.toFixed(2)}`,
+            strike_description: `${K1.toFixed(1)}|${K2.toFixed(1)}|${K3.toFixed(1)}`,
             asset_price: assetPrice,
             
             net_premium: -cashFlowBrutoUnitario,
@@ -70,7 +77,7 @@ export class ButterflySpread implements IStrategy {
             risco_maximo: max_loss,
             lucro_maximo: max_profit,
             max_profit: max_profit,
-            max_loss: max_loss,
+            max_loss: -max_loss, // Negativo para o payoff
             
             current_pnl: 0,
             current_price: assetPrice,
@@ -83,9 +90,9 @@ export class ButterflySpread implements IStrategy {
             maxPriceToMaxProfit: K2,
             
             risco_retorno_unitario: roi,
-            rentabilidade_max: roi,
+            rentabilidade_max: roi * 100,
             roi: roi,
-            margem_exigida: max_loss,
+            margem_exigida: 0, 
             probabilidade_sucesso: 0,
             score: 0,
             should_close: false,

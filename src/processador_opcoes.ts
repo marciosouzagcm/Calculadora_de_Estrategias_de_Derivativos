@@ -58,7 +58,7 @@ const FATOR_CORRECAO_ESCALA_GREGA: number = 10000.0;
 const FATOR_CORRECAO_ESCALA_VI: number = 100.0;
 
 // Caminho padrão (corrigido: barras escapadas e uso de path.resolve)
-const CAMINHO_PADRAO = String.raw`C:\Users\DELL\Downloads\Opções PETR4 - CALLs e PUTs - lista, pesquisa e cotações.xlsx`;
+const CAMINHO_PADRAO = String.raw`C:\Users\DELL\Downloads\Opções BOVA11 - CALLs e PUTs - lista, pesquisa e cotações.xlsx`;
 // ========================================================================================================================
 
 /**

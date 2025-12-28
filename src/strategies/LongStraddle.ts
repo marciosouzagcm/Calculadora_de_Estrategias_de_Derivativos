@@ -1,18 +1,17 @@
 // src/strategies/LongStraddle.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao, ProfitLossValue } from '../interfaces/Types';
+import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao } from '../interfaces/Types';
 
-// Função auxiliar para gerar a string de display
 function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
     const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.ativo_subjacente} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
 }
 
 export class LongStraddle implements IStrategy {
     
-    public readonly name: string = 'Long Straddle (Débito)';
+    public readonly name: string = 'Long Straddle';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'VOLÁTIL'; 
     
     getDescription(): string {
@@ -24,7 +23,7 @@ export class LongStraddle implements IStrategy {
     }
     
     generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; // Implementado pelo calculador central
+        return []; 
     }
 
     calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
@@ -33,26 +32,25 @@ export class LongStraddle implements IStrategy {
         const callLeg = legData.find(leg => leg.tipo === 'CALL');
         const putLeg = legData.find(leg => leg.tipo === 'PUT'); 
         
+        // Validação: Devem ter o mesmo strike e mesmo vencimento
         if (!callLeg || !putLeg || callLeg.strike !== putLeg.strike || callLeg.vencimento !== putLeg.vencimento) return null;
 
         const K = callLeg.strike!;
 
         // --- 1. Fluxo de Caixa (UNITÁRIO) ---
         const netPremiumUnitario = callLeg.premio + putLeg.premio;
-        if (netPremiumUnitario <= 0) return null;
+        if (netPremiumUnitario <= 0.01) return null;
 
         // --- 2. Risco e Retorno (UNITÁRIO) ---
-        // Risco Máximo é o custo total pago
+        // Risco Máximo ocorre se o ativo parar exatamente no Strike (K)
         const max_loss = netPremiumUnitario; 
-        // Lucro Máximo é teoricamente infinito (na prática limitado pelo ativo ir a zero ou disparar)
-        const max_profit = Infinity;
+        const max_profit = Infinity; 
 
         // --- 3. Pontos Chave ---
         const breakeven_low = K - netPremiumUnitario;
         const breakeven_high = K + netPremiumUnitario;
         
-        // ROI para Straddle é frequentemente calculado sobre o capital em risco (débito)
-        // Como o lucro é infinito, usamos um valor alto ou 1000% para o Score de ranking
+        // ROI para Straddle é difícil de prever (infinito), usamos uma métrica de referência
         const roi = 10; 
 
         // --- 4. Gregas ---
@@ -63,7 +61,6 @@ export class LongStraddle implements IStrategy {
             vega: (callLeg.gregas_unitarias.vega ?? 0) + (putLeg.gregas_unitarias.vega ?? 0),
         };
 
-        // --- 5. Pernas ---
         const pernas: StrategyLeg[] = [
             { derivative: callLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(callLeg, 'COMPRA', K) },
             { derivative: putLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(putLeg, 'COMPRA', K) },
@@ -87,7 +84,7 @@ export class LongStraddle implements IStrategy {
             risco_maximo: max_loss,
             lucro_maximo: max_profit,
             max_profit: max_profit,
-            max_loss: max_loss,
+            max_loss: -max_loss, // Negativo para o payoff
             
             current_pnl: 0, 
             current_price: assetPrice, 
@@ -97,13 +94,13 @@ export class LongStraddle implements IStrategy {
             breakeven_high: breakeven_high, 
             
             width: 0, 
-            minPriceToMaxProfit: breakeven_high, 
-            maxPriceToMaxProfit: breakeven_low, 
+            minPriceToMaxProfit: 0, 
+            maxPriceToMaxProfit: Infinity, 
             
             risco_retorno_unitario: roi, 
-            rentabilidade_max: roi,
+            rentabilidade_max: roi * 100,
             roi: roi, 
-            margem_exigida: max_loss,
+            margem_exigida: 0, 
             probabilidade_sucesso: 0, 
             score: 0, 
             should_close: false,

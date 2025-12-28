@@ -28,7 +28,7 @@
     "noEmit": true 
   },
   // CORRIGIDO: Inclui todos os arquivos .ts (e .tsx) na raiz e em todas as subpastas.
-  "include": ["**/*.ts", "**/*.tsx"], 
+  "include": ["**/*.ts", "**/*.tsx", "../frontend-app/src/firebase.ts"], 
   
   // Exclui as pastas que não contêm código-fonte a ser processado.
   "exclude": ["node_modules", "dist"]

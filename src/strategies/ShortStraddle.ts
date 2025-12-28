@@ -1,18 +1,17 @@
 // src/strategies/ShortStraddle.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao, ProfitLossValue } from '../interfaces/Types';
+import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao } from '../interfaces/Types';
 
-// Função auxiliar para gerar a string de display
 function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
     const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.ativo_subjacente} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
 }
 
 export class ShortStraddle implements IStrategy {
     
-    public readonly name: string = 'Short Straddle (Crédito)';
+    public readonly name: string = 'Short Straddle';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA'; 
     
     getDescription(): string {
@@ -24,7 +23,7 @@ export class ShortStraddle implements IStrategy {
     }
     
     generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; // Calculado centralmente
+        return []; 
     }
 
     calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
@@ -38,8 +37,9 @@ export class ShortStraddle implements IStrategy {
         const K = callLeg.strike!;
 
         // --- 1. Fluxo de Caixa (UNITÁRIO) ---
+        // Recebemos prêmio por vender ambas as pontas
         const netPremiumUnitario = callLeg.premio + putLeg.premio;
-        if (netPremiumUnitario <= 0) return null;
+        if (netPremiumUnitario <= 0.01) return null;
 
         // --- 2. Risco e Retorno (UNITÁRIO) ---
         const lucro_maximo = netPremiumUnitario; 
@@ -49,21 +49,20 @@ export class ShortStraddle implements IStrategy {
         const breakeven_low = K - netPremiumUnitario;
         const breakeven_high = K + netPremiumUnitario;
         
-        // Em estratégias de crédito com risco infinito, o ROI é geralmente baixo 
-        // ou calculado sobre a margem exigida pela corretora.
-        const roi = 0.15; 
+        // ROI para Short Straddle é calculado sobre a margem (ex: 20% do valor do ativo)
+        const margemEstimada = assetPrice * 0.20;
+        const roi = lucro_maximo / margemEstimada; 
 
-        // --- 4. Gregas (Venda = -1 * Gregas Unitárias) ---
+        // --- 4. Gregas (Venda inverte o sinal da grega unitária da opção) ---
         const greeks: Greeks = {
             delta: -(callLeg.gregas_unitarias.delta ?? 0) - (putLeg.gregas_unitarias.delta ?? 0),
             gamma: -(callLeg.gregas_unitarias.gamma ?? 0) - (putLeg.gregas_unitarias.gamma ?? 0),
-            // Short Straddle é POSITIVO em Theta (ganha com a decomposição do tempo)
+            // Short Straddle é POSITIVO em Theta (ganha com a passagem do tempo)
             theta: -(callLeg.gregas_unitarias.theta ?? 0) - (putLeg.gregas_unitarias.theta ?? 0), 
             // Short Straddle é NEGATIVO em Vega (perde se a volatilidade subir)
             vega: -(callLeg.gregas_unitarias.vega ?? 0) - (putLeg.gregas_unitarias.vega ?? 0), 
         };
 
-        // --- 5. Pernas ---
         const pernas: StrategyLeg[] = [
             { derivative: callLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(callLeg, 'VENDA', K) },
             { derivative: putLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(putLeg, 'VENDA', K) },
@@ -87,7 +86,7 @@ export class ShortStraddle implements IStrategy {
             risco_maximo: max_loss,
             lucro_maximo: lucro_maximo, 
             max_profit: lucro_maximo,
-            max_loss: -max_loss,
+            max_loss: -999999, // Representação de risco ilimitado para o gráfico
             
             current_pnl: 0, 
             current_price: assetPrice, 
@@ -101,9 +100,9 @@ export class ShortStraddle implements IStrategy {
             maxPriceToMaxProfit: K, 
             
             risco_retorno_unitario: roi, 
-            rentabilidade_max: roi,
+            rentabilidade_max: roi * 100,
             roi: roi, 
-            margem_exigida: assetPrice * 0.2, // Estimativa conservadora de margem (20% do valor do ativo)
+            margem_exigida: margemEstimada, 
             probabilidade_sucesso: 0, 
             score: 0, 
             should_close: false,

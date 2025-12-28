@@ -1,18 +1,17 @@
 // src/strategies/BullPutSpread.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, NaturezaOperacao, OptionLeg, ProfitLossValue, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
+import { Greeks, NaturezaOperacao, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
 
-// Função auxiliar para gerar a string de display
 function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
     const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.ativo_subjacente} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
 }
 
 export class BullPutSpread implements IStrategy {
     
-    public readonly name: string = 'Bull Put Spread (Crédito)';
+    public readonly name: string = 'Bull Put Spread (Trava de Alta)';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'ALTA'; 
     
     getDescription(): string {
@@ -24,19 +23,19 @@ export class BullPutSpread implements IStrategy {
     }
     
     generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; // Implementado pelo PayoffCalculator central
+        return []; 
     }
 
     calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
         if (legData.length !== 2) return null;
 
-        // Ordena por strike descendente: K1 (maior) Venda, K2 (menor) Compra
-        const putLegs = legData.filter(leg => leg.tipo === 'PUT').sort((a, b) => (b.strike ?? 0) - (a.strike ?? 0));
+        // Ordena por strike descendente: K1 (maior - Venda) > K2 (menor - Compra)
+        const putLegs = [...legData].filter(leg => leg.tipo === 'PUT').sort((a, b) => (b.strike ?? 0) - (a.strike ?? 0));
         
         if (putLegs.length !== 2) return null;
 
-        const K1_short = putLegs[0];  // Strike Maior (Venda)
-        const K2_long = putLegs[1];   // Strike Menor (Compra)
+        const K1_short = putLegs[0];  // Strike Maior (Venda - ATM/ITM)
+        const K2_long = putLegs[1];   // Strike Menor (Compra - OTM)
         
         const K1 = K1_short.strike!;
         const K2 = K2_long.strike!;
@@ -44,15 +43,13 @@ export class BullPutSpread implements IStrategy {
         if (K1 <= K2 || K1_short.vencimento !== K2_long.vencimento) return null;
 
         // --- 1. Fluxo de Caixa (UNITÁRIO) ---
+        // Crédito recebido na montagem
         const cashFlowBrutoUnitario = K1_short.premio - K2_long.premio;
-        if (cashFlowBrutoUnitario <= 0) return null; 
+        if (cashFlowBrutoUnitario <= 0.01) return null; 
 
         // --- 2. Risco e Retorno (UNITÁRIO) ---
         const width = K1 - K2; 
-        
-        // Lucro Máximo é o crédito recebido
         const max_profit = cashFlowBrutoUnitario;
-        // Risco Máximo é a largura menos o crédito recebido
         const max_loss = width - cashFlowBrutoUnitario;
 
         if (max_loss <= 0) return null;
@@ -81,7 +78,7 @@ export class BullPutSpread implements IStrategy {
             spread_type: 'VERTICAL PUT',
             expiration: K1_short.vencimento, 
             dias_uteis: K1_short.dias_uteis ?? 0, 
-            strike_description: `K1:${K1.toFixed(2)} / K2:${K2.toFixed(2)}`,
+            strike_description: `K1:${K1.toFixed(2)} (V) / K2:${K2.toFixed(2)} (C)`,
             asset_price: assetPrice, 
             
             net_premium: cashFlowBrutoUnitario, 
@@ -93,7 +90,7 @@ export class BullPutSpread implements IStrategy {
             risco_maximo: max_loss,
             lucro_maximo: max_profit,
             max_profit: max_profit,
-            max_loss: -max_loss, // Negativo para o payoff
+            max_loss: -max_loss, 
             
             current_pnl: 0, 
             current_price: assetPrice, 
@@ -104,10 +101,10 @@ export class BullPutSpread implements IStrategy {
             
             width: width,
             minPriceToMaxProfit: K1, 
-            maxPriceToMaxProfit: Infinity, 
+            maxPriceToMaxProfit: K1 * 1.5, 
             
             risco_retorno_unitario: roi, 
-            rentabilidade_max: roi,
+            rentabilidade_max: roi * 100,
             roi: roi, 
             margem_exigida: max_loss,
             probabilidade_sucesso: 0, 
