@@ -1,119 +1,58 @@
-// src/strategies/CalendarSpread.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, NaturezaOperacao, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
-
-function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
-    const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const strikeStr = strike?.toFixed(2) || 'N/A';
-    const action = direction === 'COMPRA' ? 'C' : 'V';
-    // Extrai mês e ano para diferenciar os vencimentos no display
-    const dateParts = leg.vencimento.split('-');
-    const label = dateParts.length > 1 ? `${dateParts[1]}/${dateParts[0].slice(-2)}` : '';
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr} (${label})`;
-}
+import { NaturezaOperacao, OptionLeg, StrategyMetrics } from '../interfaces/Types';
 
 export class CalendarSpread implements IStrategy {
-    
-    public readonly name: string = 'Long Calendar Spread';
-    public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA'; 
-    
-    getDescription(): string {
-        return 'Estratégia horizontal (tempo). Vende vencimento curto e compra longo no mesmo strike.';
+    public readonly name: string = 'Calendar Spread (Horizontal)';
+    public readonly marketView: 'NEUTRA' = 'NEUTRA';
+
+    calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
+        const results: StrategyMetrics[] = [];
+        
+        for (let i = 0; i < allOptions.length; i++) {
+            for (let j = 0; j < allOptions.length; j++) {
+                if (i === j) continue;
+
+                const legShort = allOptions[i]; // Opção que vence antes
+                const legLong = allOptions[j];  // Opção que vence depois
+
+                if (legShort.tipo !== legLong.tipo || legShort.tipo === 'SUBJACENTE') continue;
+
+                // TOLERÂNCIA DE STRIKE: Aceita até 0.5% de diferença (ex: 30.12 e 30.15)
+                const strikeDiff = Math.abs((legShort.strike || 0) - (legLong.strike || 0));
+                if (strikeDiff > (legShort.strike! * 0.006)) continue;
+
+                const dateShort = new Date(legShort.vencimento).getTime();
+                const dateLong = new Date(legLong.vencimento).getTime();
+                
+                // Valida se os vencimentos são realmente diferentes e qual é a curta/longa
+                if (dateShort >= dateLong) continue;
+
+                const netCost = legLong.premio - legShort.premio;
+                if (netCost <= 0.05) continue;
+
+                results.push({
+                    name: this.name,
+                    asset: legLong.ativo_subjacente,
+                    asset_price: assetPrice,
+                    spread_type: 'CALENDAR',
+                    expiration: String(legShort.vencimento).split(/[T ]/)[0],
+                    strike_description: `K: ${legLong.strike?.toFixed(2)} (${legLong.tipo})`,
+                    net_premium: Number((-netCost).toFixed(2)),
+                    natureza: 'DÉBITO' as NaturezaOperacao,
+                    max_profit: Number((netCost * 0.6).toFixed(2)), // Estimativa de valorização
+                    max_loss: Number(netCost.toFixed(2)),
+                    roi: 0.6,
+                    pernas: [
+                        { direction: 'VENDA', multiplier: 1, derivative: legShort, display: `V-${legShort.option_ticker} (${legShort.vencimento})` },
+                        { direction: 'COMPRA', multiplier: 1, derivative: legLong, display: `C-${legLong.option_ticker} (${legLong.vencimento})` }
+                    ]
+                } as any);
+            }
+        }
+        return results;
     }
 
-    getLegCount(): number {
-        return 2;
-    }
-    
-    generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; // Requer modelo Black-Scholes para estimar preço da perna longa
-    }
-
-    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
-        if (legData.length !== 2) return null;
-
-        // Ordenar por vencimento: Mais curto (Venda) primeiro
-        const sortedLegs = [...legData].sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
-        
-        const shortLeg = sortedLegs[0];  // Vencimento Curto
-        const longLeg = sortedLegs[1];   // Vencimento Longo
-        
-        const K_strike = shortLeg.strike!;
-
-        // Validações Cruciais para Calendário
-        if (K_strike !== longLeg.strike || 
-            shortLeg.vencimento === longLeg.vencimento || 
-            shortLeg.tipo !== longLeg.tipo) return null;
-        
-        // Em um Long Calendar, a opção longa (mais tempo) DEVE ser mais cara
-        const cashFlowBrutoUnitario = longLeg.premio - shortLeg.premio;
-        if (cashFlowBrutoUnitario <= 0.05) return null; 
-
-        // --- 1. Risco e Retorno (Estimativas de Mercado) ---
-        const max_loss = cashFlowBrutoUnitario; 
-        // Estimativa conservadora de lucro máximo (pico no strike)
-        const max_profit = cashFlowBrutoUnitario * 1.5;
-
-        // --- 2. Pontos Chave ---
-        const breakeven_offset = assetPrice * 0.05; // Estimativa: 5% de range
-        const breakeven1 = K_strike - breakeven_offset; 
-        const breakeven2 = K_strike + breakeven_offset; 
-        const roi = max_profit / max_loss;
-
-        // --- 3. Gregas (Soma ponderada) ---
-        const greeks: Greeks = {
-            delta: (longLeg.gregas_unitarias.delta ?? 0) - (shortLeg.gregas_unitarias.delta ?? 0),
-            gamma: (longLeg.gregas_unitarias.gamma ?? 0) - (shortLeg.gregas_unitarias.gamma ?? 0),
-            theta: (longLeg.gregas_unitarias.theta ?? 0) - (shortLeg.gregas_unitarias.theta ?? 0), 
-            vega: (longLeg.gregas_unitarias.vega ?? 0) - (shortLeg.gregas_unitarias.vega ?? 0), 
-        };
-
-        const pernas: StrategyLeg[] = [
-            { derivative: shortLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(shortLeg, 'VENDA', K_strike) },
-            { derivative: longLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(longLeg, 'COMPRA', K_strike) },
-        ];
-        
-        return {
-            name: this.name,
-            asset: longLeg.ativo_subjacente,
-            spread_type: 'CALENDAR SPREAD',
-            expiration: shortLeg.vencimento,
-            dias_uteis: shortLeg.dias_uteis ?? 0, 
-            strike_description: `Strike: ${K_strike.toFixed(2)}`,
-            asset_price: assetPrice, 
-            
-            net_premium: -cashFlowBrutoUnitario,
-            cash_flow_bruto: -cashFlowBrutoUnitario,
-            cash_flow_liquido: -cashFlowBrutoUnitario,
-            initialCashFlow: -cashFlowBrutoUnitario, 
-            natureza: 'DÉBITO' as NaturezaOperacao,
-
-            risco_maximo: max_loss,
-            lucro_maximo: max_profit,
-            max_profit: max_profit,
-            max_loss: -max_loss, // Negativo para o payoff
-            
-            current_pnl: 0, 
-            current_price: assetPrice, 
-            
-            breakEvenPoints: [breakeven1, breakeven2], 
-            breakeven_low: breakeven1, 
-            breakeven_high: breakeven2, 
-            
-            width: 0,
-            minPriceToMaxProfit: K_strike, 
-            maxPriceToMaxProfit: K_strike, 
-            
-            risco_retorno_unitario: roi, 
-            rentabilidade_max: roi * 100,
-            roi: roi, 
-            margem_exigida: 0, 
-            probabilidade_sucesso: 0, 
-            score: 0, 
-            should_close: false,
-            
-            pernas: pernas, 
-            greeks: greeks, 
-        } as StrategyMetrics;
-    }
+    getLegCount(): number { return 2; }
+    generatePayoff(): any[] { return []; }
+    getDescription(): string { return "Trava de Linha"; }
 }

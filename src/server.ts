@@ -1,7 +1,7 @@
+import cors from 'cors';
 import express, { Request, Response } from 'express';
-import cors from 'cors'; 
-import { StrategyService } from './services/StrategyService';
 import { DataOrchestrator } from './services/DataOrchestrator';
+import { StrategyService } from './services/StrategyService';
 
 const app = express();
 
@@ -12,32 +12,22 @@ app.use(cors({
 })); 
 app.use(express.json());
 
-/**
- * Endpoint de Análise Estratégica
- */
 app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     try {
         const { ticker, preco, lote } = req.query;
 
         if (!ticker) {
-            res.status(400).json({ 
-                status: "error", 
-                message: "O ticker do ativo subjacente é obrigatório." 
-            });
+            res.status(400).json({ status: "error", message: "Ticker é obrigatório." });
             return;
         }
 
         const tickerStr = String(ticker).toUpperCase().trim();
-        // Garante que o lote seja um número válido, padrão 100
         const loteNum = parseInt(String(lote)) || 100;
-        
-        const precoNum = (preco && preco !== 'undefined' && preco !== '') 
-            ? parseFloat(String(preco)) 
-            : undefined;
+        const precoNum = (preco && preco !== 'undefined' && preco !== '') ? parseFloat(String(preco)) : undefined;
 
-        console.log(`[API] 🔍 Buscando oportunidades para: ${tickerStr} (Lote: ${loteNum})`);
+        console.log(`[API] 🔍 Buscando Top 11 para: ${tickerStr} (Lote: ${loteNum})`);
 
-        // Chamada ao serviço que agora filtra 1 de cada e calcula ROI realista
+        // O StrategyService agora já retorna apenas 1 de cada estratégia, ordenadas por ROI
         const resultados = await StrategyService.getOportunidades(
             tickerStr, 
             loteNum,
@@ -50,7 +40,6 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
             info: {
                 ticker: tickerStr,
                 lote: loteNum,
-                fontePreco: precoNum ? "Manual" : "Banco de Dados",
                 precoReferencia: precoNum || "DB"
             },
             count: resultados.length,
@@ -58,33 +47,17 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
         });
 
     } catch (error: any) {
-        console.error(`[API ERROR] ❌ Falha no processamento: ${error.message}`);
+        console.error(`[API ERROR] ❌: ${error.message}`);
         if (!res.headersSent) {
-            res.status(500).json({ 
-                status: "error", 
-                message: "Erro interno no servidor ao processar estratégias.",
-                details: error.message 
-            });
+            res.status(500).json({ status: "error", message: error.message });
         }
     }
 });
 
 const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, () => {
     try {
         DataOrchestrator.init();
-        console.log("[SYSTEM] 📂 Monitor de arquivos Excel (DataOrchestrator) ativado.");
-    } catch (e) {
-        console.warn("[WARN] ⚠️ DataOrchestrator não pôde iniciar.");
-    }
-
-    console.log(`
-    ========================================================
-    🚀 TRADING BOARD BACKEND - ONLINE
-    --------------------------------------------------------
-    📡 ENDPOINT: http://localhost:${PORT}/api/analise
-    🔧 STATUS: StrategyFactory & Services Integrados
-    ========================================================
-    `);
+    } catch (e) {}
+    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 });

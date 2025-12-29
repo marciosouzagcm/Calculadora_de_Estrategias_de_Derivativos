@@ -17,36 +17,46 @@ const fmtBRL = (val: number) => {
 };
 
 function prepareStrategyForFrontend(metrics: StrategyMetrics, lot: number): any {
+    // Verifica se é uma estratégia de volatilidade (Straddle/Strangle)
     const isExplosion = metrics.name.toLowerCase().includes('str');
     const numPernas = metrics.pernas.length;
     const feesOpen = numPernas * FEE_PER_LEG;
     const feesClose = feesOpen;
     
-    // Tratamento rigoroso para evitar NaN
-    const maxProfitNum = typeof metrics.max_profit === 'number' ? metrics.max_profit : 0;
-    const maxLossNum = typeof metrics.max_loss === 'number' ? metrics.max_loss : 0;
+    // Tratamento para valores "Ilimitados" ou numéricos
+    const parseValue = (val: any) => (typeof val === 'number' && val < 900000) ? val : null;
 
-    const maxProfitLiquid = (maxProfitNum * lot) - feesOpen;
-    const totalRiskFinanceiro = (Math.abs(maxLossNum) * lot) + feesOpen;
-    
-    // Cálculo do Stop Loss (Fiel ao Terminal)
-    const stopLossVal = isExplosion ? (totalRiskFinanceiro * 0.5) + feesClose : maxProfitLiquid + feesClose;
+    const maxProfitNum = parseValue(metrics.max_profit);
+    const maxLossNum = parseValue(metrics.max_loss);
+
+    // Cálculos Financeiros com proteção para null (Ilimitado)
+    const profitFinanceiro = maxProfitNum !== null ? (maxProfitNum * lot) - feesOpen : "Ilimitado";
+    const totalRiskFinanceiro = maxLossNum !== null ? (Math.abs(maxLossNum) * lot) + feesOpen : (isExplosion ? 0 : "Sob Consulta");
+
+    // Cálculo do Stop Loss Sugerido
+    let stopLossVal = "A definir";
+    if (typeof totalRiskFinanceiro === 'number') {
+        const val = isExplosion ? (totalRiskFinanceiro * 0.5) + feesClose : (totalRiskFinanceiro * 0.3) + feesClose;
+        stopLossVal = `-${fmtBRL(val)}`;
+    }
 
     return {
         ...metrics,
-        // Chaves específicas que o Frontend vai ler
-        exibir_roi: totalRiskFinanceiro === 0 ? '0.00%' : ((maxProfitLiquid / totalRiskFinanceiro) * 100).toFixed(2) + '%',
-        exibir_risco: totalRiskFinanceiro,
-        stop_loss_sugerido: `-${fmtBRL(stopLossVal)}`,
+        exibir_roi: (typeof profitFinanceiro === 'number' && typeof totalRiskFinanceiro === 'number' && totalRiskFinanceiro > 0)
+            ? ((profitFinanceiro / totalRiskFinanceiro) * 100).toFixed(2) + '%'
+            : 'Variável',
+        exibir_risco: typeof totalRiskFinanceiro === 'number' ? fmtBRL(totalRiskFinanceiro) : totalRiskFinanceiro,
+        exibir_lucro: typeof profitFinanceiro === 'number' ? fmtBRL(profitFinanceiro) : profitFinanceiro,
+        stop_loss_sugerido: stopLossVal,
         alvo_zero_a_zero: isExplosion 
-            ? `> O conjunto deve valorizar até: R$ ${((totalRiskFinanceiro + feesClose) / lot).toFixed(2)}/un`
-            : `> Recomprar a trava por no máximo: R$ ${((maxProfitNum * lot - (feesOpen + feesClose)) / lot).toFixed(2)}/un`,
+            ? `> O conjunto deve valorizar até: R$ ${(( (typeof totalRiskFinanceiro === 'number' ? totalRiskFinanceiro : 0) + feesClose) / lot).toFixed(2)}/un`
+            : `> Recomprar a trava por no máximo: R$ ${maxProfitNum !== null ? ((maxProfitNum * lot - (feesOpen + feesClose)) / lot).toFixed(2) : '0.00'}/un`,
         pernas: metrics.pernas.map(p => ({
             ...p,
             side_display: p.direction === 'COMPRA' ? '[C]' : '[V]',
             derivative: {
                 ...p.derivative,
-                strike: p.derivative.strike ?? 0, // Resolve TS18047
+                strike: p.derivative.strike ?? 0,
                 premio: p.derivative.premio ?? 0
             }
         }))
@@ -55,7 +65,7 @@ function prepareStrategyForFrontend(metrics: StrategyMetrics, lot: number): any 
 
 app.get('/api/analise', async (req, res) => {
     try {
-        const ticker = (req.query.ticker as string || 'ITUB4').toUpperCase();
+        const ticker = (req.query.ticker as string || 'PETR4').toUpperCase();
         const price = parseFloat(req.query.preco as string || '40.00');
         const inputLot = parseInt(req.query.lote as string || '1000');
 
@@ -67,14 +77,25 @@ app.get('/api/analise', async (req, res) => {
         const calculator = new PayoffCalculator(filtered, FEE_PER_LEG, inputLot);
         const results = calculator.findAndCalculateSpreads(price, 0.20);
         
-        const estruturadas = results
-            .filter(s => !s.name.toLowerCase().includes('str'))
-            .map(s => prepareStrategyForFrontend(s, inputLot));
+        // CORREÇÃO AQUI: Removido o filtro que barrava "STR"
+        const estruturadas = results.map(s => prepareStrategyForFrontend(s, inputLot));
 
-        res.json({ status: "success", data: { estruturadas } });
+        // Separar para o frontend poder organizar em abas (opcional, mas ajuda)
+        const voadoras = estruturadas.filter(s => s.name.toLowerCase().includes('str'));
+        const travas = estruturadas.filter(s => !s.name.toLowerCase().includes('str'));
+
+        res.json({ 
+            status: "success", 
+            data: { 
+                todas: estruturadas,
+                travas,
+                voadoras // Straddles e Strangles
+            } 
+        });
     } catch (e: any) {
+        console.error(e);
         res.status(500).json({ status: "error", message: e.message });
     }
 });
 
-app.listen(3000, () => console.log("BACKEND V37.6 ONLINE: http://localhost:3000"));
+app.listen(3000, () => console.log("BACKEND V38.0 ONLINE: http://localhost:3000"));

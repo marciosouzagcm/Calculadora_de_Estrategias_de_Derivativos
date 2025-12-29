@@ -1,12 +1,13 @@
-// src/strategies/LongStrangle.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao } from '../interfaces/Types';
+import { Greeks, NaturezaOperacao, OptionLeg, StrategyMetrics } from '../interfaces/Types';
 
-function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
+/**
+ * Gera a string de exibição para as pernas do Strangle
+ */
+function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strike.toFixed(2)}`;
 }
 
 export class LongStrangle implements IStrategy {
@@ -14,100 +15,88 @@ export class LongStrangle implements IStrategy {
     public readonly name: string = 'Long Strangle';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'VOLÁTIL'; 
     
+    calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
+        const results: StrategyMetrics[] = [];
+
+        // 1. Separar Puts e Calls (Filtro OTM flexível)
+        // Removi o filtro rígido de strike < assetPrice para permitir que o scanner encontre mais opções próximas ao dinheiro
+        const puts = allOptions.filter(l => l.tipo === 'PUT' && l.strike !== null);
+        const calls = allOptions.filter(l => l.tipo === 'CALL' && l.strike !== null);
+
+        if (puts.length === 0 || calls.length === 0) return [];
+
+        // 2. Scanner de combinações
+        for (const putLeg of puts) {
+            for (const callLeg of calls) {
+                
+                // --- CORREÇÃO DE DATA (Crucial para o seu DB) ---
+                const dPut = String(putLeg.vencimento).split('T')[0];
+                const dCall = String(callLeg.vencimento).split('T')[0];
+                if (dPut !== dCall) continue;
+
+                const K_Put = putLeg.strike!;
+                const K_Call = callLeg.strike!;
+
+                // No Strangle, a Put deve ter strike MENOR que a Call
+                if (K_Put >= K_Call) continue;
+
+                // --- Financeiro (DÉBITO) ---
+                const netCost = putLeg.premio + callLeg.premio;
+                
+                // Filtro de Sanidade
+                if (netCost <= 0.05) continue;
+
+                const breakevenLow = K_Put - netCost;
+                const breakevenHigh = K_Call + netCost;
+
+                // --- Gregas Net com proteção contra Undefined ---
+                const getG = (l: OptionLeg) => l.gregas_unitarias || { delta: 0, gamma: 0, theta: 0, vega: 0 };
+                const gP = getG(putLeg);
+                const gC = getG(callLeg);
+
+                const greeks: Greeks = {
+                    delta: Number((gC.delta + gP.delta).toFixed(4)),
+                    gamma: Number((gC.gamma + gP.gamma).toFixed(4)),
+                    theta: Number((gC.theta + gP.theta).toFixed(4)),
+                    vega: Number((gC.vega + gP.vega).toFixed(4)),
+                };
+
+                results.push({
+                    name: this.name,
+                    asset: callLeg.ativo_subjacente,
+                    asset_price: assetPrice,
+                    spread_type: 'STRANGLE',
+                    expiration: dPut,
+                    dias_uteis: callLeg.dias_uteis || 0,
+                    strike_description: `P:${K_Put.toFixed(2)} | C:${K_Call.toFixed(2)}`,
+                    net_premium: Number((-netCost).toFixed(2)),
+                    initialCashFlow: Number((-netCost).toFixed(2)),
+                    natureza: 'DÉBITO' as NaturezaOperacao,
+                    max_profit: 9999, // Representação de lucro ilimitado
+                    max_loss: Number((-netCost).toFixed(2)),
+                    lucro_maximo: 9999,
+                    risco_maximo: Number(netCost.toFixed(2)),
+                    roi: 0, // ROI em estratégias compradas de lucro ilimitado é arbitrário
+                    breakEvenPoints: [
+                        Number(breakevenLow.toFixed(2)), 
+                        Number(breakevenHigh.toFixed(2))
+                    ],
+                    greeks: greeks,
+                    pernas: [
+                        { derivative: putLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(putLeg, 'COMPRA', K_Put) },
+                        { derivative: callLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(callLeg, 'COMPRA', K_Call) }
+                    ]
+                } as any);
+            }
+        }
+
+        return results;
+    }
+
     getDescription(): string {
-        return 'Compra de Call e Put OTM com strikes diferentes. Mais barato que o Straddle, mas exige maior movimento.';
+        return 'Compra de Call e Put com strikes diferentes. Lucra com movimentos fortes para qualquer lado e aumento da volatilidade.';
     }
 
-    getLegCount(): number {
-        return 2;
-    }
-    
-    generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; 
-    }
-
-    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
-        if (legData.length !== 2) return null;
-
-        const putLeg = legData.find(leg => leg.tipo === 'PUT');
-        const callLeg = legData.find(leg => leg.tipo === 'CALL'); 
-        
-        if (!callLeg || !putLeg || callLeg.vencimento !== putLeg.vencimento) return null;
-
-        const K_Put = putLeg.strike!;
-        const K_Call = callLeg.strike!;
-
-        // No Strangle, a Put deve ter strike menor que a Call (ambas OTM)
-        if (K_Put >= K_Call) return null;
-
-        // --- 1. Fluxo de Caixa (UNITÁRIO) ---
-        const netPremiumUnitario = putLeg.premio + callLeg.premio;
-        if (netPremiumUnitario <= 0.01) return null;
-
-        // --- 2. Risco e Retorno (UNITÁRIO) ---
-        const max_loss = netPremiumUnitario; 
-        const max_profit = Infinity;
-
-        // --- 3. Pontos Chave ---
-        const breakeven_low = K_Put - netPremiumUnitario;
-        const breakeven_high = K_Call + netPremiumUnitario;
-        
-        const roi = 10; 
-
-        // --- 4. Gregas ---
-        const greeks: Greeks = {
-            delta: (callLeg.gregas_unitarias.delta ?? 0) + (putLeg.gregas_unitarias.delta ?? 0),
-            gamma: (callLeg.gregas_unitarias.gamma ?? 0) + (putLeg.gregas_unitarias.gamma ?? 0),
-            theta: (callLeg.gregas_unitarias.theta ?? 0) + (putLeg.gregas_unitarias.theta ?? 0),
-            vega: (callLeg.gregas_unitarias.vega ?? 0) + (putLeg.gregas_unitarias.vega ?? 0),
-        };
-
-        const pernas: StrategyLeg[] = [
-            { derivative: putLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(putLeg, 'COMPRA', K_Put) },
-            { derivative: callLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(callLeg, 'COMPRA', K_Call) },
-        ];
-        
-        return {
-            name: this.name,
-            asset: callLeg.ativo_subjacente,
-            spread_type: 'STRANGLE', 
-            expiration: callLeg.vencimento, 
-            dias_uteis: callLeg.dias_uteis ?? 0, 
-            strike_description: `P:${K_Put.toFixed(2)} | C:${K_Call.toFixed(2)}`,
-            asset_price: assetPrice, 
-            
-            net_premium: -netPremiumUnitario,
-            cash_flow_bruto: -netPremiumUnitario,
-            cash_flow_liquido: -netPremiumUnitario,
-            initialCashFlow: -netPremiumUnitario, 
-            natureza: 'DÉBITO' as NaturezaOperacao,
-
-            risco_maximo: max_loss,
-            lucro_maximo: max_profit,
-            max_profit: max_profit,
-            max_loss: -max_loss, // Negativo para o payoff
-            
-            current_pnl: 0, 
-            current_price: assetPrice, 
-
-            breakEvenPoints: [breakeven_low, breakeven_high], 
-            breakeven_low: breakeven_low, 
-            breakeven_high: breakeven_high, 
-            
-            width: K_Call - K_Put, 
-            minPriceToMaxProfit: 0, 
-            maxPriceToMaxProfit: Infinity, 
-            
-            risco_retorno_unitario: roi, 
-            rentabilidade_max: roi * 100,
-            roi: roi, 
-            margem_exigida: 0, 
-            probabilidade_sucesso: 0, 
-            score: 0, 
-            should_close: false,
-            
-            pernas: pernas, 
-            greeks: greeks, 
-        } as StrategyMetrics;
-    }
+    getLegCount(): number { return 2; }
+    generatePayoff(): any[] { return []; }
 }

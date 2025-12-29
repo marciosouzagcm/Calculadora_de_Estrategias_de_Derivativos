@@ -1,117 +1,111 @@
-// src/strategies/ShortStrangle.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao } from '../interfaces/Types';
+import { Greeks, NaturezaOperacao, OptionLeg, StrategyMetrics } from '../interfaces/Types';
 
-function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
+/**
+ * Gera a string de exibição para as pernas da Venda de Strangle
+ */
+function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strike.toFixed(2)}`;
 }
 
 export class ShortStrangle implements IStrategy {
-    
-    public readonly name: string = 'Short Strangle';
-    public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA'; 
-    
+    public readonly name: string = 'Short Strangle (Venda)';
+    public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA';
+
+    /**
+     * Scanner: Busca combinações de Puts e Calls OTM para criar uma zona de lucro
+     */
+    calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
+        const results: StrategyMetrics[] = [];
+
+        // 1. Filtrar pernas que estão OTM (ou próximas)
+        const puts = allOptions.filter(l => l.tipo === 'PUT' && l.strike !== null);
+        const calls = allOptions.filter(l => l.tipo === 'CALL' && l.strike !== null);
+
+        if (puts.length === 0 || calls.length === 0) return [];
+
+        // 2. Scanner de combinações
+        for (const putLeg of puts) {
+            for (const callLeg of calls) {
+                
+                // --- CORREÇÃO DE DATA (Crucial para o seu DB) ---
+                const datePut = String(putLeg.vencimento).split('T')[0];
+                const dateCall = String(callLeg.vencimento).split('T')[0];
+                if (datePut !== dateCall) continue;
+
+                const K_Put = putLeg.strike!;
+                const K_Call = callLeg.strike!;
+
+                // No Strangle Vendido, buscamos Puts abaixo do preço e Calls acima (Zona de Lucro)
+                if (K_Put >= K_Call) continue;
+
+                // --- Financeiro (CRÉDITO) ---
+                const netCredit = putLeg.premio + callLeg.premio;
+                
+                // Filtro de prêmio mínimo (evita opções centaveiras inúteis)
+                if (netCredit <= 0.05) continue;
+
+                const breakevenLow = K_Put - netCredit;
+                const breakevenHigh = K_Call + netCredit;
+
+                // Margem estimada (Aproximadamente 15% do valor do ativo no Brasil para venda descoberta)
+                const margemEstimada = assetPrice * 0.15;
+                const roi = netCredit / margemEstimada;
+
+                // --- Gregas Net (Venda = Inverter o sinal da grega unitária) ---
+                const getG = (l: OptionLeg) => l.gregas_unitarias || { delta: 0, gamma: 0, theta: 0, vega: 0 };
+                const gP = getG(putLeg);
+                const gC = getG(callLeg);
+
+                const greeks: Greeks = {
+                    delta: Number((-(gC.delta || 0) - (gP.delta || 0)).toFixed(4)),
+                    gamma: Number((-(gC.gamma || 0) - (gP.gamma || 0)).toFixed(4)),
+                    theta: Number((-(gC.theta || 0) - (gP.theta || 0)).toFixed(4)), // Theta deve ser positivo na venda (lucro com o tempo)
+                    vega: Number((-(gC.vega || 0) - (gP.vega || 0)).toFixed(4)),
+                };
+
+                // ID Único para evitar duplicidade
+                const uid = `SSTR-${K_Put}-${K_Call}-${datePut}`;
+
+                results.push({
+                    uid: uid,
+                    name: this.name,
+                    asset: callLeg.ativo_subjacente,
+                    asset_price: assetPrice,
+                    spread_type: 'STRANGLE',
+                    expiration: datePut,
+                    dias_uteis: callLeg.dias_uteis || 0,
+                    strike_description: `P:${K_Put.toFixed(2)} | C:${K_Call.toFixed(2)}`,
+                    net_premium: Number(netCredit.toFixed(2)),
+                    initialCashFlow: Number(netCredit.toFixed(2)),
+                    natureza: 'CRÉDITO' as NaturezaOperacao,
+                    max_profit: Number(netCredit.toFixed(2)),
+                    max_loss: -9999, // Risco ilimitado (teórico)
+                    lucro_maximo: Number(netCredit.toFixed(2)),
+                    risco_maximo: 9999,
+                    roi: roi,
+                    breakEvenPoints: [
+                        Number(breakevenLow.toFixed(2)), 
+                        Number(breakevenHigh.toFixed(2))
+                    ],
+                    greeks: greeks,
+                    pernas: [
+                        { derivative: putLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(putLeg, 'VENDA', K_Put) },
+                        { derivative: callLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(callLeg, 'VENDA', K_Call) }
+                    ]
+                } as any);
+            }
+        }
+
+        return results;
+    }
+
     getDescription(): string {
-        return 'Venda de Put e Call OTM. Oferece uma zona de lucro maior que o Straddle, mas com risco ilimitado.';
+        return 'Venda de Put e Call OTM de mesmo vencimento. Lucra se o ativo ficar entre os strikes até o vencimento. Atenção: Risco ilimitado se o mercado se mover bruscamente.';
     }
 
-    getLegCount(): number {
-        return 2;
-    }
-    
-    generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; 
-    }
-
-    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
-        if (legData.length !== 2) return null;
-
-        const putLeg = legData.find(leg => leg.tipo === 'PUT');
-        const callLeg = legData.find(leg => leg.tipo === 'CALL'); 
-        
-        if (!callLeg || !putLeg || callLeg.vencimento !== putLeg.vencimento) return null;
-
-        const K_Put = putLeg.strike!;
-        const K_Call = callLeg.strike!;
-
-        // Validação: No Strangle vendido, a Put deve ter strike menor que a Call
-        if (K_Put >= K_Call) return null;
-
-        // --- 1. Fluxo de Caixa (UNITÁRIO) ---
-        const netPremiumUnitario = putLeg.premio + callLeg.premio;
-        if (netPremiumUnitario <= 0.01) return null;
-
-        // --- 2. Risco e Retorno (UNITÁRIO) ---
-        const lucro_maximo = netPremiumUnitario; 
-        const max_loss = Infinity; 
-
-        // --- 3. Pontos Chave ---
-        const breakeven_low = K_Put - netPremiumUnitario;
-        const breakeven_high = K_Call + netPremiumUnitario;
-        
-        // ROI sobre margem estimada (Strangle OTM exige menos margem que Straddle ATM)
-        const margemEstimada = assetPrice * 0.15;
-        const roi = lucro_maximo / margemEstimada; 
-
-        // --- 4. Gregas (Venda inverte sinal) ---
-        const greeks: Greeks = {
-            delta: -(callLeg.gregas_unitarias.delta ?? 0) - (putLeg.gregas_unitarias.delta ?? 0),
-            gamma: -(callLeg.gregas_unitarias.gamma ?? 0) - (putLeg.gregas_unitarias.gamma ?? 0),
-            // Short Strangle é POSITIVO em Theta (lucra com a erosão temporal)
-            theta: -(callLeg.gregas_unitarias.theta ?? 0) - (putLeg.gregas_unitarias.theta ?? 0), 
-            // Short Strangle é NEGATIVO em Vega (prejudicado por aumento de volatilidade)
-            vega: -(callLeg.gregas_unitarias.vega ?? 0) - (putLeg.gregas_unitarias.vega ?? 0), 
-        };
-
-        const pernas: StrategyLeg[] = [
-            { derivative: putLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(putLeg, 'VENDA', K_Put) },
-            { derivative: callLeg, direction: 'VENDA', multiplier: 1, display: generateDisplay(callLeg, 'VENDA', K_Call) },
-        ];
-        
-        return {
-            name: this.name,
-            asset: callLeg.ativo_subjacente,
-            spread_type: 'STRANGLE', 
-            expiration: callLeg.vencimento, 
-            dias_uteis: callLeg.dias_uteis ?? 0, 
-            strike_description: `P:${K_Put.toFixed(1)} | C:${K_Call.toFixed(1)}`,
-            asset_price: assetPrice, 
-            
-            net_premium: netPremiumUnitario,
-            cash_flow_bruto: netPremiumUnitario,
-            cash_flow_liquido: netPremiumUnitario,
-            initialCashFlow: netPremiumUnitario, 
-            natureza: 'CRÉDITO' as NaturezaOperacao,
-
-            risco_maximo: max_loss,
-            lucro_maximo: lucro_maximo, 
-            max_profit: lucro_maximo,
-            max_loss: -999999, // Representação de risco ilimitado
-            
-            current_pnl: 0, 
-            current_price: assetPrice, 
-
-            breakEvenPoints: [breakeven_low, breakeven_high], 
-            breakeven_low: breakeven_low, 
-            breakeven_high: breakeven_high, 
-            
-            width: K_Call - K_Put, 
-            minPriceToMaxProfit: K_Put, 
-            maxPriceToMaxProfit: K_Call, 
-            
-            risco_retorno_unitario: roi, 
-            rentabilidade_max: roi * 100,
-            roi: roi, 
-            margem_exigida: margemEstimada, 
-            probabilidade_sucesso: 0, 
-            score: 0, 
-            should_close: false,
-            
-            pernas: pernas, 
-            greeks: greeks, 
-        } as StrategyMetrics;
-    }
+    getLegCount(): number { return 2; }
+    generatePayoff(): any[] { return []; }
 }

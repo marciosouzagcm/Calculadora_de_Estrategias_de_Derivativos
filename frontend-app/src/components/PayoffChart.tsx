@@ -1,37 +1,42 @@
-import React from 'react';
-import { 
-  CartesianGrid, Tooltip, ReferenceLine, Area, ComposedChart, XAxis, YAxis, ResponsiveContainer 
+import {
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis, YAxis
 } from 'recharts';
 import { StrategyMetrics } from '../interfaces/Types';
 
-export const PayoffChart = ({ strategy }: { strategy: StrategyMetrics }) => {
+// Adicionei 'lote' e 'taxas' como props para o gráfico ser fiel à realidade financeira
+interface PayoffProps {
+  strategy: StrategyMetrics;
+  lote: number;
+  taxasIdaVolta: number;
+}
+
+export const PayoffChart = ({ strategy, lote, taxasIdaVolta }: PayoffProps) => {
   const spotPrice = Number(strategy.asset_price) || 0;
-  
-  // Pontos de Break-even calculados pelo Backend
   const bePoints = strategy.breakEvenPoints || [];
 
   const generateData = () => {
     const data = [];
-    // Define a margem do gráfico: usa os BE points ou 15% de margem do spot
-    const minBE = bePoints.length > 0 ? Math.min(...bePoints) * 0.90 : spotPrice * 0.80;
-    const maxBE = bePoints.length > 0 ? Math.max(...bePoints) * 1.10 : spotPrice * 1.20;
+    // Define a margem do gráfico com base no Spot
+    const min = spotPrice * 0.85;
+    const max = spotPrice * 1.15;
     
-    const min = Math.min(minBE, spotPrice * 0.85);
-    const max = Math.max(maxBE, spotPrice * 1.15);
-    
-    const steps = 60; // Equilíbrio entre performance e precisão
+    const steps = 80; 
     const stepSize = (max - min) / steps;
 
     for (let i = 0; i <= steps; i++) {
       const precoSimulado = min + (i * stepSize);
-      let pnlTotal = 0;
+      let pnlUnitarioTotal = 0;
       
-      // Verifica se existem pernas antes de iterar
       if (strategy.pernas && Array.isArray(strategy.pernas)) {
         strategy.pernas.forEach(perna => {
           const strike = Number(perna.derivative.strike) || 0;
           const premio = Number(perna.derivative.premio) || 0;
-          const multiplicador = Number(perna.multiplier) || 1; // Usamos 1 aqui porque o Lote é aplicado no App
           
           let payoffNoVencimento = 0;
           if (perna.derivative.tipo === 'CALL') {
@@ -44,18 +49,16 @@ export const PayoffChart = ({ strategy }: { strategy: StrategyMetrics }) => {
             ? (payoffNoVencimento - premio) 
             : (premio - payoffNoVencimento);
             
-          // pnlTotal acumulado por unidade
-          pnlTotal += pnlUnidade;
+          pnlUnitarioTotal += pnlUnidade;
         });
       }
 
-      // IMPORTANTE: Multiplicamos pelo lote apenas na hora de exibir no gráfico 
-      // para bater com os valores da Boleta e do Risco Real
-      const loteGlobal = 1000; // O ideal seria passar o 'lote' como prop, mas fixamos 1000 para teste
+      // CÁLCULO LÍQUIDO: (P&L das opções * Lote) - Taxas Totais
+      const lucroFinanceiroLíquido = (pnlUnitarioTotal * lote) - taxasIdaVolta;
 
       data.push({ 
         preco: parseFloat(precoSimulado.toFixed(2)), 
-        lucro: parseFloat((pnlTotal * loteGlobal).toFixed(2)) 
+        lucro: parseFloat(lucroFinanceiroLíquido.toFixed(2)) 
       });
     }
     return data;
@@ -101,7 +104,6 @@ export const PayoffChart = ({ strategy }: { strategy: StrategyMetrics }) => {
           
           <ReferenceLine y={0} stroke="#64748b" strokeWidth={1.5} />
           
-          {/* Linha do Preço Atual (Spot) */}
           <ReferenceLine 
             x={spotPrice} 
             stroke="#3b82f6" 
@@ -110,20 +112,13 @@ export const PayoffChart = ({ strategy }: { strategy: StrategyMetrics }) => {
             label={{ value: 'SPOT', position: 'top', fill: '#3b82f6', fontSize: 10, fontWeight: 'bold' }} 
           />
 
-          {/* Renderização dos Break-evens */}
           {bePoints.map((be, index) => (
             <ReferenceLine 
               key={`be-${index}`}
               x={be} 
               stroke="#64748b" 
               strokeDasharray="5 5"
-              label={{ 
-                value: `B.E.`, 
-                position: 'insideBottomRight', 
-                fill: '#64748b', 
-                fontSize: 9,
-                fontWeight: 'bold'
-              }} 
+              label={{ value: `B.E.`, position: 'insideBottomRight', fill: '#64748b', fontSize: 9, fontWeight: 'bold' }} 
             />
           ))}
           
@@ -133,7 +128,7 @@ export const PayoffChart = ({ strategy }: { strategy: StrategyMetrics }) => {
             stroke="#1e293b"
             fill="url(#pnlGrad)" 
             strokeWidth={2} 
-            isAnimationActive={true} 
+            isAnimationActive={false} 
           />
         </ComposedChart>
       </ResponsiveContainer>

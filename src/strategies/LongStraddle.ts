@@ -1,112 +1,93 @@
-// src/strategies/LongStraddle.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics, StrategyLeg, NaturezaOperacao } from '../interfaces/Types';
+import { Greeks, NaturezaOperacao, OptionLeg, StrategyMetrics } from '../interfaces/Types';
 
-function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
+function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strike.toFixed(2)}`;
 }
 
 export class LongStraddle implements IStrategy {
-    
     public readonly name: string = 'Long Straddle';
-    public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'VOLÁTIL'; 
-    
-    getDescription(): string {
-        return 'Estratégia de Alta Volatilidade a Débito. Compra Call e Put no mesmo Strike e Vencimento.';
-    }
+    public readonly marketView: 'VOLÁTIL' = 'VOLÁTIL'; 
 
-    getLegCount(): number {
-        return 2;
-    }
-    
-    generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; 
-    }
+    calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
+        const results: StrategyMetrics[] = [];
 
-    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
-        if (legData.length !== 2) return null;
-
-        const callLeg = legData.find(leg => leg.tipo === 'CALL');
-        const putLeg = legData.find(leg => leg.tipo === 'PUT'); 
+        // 1. Agrupar por data de vencimento primeiro (Obrigatório para Straddle)
+        const groupsByDate: { [date: string]: OptionLeg[] } = {};
         
-        // Validação: Devem ter o mesmo strike e mesmo vencimento
-        if (!callLeg || !putLeg || callLeg.strike !== putLeg.strike || callLeg.vencimento !== putLeg.vencimento) return null;
+        allOptions.forEach(leg => {
+            if (!leg.vencimento || leg.tipo === 'SUBJACENTE') return;
+            // Normaliza a data para evitar problemas com ISO Strings (T00:00:00Z)
+            const dateKey = String(leg.vencimento).split(/[T ]/)[0];
+            if (!groupsByDate[dateKey]) groupsByDate[dateKey] = [];
+            groupsByDate[dateKey].push(leg);
+        });
 
-        const K = callLeg.strike!;
+        // 2. Analisar cada vencimento
+        for (const date in groupsByDate) {
+            const options = groupsByDate[date];
+            const calls = options.filter(o => o.tipo === 'CALL');
+            const puts = options.filter(o => o.tipo === 'PUT');
 
-        // --- 1. Fluxo de Caixa (UNITÁRIO) ---
-        const netPremiumUnitario = callLeg.premio + putLeg.premio;
-        if (netPremiumUnitario <= 0.01) return null;
+            for (const call of calls) {
+                for (const put of puts) {
+                    // --- O PULO DO GATO: TOLERÂNCIA DE STRIKE ---
+                    // Em vez de call.strike === put.strike, usamos uma margem de 0.6%
+                    // Isso une strikes como 30.12 e 30.15 de PETR4
+                    const strikeDiff = Math.abs(call.strike! - put.strike!);
+                    const avgStrike = (call.strike! + put.strike!) / 2;
 
-        // --- 2. Risco e Retorno (UNITÁRIO) ---
-        // Risco Máximo ocorre se o ativo parar exatamente no Strike (K)
-        const max_loss = netPremiumUnitario; 
-        const max_profit = Infinity; 
+                    if (strikeDiff > (avgStrike * 0.006)) continue; 
 
-        // --- 3. Pontos Chave ---
-        const breakeven_low = K - netPremiumUnitario;
-        const breakeven_high = K + netPremiumUnitario;
-        
-        // ROI para Straddle é difícil de prever (infinito), usamos uma métrica de referência
-        const roi = 10; 
+                    // Filtro de Proximidade (Opcional - 15% do spot)
+                    if (Math.abs(avgStrike - assetPrice) / assetPrice > 0.15) continue;
 
-        // --- 4. Gregas ---
-        const greeks: Greeks = {
-            delta: (callLeg.gregas_unitarias.delta ?? 0) + (putLeg.gregas_unitarias.delta ?? 0),
-            gamma: (callLeg.gregas_unitarias.gamma ?? 0) + (putLeg.gregas_unitarias.gamma ?? 0),
-            theta: (callLeg.gregas_unitarias.theta ?? 0) + (putLeg.gregas_unitarias.theta ?? 0),
-            vega: (callLeg.gregas_unitarias.vega ?? 0) + (putLeg.gregas_unitarias.vega ?? 0),
-        };
+                    const netCost = call.premio + put.premio;
+                    if (netCost <= 0.05) continue;
 
-        const pernas: StrategyLeg[] = [
-            { derivative: callLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(callLeg, 'COMPRA', K) },
-            { derivative: putLeg, direction: 'COMPRA', multiplier: 1, display: generateDisplay(putLeg, 'COMPRA', K) },
-        ];
-        
-        return {
-            name: this.name,
-            asset: callLeg.ativo_subjacente,
-            spread_type: 'STRADDLE', 
-            expiration: callLeg.vencimento, 
-            dias_uteis: callLeg.dias_uteis ?? 0, 
-            strike_description: `K: ${K.toFixed(2)}`,
-            asset_price: assetPrice, 
-            
-            net_premium: -netPremiumUnitario,
-            cash_flow_bruto: -netPremiumUnitario,
-            cash_flow_liquido: -netPremiumUnitario,
-            initialCashFlow: -netPremiumUnitario, 
-            natureza: 'DÉBITO' as NaturezaOperacao,
+                    // Gregas Net com tratamento de erro
+                    const g: Greeks = {
+                        delta: Number(((call.gregas_unitarias?.delta || 0) + (put.gregas_unitarias?.delta || 0)).toFixed(4)),
+                        gamma: Number(((call.gregas_unitarias?.gamma || 0) + (put.gregas_unitarias?.gamma || 0)).toFixed(4)),
+                        theta: Number(((call.gregas_unitarias?.theta || 0) + (put.gregas_unitarias?.theta || 0)).toFixed(4)),
+                        vega: Number(((call.gregas_unitarias?.vega || 0) + (put.gregas_unitarias?.vega || 0)).toFixed(4)),
+                    };
 
-            risco_maximo: max_loss,
-            lucro_maximo: max_profit,
-            max_profit: max_profit,
-            max_loss: -max_loss, // Negativo para o payoff
-            
-            current_pnl: 0, 
-            current_price: assetPrice, 
-
-            breakEvenPoints: [breakeven_low, breakeven_high], 
-            breakeven_low: breakeven_low, 
-            breakeven_high: breakeven_high, 
-            
-            width: 0, 
-            minPriceToMaxProfit: 0, 
-            maxPriceToMaxProfit: Infinity, 
-            
-            risco_retorno_unitario: roi, 
-            rentabilidade_max: roi * 100,
-            roi: roi, 
-            margem_exigida: 0, 
-            probabilidade_sucesso: 0, 
-            score: 0, 
-            should_close: false,
-            
-            pernas: pernas, 
-            greeks: greeks, 
-        } as StrategyMetrics;
+                    results.push({
+                        name: this.name,
+                        asset: call.ativo_subjacente,
+                        spread_type: 'STRADDLE',
+                        expiration: date,
+                        dias_uteis: call.dias_uteis || 0,
+                        strike_description: `K: ${avgStrike.toFixed(2)}`,
+                        asset_price: assetPrice,
+                        net_premium: Number((-netCost).toFixed(2)),
+                        initialCashFlow: Number((-netCost).toFixed(2)),
+                        natureza: 'DÉBITO' as NaturezaOperacao,
+                        max_profit: 999999,
+                        max_loss: Number((-netCost).toFixed(2)),
+                        lucro_maximo: 999999,
+                        risco_maximo: Number(netCost.toFixed(2)),
+                        roi: 0,
+                        breakEvenPoints: [
+                            Number((avgStrike - netCost).toFixed(2)), 
+                            Number((avgStrike + netCost).toFixed(2))
+                        ],
+                        greeks: g,
+                        pernas: [
+                            { derivative: call, direction: 'COMPRA', multiplier: 1, display: generateDisplay(call, 'COMPRA', call.strike!) },
+                            { derivative: put, direction: 'COMPRA', multiplier: 1, display: generateDisplay(put, 'COMPRA', put.strike!) }
+                        ]
+                    } as any);
+                }
+            }
+        }
+        return results;
     }
+
+    getDescription(): string { return 'Compra de Call e Put no mesmo strike.'; }
+    getLegCount(): number { return 2; }
+    generatePayoff(): any[] { return []; }
 }

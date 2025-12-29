@@ -1,74 +1,76 @@
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyMetrics } from '../interfaces/Types';
+import { OptionLeg, StrategyMetrics, NaturezaOperacao, Greeks } from '../interfaces/Types';
 
-export abstract class StraddleBase implements IStrategy {
+export abstract class VolatilityBase implements IStrategy {
     abstract name: string;
     abstract isLong: boolean;
-    
-    // CORREÇÃO: Tipando explicitamente para aceitar os valores da IStrategy
-    marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA';
+    abstract isStraddle: boolean;
+    public marketView: 'VOLÁTIL' | 'NEUTRA' = 'VOLÁTIL';
 
-    constructor() {}
+    calculateMetrics(allOptions: OptionLeg[], spotPrice: number, feePerLeg: number): StrategyMetrics[] {
+        const results: StrategyMetrics[] = [];
+        const expirationGroups: Record<string, OptionLeg[]> = {};
 
-    calculateMetrics(legs: OptionLeg[], spotPrice: number, feePerLeg: number): StrategyMetrics | null {
-        // Agora o TS aceita pois os valores batem exatamente com o tipo literal
-        this.marketView = this.isLong ? 'VOLÁTIL' : 'NEUTRA';
+        allOptions.forEach(opt => {
+            const dateStr = String(opt.vencimento).split(/[T ]/)[0];
+            if (!expirationGroups[dateStr]) expirationGroups[dateStr] = [];
+            expirationGroups[dateStr].push(opt);
+        });
 
-        const call = legs.find(l => l.tipo === 'CALL');
-        const put = legs.find(l => l.tipo === 'PUT');
+        for (const date in expirationGroups) {
+            const options = expirationGroups[date];
+            const calls = options.filter(o => o.tipo === 'CALL');
+            const puts = options.filter(o => o.tipo === 'PUT');
 
-        if (!call || !put) return null;
+            for (const call of calls) {
+                for (const put of puts) {
+                    const strikeDiff = Math.abs(call.strike! - put.strike!);
+                    const avgStrike = (call.strike! + put.strike!) / 2;
 
-        const netPremium = this.isLong 
-            ? -(call.premio + put.premio) 
-            : (call.premio + put.premio);
+                    if (this.isStraddle) {
+                        // Straddle: Diferença mínima (ajuste para PETR4)
+                        if (strikeDiff > (avgStrike * 0.01)) continue;
+                    } else {
+                        // Strangle: Strikes obrigatoriamente diferentes
+                        if (strikeDiff < (avgStrike * 0.02)) continue;
+                    }
 
-        const beLow = (call.strike || spotPrice) - Math.abs(netPremium);
-        const beHigh = (call.strike || spotPrice) + Math.abs(netPremium);
+                    const premiumTotal = call.premio + put.premio;
+                    if (premiumTotal < 0.10) continue;
 
-        return {
-            name: this.name,
-            asset: call.ativo_subjacente,
-            asset_price: spotPrice,
-            spread_type: 'STRADDLE',
-            expiration: call.vencimento,
-            dias_uteis: call.dias_uteis,
-            strike_description: `ATM @ R$ ${call.strike}`,
-            net_premium: netPremium,
-            initialCashFlow: netPremium,
-            natureza: netPremium < 0 ? 'DÉBITO' : 'CRÉDITO',
-            max_profit: this.isLong ? 'Ilimitado' : Number(Math.abs(netPremium).toFixed(2)),
-            max_loss: this.isLong ? Number(Math.abs(netPremium).toFixed(2)) : 'Ilimitado',
-            lucro_maximo: this.isLong ? 'Ilimitado' : Number(Math.abs(netPremium).toFixed(2)),
-            risco_maximo: this.isLong ? Number(Math.abs(netPremium).toFixed(2)) : 'Ilimitado',
-            breakEvenPoints: [Number(beLow.toFixed(2)), Number(beHigh.toFixed(2))],
-            greeks: this.calculateNetGreeks(legs),
-            pernas: legs.map(l => ({
-                direction: this.isLong ? 'COMPRA' : 'VENDA',
-                multiplier: 1,
-                derivative: l,
-                display: `${this.isLong ? 'Compra' : 'Venda'} de ${l.tipo} Strike ${l.strike}`
-            }))
-        };
+                    results.push({
+                        name: this.name,
+                        asset: call.ativo_subjacente,
+                        asset_price: spotPrice,
+                        expiration: date,
+                        strike_description: this.isStraddle ? `K: ${avgStrike.toFixed(2)}` : `P${put.strike} | C${call.strike}`,
+                        net_premium: Number((this.isLong ? -premiumTotal : premiumTotal).toFixed(2)),
+                        natureza: (this.isLong ? 'DÉBITO' : 'CRÉDITO') as NaturezaOperacao,
+                        max_profit: this.isLong ? 999999 : Number(premiumTotal.toFixed(2)),
+                        max_loss: this.isLong ? Number(premiumTotal.toFixed(2)) : 999999,
+                        roi: this.isLong ? 0 : (premiumTotal / (spotPrice * 0.15)),
+                        breakEvenPoints: [
+                            Number((avgStrike - premiumTotal).toFixed(2)),
+                            Number((avgStrike + premiumTotal).toFixed(2))
+                        ],
+                        pernas: [
+                            { direction: this.isLong ? 'COMPRA' : 'VENDA', multiplier: 1, derivative: call, display: `${this.isLong ? 'C' : 'V'}-CALL K${call.strike}` },
+                            { direction: this.isLong ? 'COMPRA' : 'VENDA', multiplier: 1, derivative: put, display: `${this.isLong ? 'C' : 'V'}-PUT K${put.strike}` }
+                        ]
+                    } as any);
+                }
+            }
+        }
+        return results;
     }
 
-    private calculateNetGreeks(legs: OptionLeg[]): Greeks {
-        const factor = this.isLong ? 1 : -1;
-        return {
-            delta: Number(legs.reduce((acc, l) => acc + (l.gregas_unitarias.delta * factor), 0).toFixed(4)),
-            gamma: Number(legs.reduce((acc, l) => acc + (l.gregas_unitarias.gamma * factor), 0).toFixed(4)),
-            theta: Number(legs.reduce((acc, l) => acc + (l.gregas_unitarias.theta * factor), 0).toFixed(4)),
-            vega: Number(legs.reduce((acc, l) => acc + (l.gregas_unitarias.vega * factor), 0).toFixed(4))
-        };
-    }
+    getLegCount(): number { return 2; }
+    generatePayoff(): any[] { return []; }
+    getDescription(): string { return this.name; }
 }
 
-export class LongStraddle extends StraddleBase {
-    name = 'Long Straddle';
-    isLong = true;
-}
-
-export class ShortStraddle extends StraddleBase {
-    name = 'Short Straddle';
-    isLong = false;
-}
+// OS NOMES ABAIXO DEVEM SER EXATAMENTE ESTES:
+export class LongStraddle extends VolatilityBase { name = 'Long Straddle'; isLong = true; isStraddle = true; }
+export class ShortStraddle extends VolatilityBase { name = 'Short Straddle'; isLong = false; isStraddle = true; }
+export class LongStrangle extends VolatilityBase { name = 'Long Strangle'; isLong = true; isStraddle = false; }
+export class ShortStrangle extends VolatilityBase { name = 'Short Strangle'; isLong = false; isStraddle = false; }

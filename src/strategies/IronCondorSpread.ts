@@ -1,113 +1,118 @@
-// src/strategies/IronCondorSpread.ts
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, NaturezaOperacao, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
+import { Greeks, NaturezaOperacao, OptionLeg, StrategyMetrics } from '../interfaces/Types';
 
-function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
+/**
+ * Gera a string de exibição para as pernas do Iron Condor
+ */
+function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
+    // Removido leg.sigla para evitar erro TS2339 (Property does not exist on type OptionLeg)
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strike.toFixed(2)}`;
 }
 
 export class IronCondorSpread implements IStrategy {
     public readonly name: string = 'Iron Condor';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA';
 
-    getDescription(): string { return 'Estratégia neutra a crédito. Combina uma Bull Put Spread e uma Bear Call Spread.'; }
-    getLegCount(): number { return 4; }
+    calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
+        const results: StrategyMetrics[] = [];
 
-    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
-        if (legData.length !== 4) return null;
-
-        const puts = [...legData].filter(l => l.tipo === 'PUT').sort((a, b) => (a.strike ?? 0) - (b.strike ?? 0));
-        const calls = [...legData].filter(l => l.tipo === 'CALL').sort((a, b) => (a.strike ?? 0) - (b.strike ?? 0));
+        // 1. Separar e ordenar
+        const puts = allOptions
+            .filter(l => l.tipo === 'PUT' && l.strike !== null)
+            .sort((a, b) => (a.strike || 0) - (b.strike || 0));
         
-        if (puts.length !== 2 || calls.length !== 2) return null;
+        const calls = allOptions
+            .filter(l => l.tipo === 'CALL' && l.strike !== null)
+            .sort((a, b) => (a.strike || 0) - (b.strike || 0));
 
-        // Estrutura: K1 (Put Comprada) < K2 (Put Vendida) < K3 (Call Vendida) < K4 (Call Comprada)
-        const [K1_l, K2_s] = puts; 
-        const [K3_s, K4_l] = calls;
-        
-        const K1 = K1_l.strike!; const K2 = K2_s.strike!; 
-        const K3 = K3_s.strike!; const K4 = K4_l.strike!;
+        if (puts.length < 2 || calls.length < 2) return [];
 
-        // Validação: Preço deve estar entre as vendas para ser uma estratégia neutra ideal
-        if (K1 >= K2 || K2 >= K3 || K3 >= K4) return null;
-        
-        // Garante que todas as pernas são do mesmo vencimento
-        const sameExpiry = legData.every(l => l.vencimento === K1_l.vencimento);
-        if (!sameExpiry) return null;
+        // 2. Scanner de combinações (4 pernas)
+        for (let p1 = 0; p1 < puts.length - 1; p1++) { // K1: Put Comprada (Asa Esquerda)
+            for (let p2 = p1 + 1; p2 < puts.length; p2++) { // K2: Put Vendida (Corpo Esquerdo)
+                for (let c1 = 0; c1 < calls.length - 1; c1++) { // K3: Call Vendida (Corpo Direito)
+                    for (let c2 = c1 + 1; c2 < calls.length; c2++) { // K4: Call Comprada (Asa Direita)
+                        
+                        const K1_l = puts[p1]; const K2_s = puts[p2];
+                        const K3_s = calls[c1]; const K4_l = calls[c2];
 
-        // --- 1. Fluxo de Caixa (UNITÁRIO) ---
-        const credit = (K2_s.premio + K3_s.premio) - (K1_l.premio + K4_l.premio);
-        
-        // Se o crédito for muito baixo ou negativo, a operação não compensa o risco
-        if (credit <= 0.05) return null;
+                        // --- CORREÇÃO DE DATA ---
+                        const dP1 = String(K1_l.vencimento).split('T')[0];
+                        const dP2 = String(K2_s.vencimento).split('T')[0];
+                        const dC1 = String(K3_s.vencimento).split('T')[0];
+                        const dC2 = String(K4_l.vencimento).split('T')[0];
 
-        // --- 2. Risco e Retorno (UNITÁRIO) ---
-        // O risco máximo é a largura da maior "asa" menos o crédito total recebido
-        const width = Math.max(K2 - K1, K4 - K3);
-        const max_loss = width - credit;
+                        if (dP1 !== dP2 || dP2 !== dC1 || dC1 !== dC2) continue;
 
-        if (max_loss <= 0) return null; // Arbitragem (raro)
+                        // Validação de Estrutura: Put vendida < Call vendida para garantir o "miolo" neutro
+                        if (K2_s.strike! >= K3_s.strike!) continue; 
 
-        const roi = credit / max_loss;
+                        // 3. Financeiro (CRÉDITO)
+                        const credit = (K2_s.premio + K3_s.premio) - (K1_l.premio + K4_l.premio);
+                        const widthPut = K2_s.strike! - K1_l.strike!;
+                        const widthCall = K4_l.strike! - K3_s.strike!;
+                        const maxWidth = Math.max(widthPut, widthCall);
 
-        // --- 3. Gregas (Compra mantém sinal, Venda inverte) ---
-        const greeks: Greeks = {
-            delta: (K1_l.gregas_unitarias.delta ?? 0) - (K2_s.gregas_unitarias.delta ?? 0) - (K3_s.gregas_unitarias.delta ?? 0) + (K4_l.gregas_unitarias.delta ?? 0),
-            gamma: (K1_l.gregas_unitarias.gamma ?? 0) - (K2_s.gregas_unitarias.gamma ?? 0) - (K3_s.gregas_unitarias.gamma ?? 0) + (K4_l.gregas_unitarias.gamma ?? 0),
-            theta: (K1_l.gregas_unitarias.theta ?? 0) - (K2_s.gregas_unitarias.theta ?? 0) - (K3_s.gregas_unitarias.theta ?? 0) + (K4_l.gregas_unitarias.theta ?? 0),
-            vega: (K1_l.gregas_unitarias.vega ?? 0) - (K2_s.gregas_unitarias.vega ?? 0) - (K3_s.gregas_unitarias.vega ?? 0) + (K4_l.gregas_unitarias.vega ?? 0),
-        };
+                        // FILTROS DE SANIDADE:
+                        if (credit <= 0.05 || credit >= maxWidth) continue;
 
-        return {
-            name: this.name,
-            asset: K1_l.ativo_subjacente,
-            spread_type: 'IRON CONDOR',
-            expiration: K1_l.vencimento,
-            dias_uteis: K1_l.dias_uteis ?? 0,
-            strike_description: `Put: ${K1}/${K2} | Call: ${K3}/${K4}`,
-            asset_price: assetPrice,
-            
-            net_premium: credit,
-            cash_flow_bruto: credit,
-            cash_flow_liquido: credit,
-            initialCashFlow: credit,
-            natureza: 'CRÉDITO' as NaturezaOperacao,
+                        const maxLoss = maxWidth - credit;
+                        const roi = credit / maxLoss;
 
-            risco_maximo: max_loss,
-            lucro_maximo: credit,
-            max_profit: credit,
-            max_loss: -max_loss,
-            
-            current_pnl: 0,
-            current_price: assetPrice,
-            breakEvenPoints: [K2 - credit, K3 + credit],
-            breakeven_low: K2 - credit,
-            breakeven_high: K3 + credit,
-            
-            width: width,
-            minPriceToMaxProfit: K2,
-            maxPriceToMaxProfit: K3,
-            
-            risco_retorno_unitario: roi,
-            rentabilidade_max: roi * 100,
-            roi: roi,
-            margem_exigida: max_loss,
-            probabilidade_sucesso: 0,
-            score: 0,
-            should_close: false,
-            
-            pernas: [
-                { derivative: K1_l, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K1_l, 'COMPRA', K1) },
-                { derivative: K2_s, direction: 'VENDA', multiplier: 1, display: generateDisplay(K2_s, 'VENDA', K2) },
-                { derivative: K3_s, direction: 'VENDA', multiplier: 1, display: generateDisplay(K3_s, 'VENDA', K3) },
-                { derivative: K4_l, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K4_l, 'COMPRA', K4) }
-            ],
-            greeks: greeks
-        } as StrategyMetrics;
+                        // 4. Gregas Net com proteção contra undefined
+                        const getG = (l: OptionLeg) => l.gregas_unitarias || { delta: 0, gamma: 0, theta: 0, vega: 0 };
+                        const gP1 = getG(K1_l); const gP2 = getG(K2_s);
+                        const gC1 = getG(K3_s); const gC2 = getG(K4_l);
+
+                        const greeks: Greeks = {
+                            delta: Number((gP1.delta - gP2.delta - gC1.delta + gC2.delta).toFixed(4)),
+                            gamma: Number((gP1.gamma - gP2.gamma - gC1.gamma + gC2.gamma).toFixed(4)),
+                            theta: Number((gP1.theta - gP2.theta - gC1.theta + gC2.theta).toFixed(4)),
+                            vega: Number((gP1.vega - gP2.vega - gC1.vega + gC2.vega).toFixed(4)),
+                        };
+
+                        results.push({
+                            name: this.name,
+                            asset: K1_l.ativo_subjacente,
+                            asset_price: assetPrice,
+                            spread_type: 'IRON CONDOR',
+                            expiration: dP1,
+                            dias_uteis: K1_l.dias_uteis || 0,
+                            strike_description: `P:${K1_l.strike}/${K2_s.strike} | C:${K3_s.strike}/${K4_l.strike}`,
+                            net_premium: Number(credit.toFixed(2)),
+                            initialCashFlow: Number(credit.toFixed(2)),
+                            natureza: 'CRÉDITO' as NaturezaOperacao,
+                            max_profit: Number(credit.toFixed(2)),
+                            max_loss: Number((-maxLoss).toFixed(2)),
+                            lucro_maximo: Number(credit.toFixed(2)),
+                            risco_maximo: Number(maxLoss.toFixed(2)),
+                            roi: roi,
+                            breakEvenPoints: [
+                                Number((K2_s.strike! - credit).toFixed(2)), 
+                                Number((K3_s.strike! + credit).toFixed(2))
+                            ],
+                            greeks: greeks,
+                            pernas: [
+                                { derivative: K1_l, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K1_l, 'COMPRA', K1_l.strike!) },
+                                { derivative: K2_s, direction: 'VENDA', multiplier: 1, display: generateDisplay(K2_s, 'VENDA', K2_s.strike!) },
+                                { derivative: K3_s, direction: 'VENDA', multiplier: 1, display: generateDisplay(K3_s, 'VENDA', K3_s.strike!) },
+                                { derivative: K4_l, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K4_l, 'COMPRA', K4_l.strike!) }
+                            ]
+                        } as any);
+                    }
+                }
+            }
+        }
+
+        return results;
     }
 
-    generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> { return []; }
+    getDescription(): string {
+        return 'Estratégia neutra a crédito que combina uma trava de alta com puts e uma trava de baixa com calls.';
+    }
+
+    getLegCount(): number { return 4; }
+    generatePayoff(): any[] { return []; }
 }

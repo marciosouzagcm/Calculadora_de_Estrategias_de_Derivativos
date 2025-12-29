@@ -26,7 +26,7 @@ export interface OptionLeg {
     vencimento: string; 
     dias_uteis: number; 
     tipo: 'CALL' | 'PUT' | 'SUBJACENTE'; 
-    strike: number | null; 
+    strike: number; // Alterado para number para evitar check de null constante
     multiplicador_contrato?: number; 
     
     premio: number; 
@@ -87,7 +87,8 @@ export interface StrategyMetrics {
      */
     roi?: number;                 // Valor decimal (ex: 0.155) para ordenação
     exibir_roi?: string;          // String formatada (ex: "15.50%")
-    exibir_risco?: number;        // Risco financeiro real (Perda + Taxas)
+    exibir_risco?: ProfitLossValue; // [CORREÇÃO]: Alterado de number para ProfitLossValue
+    taxas_ciclo?: number;         // TAXA TOTAL DA OPERAÇÃO (EX: R$ 44.00)
     stop_loss_sugerido?: string;
     alvo_zero_a_zero?: string;
 }

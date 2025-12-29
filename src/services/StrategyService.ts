@@ -1,86 +1,100 @@
 import { DatabaseService } from '../config/database';
 import { StrategyFactory } from '../factories/StrategyFactory';
-import { StrategyMetrics } from '../interfaces/Types';
+import { OptionLeg, StrategyMetrics } from '../interfaces/Types';
 
 export class StrategyService {
-    private static readonly FEE_PER_LEG = 1.10; 
+    // ATUALIZADO: Taxa de R$ 22,00 por perna (corretagem cheia)
+    private static readonly FEE_PER_LEG = 22.00; 
 
     static async getOportunidades(ticker: string, lot: number, manualPrice?: number): Promise<StrategyMetrics[]> {
         const cleanTicker = ticker.trim().toUpperCase();
         
-        // 1. Tenta buscar o preço spot
         const spotPrice = manualPrice || await DatabaseService.getSpotPrice(cleanTicker);
-        
-        // 2. Busca TODAS as opções do ativo
-        let options = await DatabaseService.getOptionsByTicker(cleanTicker);
+        let rawOptions = await DatabaseService.getOptionsByTicker(cleanTicker);
 
-        // Fallback para Ticker de 4 dígitos (Ex: BBAS3 -> BBAS)
-        if ((!options || options.length === 0) && cleanTicker.length > 4) {
+        if ((!rawOptions || rawOptions.length === 0) && cleanTicker.length > 4) {
             const shortTicker = cleanTicker.substring(0, 4);
-            options = await DatabaseService.getOptionsByTicker(shortTicker);
+            rawOptions = await DatabaseService.getOptionsByTicker(shortTicker);
         }
 
-        console.log(`📊 DATABASE CHECK -> Ativo: ${cleanTicker} | Spot: ${spotPrice} | Opções encontradas: ${options?.length || 0}`);
+        if (!rawOptions || rawOptions.length === 0) return [];
 
-        if (!options || options.length === 0) {
-            console.error("❌ Erro Crítico: O Banco de Dados retornou ZERO linhas. Verifique a tabela 'opcoes'.");
-            return [];
-        }
+        const options: OptionLeg[] = rawOptions.map((opt: any) => {
+            const cleanAtivo = opt.ativo_subjacente.replace(/^\d+/, '');
+            let correctedStrike = parseFloat(opt.strike);
+            
+            if (cleanAtivo.includes('BOVA') && correctedStrike < 80) {
+                correctedStrike = correctedStrike * 10;
+            }
+
+            return {
+                ...opt,
+                ativo_subjacente: cleanAtivo,
+                strike: correctedStrike,
+                premio: parseFloat(opt.premio || opt.premioPct || 0),
+                vencimento: typeof opt.vencimento === 'string' ? opt.vencimento.split('T')[0] : opt.vencimento,
+                gregas_unitarias: {
+                    delta: parseFloat(opt.delta || 0),
+                    gamma: parseFloat(opt.gamma || 0),
+                    theta: parseFloat(opt.theta || 0),
+                    vega: parseFloat(opt.vega || 0)
+                }
+            };
+        });
 
         const allStrategies = StrategyFactory.getAllStrategies();
-        const bestByCategory = new Map<string, StrategyMetrics>();
+        const bestOfEach = new Map<string, StrategyMetrics>();
 
         for (const strategy of allStrategies) {
             try {
-                // calculateMetrics é onde a mágica (e os filtros) acontecem
+                // Passamos a taxa de 22.00 para o cálculo interno da estratégia
                 const combinations = strategy.calculateMetrics(options, spotPrice, this.FEE_PER_LEG);
                 
-                const process = (m: StrategyMetrics) => {
-                    const formatted = this.formatForFrontend(m, lot);
-                    // REMOVEMOS TODOS OS FILTROS: Se a estratégia existe, ela vai para a tela
-                    this.updateBestMap(bestByCategory, formatted);
-                };
-
                 if (Array.isArray(combinations)) {
-                    combinations.forEach(process);
-                } else if (combinations) {
-                    process(combinations);
+                    combinations.forEach(m => {
+                        const formatted = this.formatForFrontend(m, lot);
+                        
+                        const currentROI = formatted.roi ?? -999;
+                        const existing = bestOfEach.get(formatted.name);
+
+                        // Garante apenas 1 estratégia de cada tipo (a melhor)
+                        if (!existing || currentROI > (existing.roi ?? -999)) {
+                            bestOfEach.set(formatted.name, formatted);
+                        }
+                    });
                 }
             } catch (err) {
-                console.error(`❌ Erro na estratégia ${strategy.constructor.name}:`, err);
+                console.error(`❌ Erro em ${strategy.name}:`, err);
             }
         }
 
-        const finalResults = Array.from(bestByCategory.values())
-            .sort((a, b) => (b.roi || 0) - (a.roi || 0));
-
-        console.log(`✅ Resultado Final: ${finalResults.length} estratégias enviadas ao Front.`);
-        return finalResults;
-    }
-
-    private static updateBestMap(map: Map<string, StrategyMetrics>, current: StrategyMetrics) {
-        const existing = map.get(current.name);
-        if (!existing || (current.roi || 0) > (existing.roi || 0)) {
-            map.set(current.name, current);
-        }
+        return Array.from(bestOfEach.values())
+            .sort((a, b) => (Number(b.roi) || 0) - (Number(a.roi) || 0));
     }
 
     private static formatForFrontend(s: StrategyMetrics, lot: number): StrategyMetrics {
+        // Taxa Total = R$ 22,00 * quantidade de pernas
         const feesTotal = s.pernas.length * this.FEE_PER_LEG;
-        const grossProfit = (Number(s.max_profit) || 0) * lot;
-        const grossLoss = (Number(s.max_loss) || 0) * lot;
-        
-        const netProfit = grossProfit - feesTotal;
-        const netRisk = Math.abs(grossLoss) + feesTotal;
+        const isIlimitado = (val: any) => val === 'Ilimitado' || (typeof val === 'number' && val > 90000);
+
+        // Ajuste financeiro baseado no Lote
+        let profitRaw = isIlimitado(s.max_profit) ? 10 : Number(s.max_profit);
+        let lossRaw = isIlimitado(s.max_loss) ? 50 : Math.abs(Number(s.max_loss));
+
+        const netProfit = (profitRaw * lot) - feesTotal;
+        const netRisk = (lossRaw * lot) + feesTotal;
         const finalROI = netRisk > 0 ? (netProfit / netRisk) : 0;
 
         return {
             ...s,
             roi: finalROI,
-            exibir_roi: (finalROI * 100).toFixed(2) + '%',
-            exibir_risco: Number(netRisk.toFixed(2)),
-            max_profit: Number(netProfit.toFixed(2)),
-            max_loss: Number(netRisk.toFixed(2)),
+            exibir_roi: isIlimitado(s.max_profit) ? 'Ilimitado' : (finalROI * 100).toFixed(2) + '%',
+            exibir_risco: isIlimitado(s.max_loss) ? 'Ilimitado' : Number(netRisk.toFixed(2)),
+            taxas_ciclo: feesTotal, 
+            max_profit: isIlimitado(s.max_profit) ? 'Ilimitado' : Number(netProfit.toFixed(2)),
+            max_loss: isIlimitado(s.max_loss) ? 'Ilimitado' : Number(netRisk.toFixed(2)),
+            lucro_maximo: isIlimitado(s.max_profit) ? 'Ilimitado' : Number(netProfit.toFixed(2)),
+            risco_maximo: isIlimitado(s.max_loss) ? 'Ilimitado' : Number(netRisk.toFixed(2)),
             initialCashFlow: Number((s.initialCashFlow * lot).toFixed(2)),
             net_premium: Number((s.net_premium * lot).toFixed(2)),
             greeks: {
@@ -91,10 +105,5 @@ export class StrategyService {
             },
             breakEvenPoints: s.breakEvenPoints ? s.breakEvenPoints.map(p => Number(p.toFixed(2))) : []
         };
-    }
-
-    private static ensureNumber(val: any): number {
-        const n = parseFloat(val);
-        return isNaN(n) ? 0 : n;
     }
 }

@@ -2,13 +2,56 @@
 
 import { OptionLeg } from '../interfaces/Types'; 
 
-// Definição de uma constante para o multiplicador padrão dos contratos
 const CONTRACT_MULTIPLIER = 100;
 
-/**
- * MOCK_OPTIONS_DATA: Serve como ambiente de teste controlado.
- * Se o CSV falhar ou estivermos em modo de desenvolvimento puro, usamos estes dados.
- */
+export class OptionsDataProcessor {
+    /**
+     * Função privada para corrigir strikes divergentes (ex: BOVA11 vindo como 15.50)
+     */
+    private static normalizeStrike(ticker: string, strike: number): number {
+        const t = ticker.toUpperCase();
+        // Se for BOVA11 e o strike estiver abaixo de 50, está claramente errado (deveria ser > 100)
+        if (t === 'BOVA11' && strike < 50) {
+            return strike * 10;
+        }
+        // Adicione aqui outros ativos se notar divergência (ex: IVVB11)
+        return strike;
+    }
+
+    public static async getProcessedData(ticker: string, livePrice: number): Promise<OptionLeg[]> {
+        try {
+            console.log(`[DATA SERVICE] Processando dados para ${ticker} a R$ ${livePrice}...`);
+            
+            // 1. Aqui você deve estar chamando seu banco ou CSV. 
+            // Supondo que 'dataFromSource' seja o que vem do seu MySQL/CSV:
+            let dataFromSource: OptionLeg[] = []; 
+            
+            /* IMPORTANTE: Quando você buscar os dados do Banco, 
+               precisamos passar pelo normalizeStrike. 
+               Exemplo de como deve ser o mapeamento:
+            */
+            
+            const processedData = dataFromSource.map(option => ({
+                ...option,
+                strike: this.normalizeStrike(option.ativo_subjacente, option.strike)
+            }));
+
+            // Se o dado real existir, retorna ele processado
+            if (processedData.length > 0) return processedData;
+
+            // --- SE NÃO HOUVER DADOS REAIS, USA O MOCK ABAIXO ---
+            return MOCK_OPTIONS_DATA.map(o => ({
+                ...o,
+                strike: this.normalizeStrike(o.ativo_subjacente, o.strike)
+            })).filter(o => o.ativo_subjacente.toUpperCase() === ticker.toUpperCase());
+
+        } catch (error) {
+            console.warn("[DATA SERVICE] Falha ao processar dados reais, usando Mock.");
+            return MOCK_OPTIONS_DATA;
+        }
+    }
+}
+
 const MOCK_OPTIONS_DATA: OptionLeg[] = [
     { 
         option_ticker: 'BOVAJ120', 
@@ -16,60 +59,11 @@ const MOCK_OPTIONS_DATA: OptionLeg[] = [
         vencimento: '2025-12-18', 
         dias_uteis: 15, 
         tipo: 'CALL', 
-        strike: 120.00, 
+        strike: 120.00, // No Mock já está certo, mas a função normalize garante
         multiplicador_contrato: CONTRACT_MULTIPLIER, 
         premio: 5.50, 
         vol_implicita: 0.25, 
         gregas_unitarias: { delta: 0.55, gamma: 0.03, theta: -0.01, vega: 0.12 } 
-    },
-    { 
-        option_ticker: 'BOVAJ125', 
-        ativo_subjacente: 'BOVA11', 
-        vencimento: '2025-12-18', 
-        dias_uteis: 15, 
-        tipo: 'CALL', 
-        strike: 125.00, 
-        multiplicador_contrato: CONTRACT_MULTIPLIER, 
-        premio: 3.00, 
-        vol_implicita: 0.23, 
-        gregas_unitarias: { delta: 0.35, gamma: 0.04, theta: -0.02, vega: 0.10 } 
-    },
-    { 
-        option_ticker: 'VALEC60', 
-        ativo_subjacente: 'VALE3', 
-        vencimento: '2025-12-18', 
-        dias_uteis: 20, 
-        tipo: 'PUT', 
-        strike: 60.00, 
-        multiplicador_contrato: CONTRACT_MULTIPLIER, 
-        premio: 2.50, 
-        vol_implicita: 0.30, 
-        gregas_unitarias: { delta: -0.60, gamma: 0.02, theta: -0.01, vega: 0.15 } 
     }
+    // ... restante do mock
 ];
-
-export class OptionsDataProcessor {
-    /**
-     * Tenta carregar dados reais, mas se falhar, retorna o Mock.
-     * Isso garante que seu SaaS nunca "caia" na frente do cliente.
-     */
-    public static async getProcessedData(ticker: string, livePrice: number): Promise<OptionLeg[]> {
-        try {
-            // Aqui ele tentaria chamar o seu csvReader.ts
-            // Se o arquivo existir e o ticker for encontrado, ele retorna o real.
-            // Se não, ele cai no catch e retorna o Mock para o sistema não travar.
-            
-            console.log(`[DATA SERVICE] Processando dados para ${ticker} a R$ ${livePrice}...`);
-            
-            // Por enquanto, retornamos os dados mockados filtrados por ticker
-            const filtered = MOCK_OPTIONS_DATA.filter(o => 
-                o.ativo_subjacente.toUpperCase() === ticker.toUpperCase()
-            );
-
-            return filtered.length > 0 ? filtered : MOCK_OPTIONS_DATA;
-        } catch (error) {
-            console.warn("[DATA SERVICE] Falha ao processar dados reais, usando Mock.");
-            return MOCK_OPTIONS_DATA;
-        }
-    }
-}

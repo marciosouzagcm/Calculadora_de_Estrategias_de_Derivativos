@@ -1,121 +1,98 @@
-// src/strategies/BullCallSpread.ts
 import { IStrategy } from '../interfaces/IStrategy';
 import { Greeks, NaturezaOperacao, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
 
-function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number | null): string {
+function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const strikeStr = strike?.toFixed(2) || 'N/A';
     const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strikeStr}`;
+    return `${action}-${typeInitial} ${leg.option_ticker} K${strike.toFixed(2)}`;
 }
 
 export class BullCallSpread implements IStrategy {
     
-    public readonly name: string = 'Bull Call Spread (Trava de Alta)';
+    public readonly name: string = 'Trava de Alta (Call)';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'ALTA'; 
     
+    /**
+     * Scanner: Encontra todas as travas de alta com Calls (Bull Call Spread)
+     */
+    calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
+        const results: StrategyMetrics[] = [];
+
+        // 1. Filtrar apenas CALLS com strike e ordenar por strike (Crescente)
+        const calls = allOptions
+            .filter(leg => leg.tipo === 'CALL' && leg.strike !== null)
+            .sort((a, b) => a.strike - b.strike);
+
+        if (calls.length < 2) return [];
+
+        // 2. Loop de combinações: K1 (Menor/Compra) e K2 (Maior/Venda)
+        for (let i = 0; i < calls.length; i++) {
+            for (let j = i + 1; j < calls.length; j++) {
+                const K1_long = calls[i];  // Strike Baixo (Compra - ITM/ATM)
+                const K2_short = calls[j]; // Strike Alto (Venda - OTM)
+
+                const K1 = K1_long.strike;
+                const K2 = K2_short.strike;
+
+                // Validação de vencimento
+                if (K1_long.vencimento !== K2_short.vencimento) continue;
+
+                // --- Cálculo Financeiro (DÉBITO) ---
+                const width = K2 - K1;
+                const netCost = K1_long.premio - K2_short.premio;
+
+                // FILTROS DE REALIDADE DE MERCADO:
+                // 1. O custo deve ser positivo (pagamos pela trava)
+                // 2. Não pagar mais de 80% da largura (evita ROIs baixos demais que somem com taxas)
+                if (netCost <= 0.05 || netCost > (width * 0.80)) continue;
+
+                const max_loss = netCost;
+                const max_profit = width - netCost;
+                const roi = max_loss > 0 ? (max_profit / max_loss) : 0;
+                const breakeven = K1 + netCost;
+
+                // --- Cálculo de Gregas Net ---
+                const greeks: Greeks = {
+                    delta: K1_long.gregas_unitarias.delta - K2_short.gregas_unitarias.delta,
+                    gamma: K1_long.gregas_unitarias.gamma - K2_short.gregas_unitarias.gamma,
+                    theta: K1_long.gregas_unitarias.theta - K2_short.gregas_unitarias.theta,
+                    vega: K1_long.gregas_unitarias.vega - K2_short.gregas_unitarias.vega,
+                };
+
+                results.push({
+                    name: this.name,
+                    asset: K1_long.ativo_subjacente,
+                    spread_type: 'VERTICAL CALL',
+                    expiration: K1_long.vencimento,
+                    dias_uteis: K1_long.dias_uteis ?? 0,
+                    strike_description: `C:${K1.toFixed(2)} / V:${K2.toFixed(2)}`,
+                    asset_price: assetPrice,
+                    net_premium: -netCost, // Negativo (saída de caixa)
+                    initialCashFlow: -netCost,
+                    natureza: 'DÉBITO' as NaturezaOperacao,
+                    risco_maximo: max_loss,
+                    lucro_maximo: max_profit,
+                    max_profit: max_profit,
+                    max_loss: -max_loss,
+                    breakEvenPoints: [Number(breakeven.toFixed(2))],
+                    width: width,
+                    roi: roi,
+                    greeks: greeks,
+                    pernas: [
+                        { derivative: K1_long, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K1_long, 'COMPRA', K1) },
+                        { derivative: K2_short, direction: 'VENDA', multiplier: 1, display: generateDisplay(K2_short, 'VENDA', K2) },
+                    ]
+                } as any);
+            }
+        }
+
+        return results;
+    }
+
     getDescription(): string {
         return 'Estratégia de Alta a Débito. Compra Call de strike baixo (K1) e Vende Call de strike alto (K2).';
     }
 
-    getLegCount(): number {
-        return 2;
-    }
-    
-    generatePayoff(metrics: StrategyMetrics): Array<{ assetPrice: number; profitLoss: number }> {
-        return []; 
-    }
-
-    calculateMetrics(legData: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics | null {
-        if (legData.length !== 2) return null;
-
-        // K1 (menor) Compra, K2 (maior) Venda
-        const callLegs = [...legData].filter(leg => leg.tipo === 'CALL').sort((a, b) => (a.strike ?? 0) - (b.strike ?? 0));
-        
-        if (callLegs.length !== 2) return null;
-
-        const K1_long = callLegs[0];  // Strike Menor (Compra - ITM/ATM)
-        const K2_short = callLegs[1]; // Strike Maior (Venda - OTM)
-        
-        const K1 = K1_long.strike!;
-        const K2 = K2_short.strike!;
-
-        // Validação de segurança: Strike comprado deve ser menor que o vendido
-        if (K1 >= K2 || K1_long.vencimento !== K2_short.vencimento) return null;
-
-        // --- 1. Fluxo de Caixa (UNITÁRIO) ---
-        const cashFlowBrutoUnitario = K1_long.premio - K2_short.premio;
-        
-        // Em trava de débito, o custo precisa ser positivo (pagamos pela montagem)
-        if (cashFlowBrutoUnitario <= 0.01) return null; 
-
-        // --- 2. Risco e Retorno (UNITÁRIO) ---
-        const width = K2 - K1; 
-        const max_loss = cashFlowBrutoUnitario;
-        const max_profit = width - cashFlowBrutoUnitario;
-
-        // Se o lucro for zero ou negativo, a trava é inviável
-        if (max_profit <= 0) return null;
-
-        // --- 3. Pontos Chave ---
-        const breakeven = K1 + cashFlowBrutoUnitario; 
-        const roi = max_profit / max_loss;
-
-        // --- 4. Gregas ---
-        const greeks: Greeks = {
-            delta: (K1_long.gregas_unitarias.delta ?? 0) - (K2_short.gregas_unitarias.delta ?? 0),
-            gamma: (K1_long.gregas_unitarias.gamma ?? 0) - (K2_short.gregas_unitarias.gamma ?? 0),
-            theta: (K1_long.gregas_unitarias.theta ?? 0) - (K2_short.gregas_unitarias.theta ?? 0),
-            vega: (K1_long.gregas_unitarias.vega ?? 0) - (K2_short.gregas_unitarias.vega ?? 0),
-        };
-
-        // --- 5. Pernas ---
-        const pernas: StrategyLeg[] = [
-            { derivative: K1_long, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K1_long, 'COMPRA', K1) },
-            { derivative: K2_short, direction: 'VENDA', multiplier: 1, display: generateDisplay(K2_short, 'VENDA', K2) },
-        ];
-        
-        return {
-            name: this.name,
-            asset: K1_long.ativo_subjacente,
-            spread_type: 'VERTICAL CALL',
-            expiration: K1_long.vencimento, 
-            dias_uteis: K1_long.dias_uteis ?? 0, 
-            strike_description: `K1:${K1.toFixed(2)} (C) / K2:${K2.toFixed(2)} (V)`,
-            asset_price: assetPrice, 
-            
-            net_premium: -cashFlowBrutoUnitario, 
-            cash_flow_bruto: -cashFlowBrutoUnitario,
-            cash_flow_liquido: -cashFlowBrutoUnitario,
-            initialCashFlow: -cashFlowBrutoUnitario, 
-            natureza: 'DÉBITO' as NaturezaOperacao,
-
-            risco_maximo: max_loss,
-            lucro_maximo: max_profit,
-            max_profit: max_profit,
-            max_loss: -max_loss, // Negativo para o payoff
-            
-            current_pnl: 0, 
-            current_price: assetPrice, 
-            
-            breakEvenPoints: [breakeven], 
-            breakeven_low: breakeven, 
-            breakeven_high: breakeven, 
-            
-            width: width,
-            minPriceToMaxProfit: K2, 
-            maxPriceToMaxProfit: K2 * 1.5, // Indica que o lucro é máximo de K2 para cima
-            
-            risco_retorno_unitario: roi, 
-            rentabilidade_max: roi * 100, // Formatado em %
-            roi: roi, 
-            margem_exigida: 0, 
-            probabilidade_sucesso: 0, 
-            score: 0, 
-            should_close: false,
-            
-            pernas: pernas, 
-            greeks: greeks, 
-        } as StrategyMetrics;
-    }
+    getLegCount(): number { return 2; }
+    generatePayoff(): any[] { return []; }
 }

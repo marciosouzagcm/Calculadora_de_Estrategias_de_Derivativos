@@ -1,107 +1,54 @@
-// src/services/csvReader.ts
+import { Greeks, OptionLeg } from '../interfaces/Types';
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { OptionLeg, Greeks } from '../interfaces/Types'; 
+export function parseOptionsDump(rawText: string): OptionLeg[] {
+    // Divide o texto em linhas
+    const lines = rawText.split('\n').filter(line => line.trim().length > 0);
 
-interface CsvRow {
-    idAcao: string;
-    ticker: string;
-    vencimento: string;
-    diasUteis: string;
-    tipo: 'CALL' | 'PUT';
-    strike: string;
-    premioPct: string;
-    volImplicita: string;
-    delta: string;
-    gamma: string;
-    theta: string;
-    vega: string;
-    dataHora: string;
-}
-
-const parsePtBrFloat = (str: string): number => {
-    if (!str) return 0;
-    // Remove espaços e substitui vírgula por ponto para o parseFloat padrão
-    const cleanStr = str.trim().replace(',', '.');
-    const value = parseFloat(cleanStr);
-    return isNaN(value) ? 0 : value;
-};
-
-export async function readOptionsDataFromCSV(filePath: string, currentAssetPrice: number): Promise<OptionLeg[]> {
-    const fullPath = path.resolve(filePath);
-    
-    if (!fs.existsSync(fullPath)) {
-        throw new Error(`Arquivo não encontrado: ${fullPath}`);
-    }
-
-    const csvContent = fs.readFileSync(fullPath, 'utf-8');
-    const lines = csvContent.trim().split('\n');
-    const dataLines = lines.slice(1);
-    
-    // Detecta o delimitador (comum em CSVs brasileiros ser ';' ou ',')
-    const firstLine = dataLines[0] || "";
-    const DELIMITER = firstLine.includes(';') ? ';' : ','; 
-    
-    const optionsData: (OptionLeg | null)[] = dataLines.map((line) => {
-        const columns = line.split(DELIMITER); 
-        if (columns.length < 12) return null; 
-
-        const row: CsvRow = {
-            idAcao: columns[0]?.trim(), 
-            ticker: columns[1]?.trim(),
-            vencimento: columns[2]?.trim(),
-            diasUteis: columns[3]?.trim(),
-            tipo: columns[4]?.trim().toUpperCase() as 'CALL' | 'PUT',
-            strike: columns[5]?.trim(),
-            premioPct: columns[6]?.trim(), 
-            volImplicita: columns[7]?.trim(),
-            delta: columns[8]?.trim(),
-            gamma: columns[9]?.trim(),
-            theta: columns[10]?.trim(),
-            vega: columns[11]?.trim(),
-            dataHora: columns[12]?.trim() || '',
-        };
+    return lines.map(line => {
+        // Regex para capturar os blocos de dados baseados no seu dump
+        // O segredo está em separar o ID inicial do Ticker do Ativo
+        const parts = line.trim().split(/\s+/);
         
-        let strikeValue = parsePtBrFloat(row.strike);
+        if (parts.length < 10) return null;
+
+        // Limpeza do Ativo: Remove números iniciais (ID) do ticker BOVA11
+        const rawAtivo = parts[0];
+        const ativoBase = rawAtivo.replace(/^\d+/, ''); // Transforma "1BOVA11" em "BOVA11"
         
-        // --- NORMALIZAÇÃO DE ESCALA DO STRIKE ---
-        if (strikeValue > 0 && currentAssetPrice > 0) {
-            while (strikeValue < (currentAssetPrice / 5)) {
-                strikeValue *= 10;
-            }
+        const optionTicker = parts[1];
+        const vencimento = parts[2];
+        const diasUteis = parseInt(parts[3]);
+        const tipo = parts[4] as 'CALL' | 'PUT';
+        
+        // Conversão Numérica com ajuste de escala para BOVA11
+        const parseNum = (val: string) => parseFloat(val.replace(',', '.'));
+        
+        let strike = parseNum(parts[5]);
+        const premio = parseNum(parts[6]);
+
+        // Ajuste automático: strikes de BOVA11 no dump vêm como 15.30 (deveria ser 153.00)
+        if (ativoBase.includes('BOVA11') && strike < 100) {
+            strike = strike * 10;
         }
 
-        const premioValue = parsePtBrFloat(row.premioPct); 
-        const diasUteisValue = parseInt(row.diasUteis.replace(/\D/g, '')); // Garante apenas números
-        const volValue = parsePtBrFloat(row.volImplicita);
-
-        // Mapeia as gregas do CSV
         const greeks: Greeks = {
-            delta: parsePtBrFloat(row.delta),
-            gamma: parsePtBrFloat(row.gamma),
-            theta: parsePtBrFloat(row.theta),
-            vega: parsePtBrFloat(row.vega),
+            delta: parseNum(parts[8]),
+            gamma: parseNum(parts[9]),
+            theta: parseNum(parts[10]),
+            vega: parseNum(parts[11])
         };
-
-        // Filtro de sanidade: remove linhas com dados essenciais corrompidos
-        if (strikeValue <= 0 || premioValue <= 0 || isNaN(diasUteisValue)) {
-            return null;
-        }
 
         return {
-            ativo_subjacente: row.idAcao.toUpperCase(), 
-            tipo: row.tipo,
-            strike: strikeValue, 
-            premio: premioValue, 
-            vencimento: row.vencimento,
-            dias_uteis: diasUteisValue,
-            gregas_unitarias: greeks, // Se vier 0, o PayoffCalculator recalculada usando Black-Scholes
-            option_ticker: row.ticker,
-            multiplicador_contrato: 100, 
-            vol_implicita: volValue > 0 ? volValue : 0.35, // Se a vol for 0 no CSV, assume 35% para as gregas existirem
+            ativo_subjacente: ativoBase,
+            option_ticker: optionTicker,
+            vencimento,
+            dias_uteis: diasUteis,
+            tipo,
+            strike,
+            premio,
+            vol_implicita: parseNum(parts[7]),
+            gregas_unitarias: greeks,
+            multiplicador_contrato: 100
         } as OptionLeg;
-    });
-
-    return optionsData.filter((data): data is OptionLeg => data !== null);
+    }).filter((item): item is OptionLeg => item !== null);
 }
