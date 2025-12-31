@@ -3,8 +3,8 @@ import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 
 const App = () => {
-  const [ticker, setTicker] = useState('BBAS3');
-  const [preco, setPreco] = useState('21.80');
+  const [ticker, setTicker] = useState('BOVA11');
+  const [preco, setPreco] = useState('156.00');
   const [lote, setLote] = useState(1000); 
   const [filtroRisco, setFiltroRisco] = useState<string>('0.30'); 
 
@@ -44,41 +44,52 @@ const App = () => {
     const cicloTotal = taxaEntrada + taxaSaida;
     const financeiroMontagem = (unitario * loteAtual) - taxaEntrada;
 
-    const strikes = est.pernas.map(p => p.derivative.strike);
-    const largura = Math.max(...strikes) - Math.min(...strikes);
+    const strikes = est.pernas.map(p => p.derivative.strike).sort((a, b) => a - b);
+    
+    // --- LÓGICA DE LARGURA EFETIVA CORRIGIDA ---
+    let larguraEfetiva = 0;
+    if (nPernas === 3) {
+      // Borboleta: Diferença entre o strike médio e o inferior (Asa)
+      larguraEfetiva = strikes[1] - strikes[0];
+    } else if (nPernas === 4) {
+      // Iron Condor: O risco é apenas a largura da maior asa (Put ou Call)
+      const asaPut = strikes[1] - strikes[0];
+      const asaCall = strikes[3] - strikes[2];
+      larguraEfetiva = Math.max(asaPut, asaCall);
+    } else {
+      // Travas e outras: Distância entre strikes
+      larguraEfetiva = strikes.length > 1 ? Math.max(...strikes) - Math.min(...strikes) : 0;
+    }
     
     let lucroMaximo = 0;
     let riscoTotal = 0;
-
-    // Identifica se é uma estratégia "Descoberta" (sem trava de proteção)
     const temCompra = est.pernas.some(p => p.direction === 'COMPRA');
 
     if (isDebito) {
         riscoTotal = Math.abs(unitario * loteAtual) + taxaEntrada;
-        lucroMaximo = (largura > 0) 
-            ? (largura * loteAtual) - riscoTotal - taxaSaida 
+        lucroMaximo = (larguraEfetiva > 0) 
+            ? (larguraEfetiva * loteAtual) - riscoTotal - taxaSaida 
             : (precoMercado * 3 * loteAtual) - cicloTotal;
     } else {
+        // OPERAÇÕES DE CRÉDITO
         lucroMaximo = (unitario * loteAtual) - taxaEntrada;
-        
         if (!temCompra) {
-            // SEGURANÇA: Para Vendas Descobertas (Strangle/Straddle), o risco é baseado na margem (ex: 20% do Spot)
             riscoTotal = (Number(preco) * 0.20) * loteAtual;
         } else {
-            // Para Travas de Crédito, Iron Condors e Borboletas
-            const riscoCalculado = (largura * loteAtual) - (unitario * loteAtual) + taxaEntrada;
+            // Risco Real: (Largura da Asa * Lote) - Crédito Recebido + Taxas
+            const riscoCalculado = (larguraEfetiva * loteAtual) - (unitario * loteAtual) + taxaEntrada;
             riscoTotal = Math.max(riscoCalculado, taxaEntrada);
         }
     }
 
     const riscoUnitario = riscoTotal / loteAtual;
-    const valorFiltro = isDebito ? precoMercado : riscoUnitario;
-    const respeitaFiltro = valorFiltro <= (Number(filtroRisco) || 0.30);
+    const valorComparativo = isDebito ? (Math.abs(unitario) + (taxaEntrada/loteAtual)) : riscoUnitario;
+    const respeitaFiltro = valorComparativo <= (Number(filtroRisco) || 0.30);
     const alvoBe = (precoMercado * loteAtual + (isDebito ? cicloTotal : -cicloTotal)) / loteAtual;
 
     return {
       precoMercado, isDebito, riscoTotal, lucroMaximo, financeiroMontagem,
-      taxaEntrada, taxaSaida, cicloTotal, alvoBe, respeitaFiltro,
+      taxaEntrada, taxaSaida, cicloTotal, alvoBe, respeitaFiltro, valorComparativo,
       roi: ((lucroMaximo / riscoTotal) * 100).toFixed(1) + '%'
     };
   };
@@ -121,17 +132,25 @@ const App = () => {
                 <div style={{ textAlign: 'right' }}>
                   <div style={typeBadge(analise.isDebito)}>{analise.isDebito ? 'DÉBITO' : 'CRÉDITO'} | ROI: {analise.roi}</div>
                   <div style={{ marginTop: '8px', fontSize: '11px', fontWeight: 'bold', color: analise.respeitaFiltro ? '#4ade80' : '#f87171' }}>
-                    {analise.respeitaFiltro ? '● DENTRO DO FILTRO' : '● FORA DO FILTRO (ALTO RISCO)'}
+                    {analise.respeitaFiltro ? '● DENTRO DO FILTRO' : '● FORA DO FILTRO'} ({analise.valorComparativo.toFixed(2)} / {filtroRisco})
                   </div>
                 </div>
               </div>
 
               <div style={infoBoxFull}>
-                <div style={infoTitle}>FLUXO DE CAIXA ({selecionada.pernas.length} PERNAS)</div>
+                <div style={infoTitle}>FLUXO DE CAIXA E TAXAS OPERACIONAIS ({selecionada.pernas.length} PERNAS)</div>
                 <div style={infoRow}>
                   <span>Entrada: <b style={red}>R$ {analise.taxaEntrada.toFixed(2)}</b></span>
                   <span>Ciclo Total Taxas: <b style={red}>R$ {analise.cicloTotal.toFixed(2)}</b></span>
                   <span>Montagem Líquida: <b style={{color: analise.financeiroMontagem > 0 ? '#4ade80' : '#f87171'}}>R$ {analise.financeiroMontagem.toFixed(2)}</b></span>
+                </div>
+              </div>
+
+              <div style={{...infoBoxFull, backgroundColor: '#1e293b', borderColor: '#38bdf8', borderStyle: 'dashed'}}>
+                <div style={{...infoTitle, color: '#38bdf8'}}>ALVO ESTRATÉGICO PARA 0 A 0 (PAGAR IDA + VOLTA)</div>
+                <div style={infoRow}>
+                   <span>Para empatar, {analise.isDebito ? 'venda' : 'recompre'} a trava por:</span>
+                   <b style={{color: '#fff', fontSize: '18px'}}>R$ {Math.abs(analise.alvoBe).toFixed(2)}/un</b>
                 </div>
               </div>
 
@@ -155,7 +174,7 @@ const App = () => {
               <div style={footerMetrics}>
                 <div style={metricItem}><small style={mLabel}>LUCRO ESTIMADO</small><span style={greenVal}>R$ {analise.lucroMaximo.toFixed(2)}</span></div>
                 <div style={metricItem}><small style={mLabel}>RISCO REAL CALCULADO</small><span style={redVal}>R$ {analise.riscoTotal.toFixed(2)}</span></div>
-                <div style={metricItem}><small style={mLabel}>RISCO UNITÁRIO</small><span style={{color: analise.respeitaFiltro ? '#4ade80' : '#f87171', fontSize: '20px', fontWeight: 'bold'}}>R$ {(analise.riscoTotal/lote).toFixed(2)}</span></div>
+                <div style={metricItem}><small style={mLabel}>RISCO UNITÁRIO</small><span style={{color: analise.respeitaFiltro ? '#4ade80' : '#f87171', fontSize: '20px', fontWeight: 'bold'}}>R$ {analise.valorComparativo.toFixed(2)}</span></div>
               </div>
             </div>
             <div style={chartContainer}><PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={analise.cicloTotal} /></div>
@@ -173,7 +192,7 @@ const App = () => {
                       <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{est.name}</span>
                       <span style={{ color: m.respeitaFiltro ? '#4ade80' : '#f87171' }}>{m.roi}</span>
                     </div>
-                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>Risco: R$ {(m.riscoTotal/lote).toFixed(2)}</div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>U: {m.valorComparativo.toFixed(2)} / {filtroRisco}</div>
                   </div>
                 );
               })}
@@ -185,7 +204,7 @@ const App = () => {
   );
 };
 
-// --- Estilos simplificados para scannability ---
+// --- Estilos ---
 const containerStyle = { padding: '30px', backgroundColor: '#0f172a', minHeight: '100vh', fontFamily: 'JetBrains Mono, monospace', color: '#e2e8f0' };
 const headerStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', padding: '15px 30px', borderRadius: '12px', marginBottom: '25px', border: '1px solid #334155' };
 const inputGroup = { display: 'flex', flexDirection: 'column' };
