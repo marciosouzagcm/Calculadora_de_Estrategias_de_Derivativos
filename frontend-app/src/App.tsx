@@ -3,8 +3,8 @@ import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 
 const App = () => {
-  const [ticker, setTicker] = useState('PETR4');
-  const [preco, setPreco] = useState('30.50');
+  const [ticker, setTicker] = useState('BBAS3');
+  const [preco, setPreco] = useState('21.80');
   const [lote, setLote] = useState(1000); 
   const [filtroRisco, setFiltroRisco] = useState<string>('0.30'); 
 
@@ -25,144 +25,159 @@ const App = () => {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const analise = useMemo(() => {
-    if (!selecionada) return null;
+  const calcularMetricas = (est: StrategyMetrics, loteAtual: number) => {
+    if (!est.pernas || est.pernas.length === 0) return null;
 
-    // --- RECALCULO UNITÁRIO REAL VIA PERNAS PARA EVITAR ERRO DE ESCALA ---
-    const precoUnitarioCalculado = selecionada.pernas.reduce((acc, p) => {
-        const valor = p.derivative.premio;
-        const valorNormalizado = valor > 50 ? valor / 100 : valor; 
-        return p.direction === 'COMPRA' ? acc + valorNormalizado : acc - valorNormalizado;
-    }, 0);
+    let unitario = 0;
+    est.pernas.forEach(p => {
+        const precoLimpo = p.derivative.premio > 50 ? p.derivative.premio / 100 : p.derivative.premio;
+        const prêmioProporcional = precoLimpo * p.multiplier;
+        if (p.direction === 'VENDA') unitario += Math.abs(prêmioProporcional);
+        else unitario -= Math.abs(prêmioProporcional);
+    });
 
-    const precoMercado = Math.abs(precoUnitarioCalculado);
-    
-    const nPernas = selecionada.pernas.length;
+    const precoMercado = Math.abs(unitario);
+    const isDebito = unitario < 0; 
+    const nPernas = est.pernas.length;
     const taxaEntrada = nPernas * 22.00;
     const taxaSaida = nPernas * 22.00;
-    const taxasTotais = taxaEntrada + taxaSaida;
+    const cicloTotal = taxaEntrada + taxaSaida;
+    const financeiroMontagem = (unitario * loteAtual) - taxaEntrada;
 
-    const custoOpcoesReal = precoMercado * lote;
-    const riscoRealTotal = custoOpcoesReal + taxaEntrada;
-    const alvoBeUnitario = lote > 0 ? (custoOpcoesReal + taxasTotais) / lote : 0;
+    const strikes = est.pernas.map(p => p.derivative.strike);
+    const largura = Math.max(...strikes) - Math.min(...strikes);
+    
+    let lucroMaximo = 0;
+    let riscoTotal = 0;
 
-    const strikeA = selecionada.pernas[0].derivative.strike;
-    const strikeB = selecionada.pernas[1].derivative.strike;
-    const largura = Math.abs(strikeB - strikeA);
-    
-    let lucroLiquido = 0;
-    
-    // Lógica para Estratégias de Volatilidade vs Travas de Crédito/Débito
-    if (selecionada.name.toLowerCase().includes("strangle") || 
-        selecionada.name.toLowerCase().includes("calendar") || 
-        largura < 0.10) {
-        const roiAlvo = parseFloat(selecionada.exibir_roi) / 100;
-        lucroLiquido = (riscoRealTotal * roiAlvo);
+    // Identifica se é uma estratégia "Descoberta" (sem trava de proteção)
+    const temCompra = est.pernas.some(p => p.direction === 'COMPRA');
+
+    if (isDebito) {
+        riscoTotal = Math.abs(unitario * loteAtual) + taxaEntrada;
+        lucroMaximo = (largura > 0) 
+            ? (largura * loteAtual) - riscoTotal - taxaSaida 
+            : (precoMercado * 3 * loteAtual) - cicloTotal;
     } else {
-        lucroLiquido = (largura - precoMercado) * lote - taxasTotais;
+        lucroMaximo = (unitario * loteAtual) - taxaEntrada;
+        
+        if (!temCompra) {
+            // SEGURANÇA: Para Vendas Descobertas (Strangle/Straddle), o risco é baseado na margem (ex: 20% do Spot)
+            riscoTotal = (Number(preco) * 0.20) * loteAtual;
+        } else {
+            // Para Travas de Crédito, Iron Condors e Borboletas
+            const riscoCalculado = (largura * loteAtual) - (unitario * loteAtual) + taxaEntrada;
+            riscoTotal = Math.max(riscoCalculado, taxaEntrada);
+        }
     }
 
+    const riscoUnitario = riscoTotal / loteAtual;
+    const valorFiltro = isDebito ? precoMercado : riscoUnitario;
+    const respeitaFiltro = valorFiltro <= (Number(filtroRisco) || 0.30);
+    const alvoBe = (precoMercado * loteAtual + (isDebito ? cicloTotal : -cicloTotal)) / loteAtual;
+
     return {
-      lote,
-      precoUnitario: precoMercado,
-      riscoReal: riscoRealTotal,
-      taxasTotais,
-      alvoRecompra: alvoBeUnitario,
-      lucroLiquido,
-      roi: riscoRealTotal > 0 ? ((lucroLiquido / riscoRealTotal) * 100).toFixed(2) + '%' : '0%'
+      precoMercado, isDebito, riscoTotal, lucroMaximo, financeiroMontagem,
+      taxaEntrada, taxaSaida, cicloTotal, alvoBe, respeitaFiltro,
+      roi: ((lucroMaximo / riscoTotal) * 100).toFixed(1) + '%'
     };
-  }, [selecionada, lote]);
+  };
+
+  const analise = useMemo(() => {
+    if (!selecionada) return null;
+    return { ...calcularMetricas(selecionada, lote), lote };
+  }, [selecionada, lote, filtroRisco]);
+
+  const listaOrdenada = useMemo(() => {
+    return [...estrategias].sort((a, b) => {
+        const mA = calcularMetricas(a, lote);
+        const mB = calcularMetricas(b, lote);
+        return parseFloat(mB?.roi || '0') - parseFloat(mA?.roi || '0');
+    });
+  }, [estrategias, lote, filtroRisco]);
 
   return (
-    <div style={{ padding: '30px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif', color: '#1e293b' }}>
-      <h1 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '25px' }}>Trading Board <span style={{color: '#2563eb'}}>Pro</span></h1>
-
-      <div style={topBarStyle}>
-        <div style={inputGroup}><label style={labelStyle}>ATIVO</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} style={inputStyle} /></div>
-        <div style={inputGroup}><label style={labelStyle}>PREÇO SPOT</label><input type="number" value={preco} onChange={e => setPreco(e.target.value)} style={inputStyle} /></div>
-        <div style={inputGroup}>
-          <label style={labelStyle}>LOTE DESEJADO</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input type="number" value={lote} onChange={e => setLote(Number(e.target.value))} style={{...inputStyle, width: '80px'}} />
-            {[100, 500, 1000].map(v => (<button key={v} onClick={() => setLote(v)} style={lote === v ? btnActive : btn}>{v}</button>))}
-          </div>
+    <div style={containerStyle}>
+      <div style={headerStyle}>
+        <h1 style={{ margin: 0, fontSize: '20px' }}>TRADING BOARD <span style={{ color: '#38bdf8' }}>PRO</span></h1>
+        <div style={{ display: 'flex', gap: '20px' }}>
+          <div style={inputGroup}><label style={labelStyle}>ATIVO</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} style={inputStyle} /></div>
+          <div style={inputGroup}><label style={labelStyle}>SPOT</label><input type="number" value={preco} onChange={e => setPreco(e.target.value)} style={inputStyle} /></div>
+          <div style={inputGroup}><label style={labelStyle}>LOTE</label><input type="number" value={lote} onChange={e => setLote(Number(e.target.value))} style={inputStyle} /></div>
+          <div style={inputGroup}><label style={{...labelStyle, color: '#38bdf8'}}>FILTRO RISCO</label><input value={filtroRisco} onChange={e => setFiltroRisco(e.target.value)} style={{...inputStyle, borderColor: '#38bdf8'}} /></div>
+          <button onClick={buscarEstrategias} style={btnEscanear}>{loading ? '...' : 'EXECUTAR SCANNER'}</button>
         </div>
-        <div style={inputGroup}>
-          <label style={{...labelStyle, color: '#2563eb'}}>FILTRAR RISCO ATÉ (R$)</label>
-          <input type="number" step="0.01" value={filtroRisco} onChange={e => setFiltroRisco(e.target.value)} style={{...inputStyle, borderColor: '#2563eb', width: '120px'}} />
-        </div>
-        <button onClick={buscarEstrategias} style={btnEscanear}>{loading ? '...' : 'ESCANEAR'}</button>
       </div>
 
       {selecionada && analise && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '30px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-            
-            {/* BOLETA */}
-            <div style={boletaCard}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '25px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={terminalCard}>
+              <div style={terminalHeader}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '18px' }}>🛠️ {selecionada.name}</h2>
-                  <small style={{ color: '#64748b' }}>VENCIMENTO: <strong>{selecionada.expiration}</strong> | LOTE: <strong>{analise.lote}</strong></small>
+                  <h2 style={{ margin: 0, color: '#fff' }}>{selecionada.name}</h2>
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>VENCIMENTO: {selecionada.expiration}</span>
                 </div>
-                <div style={{ display: 'flex', gap: '15px' }}>
-                  <div style={badgeStyle('#eff6ff', '#2563eb')}>
-                    <small style={bLabel}>PRÊMIO UNIT. (REAL)</small>
-                    <div style={bVal}>R$ {analise.precoUnitario.toFixed(2)}</div>
-                  </div>
-                  <div style={badgeStyle('#fff7ed', '#ea580c')}>
-                    <small style={bLabel}>SAIR NO 0 A 0 (UNIT.)</small>
-                    <div style={bVal}>R$ {analise.alvoRecompra.toFixed(2)}</div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={typeBadge(analise.isDebito)}>{analise.isDebito ? 'DÉBITO' : 'CRÉDITO'} | ROI: {analise.roi}</div>
+                  <div style={{ marginTop: '8px', fontSize: '11px', fontWeight: 'bold', color: analise.respeitaFiltro ? '#4ade80' : '#f87171' }}>
+                    {analise.respeitaFiltro ? '● DENTRO DO FILTRO' : '● FORA DO FILTRO (ALTO RISCO)'}
                   </div>
                 </div>
               </div>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={tableHeader}>
-                  <tr><th>LADO</th><th>TIPO</th><th>TICKER</th><th>STRIKE</th><th>PRÊMIO</th><th>QTD</th></tr>
+              <div style={infoBoxFull}>
+                <div style={infoTitle}>FLUXO DE CAIXA ({selecionada.pernas.length} PERNAS)</div>
+                <div style={infoRow}>
+                  <span>Entrada: <b style={red}>R$ {analise.taxaEntrada.toFixed(2)}</b></span>
+                  <span>Ciclo Total Taxas: <b style={red}>R$ {analise.cicloTotal.toFixed(2)}</b></span>
+                  <span>Montagem Líquida: <b style={{color: analise.financeiroMontagem > 0 ? '#4ade80' : '#f87171'}}>R$ {analise.financeiroMontagem.toFixed(2)}</b></span>
+                </div>
+              </div>
+
+              <table style={terminalTable}>
+                <thead>
+                  <tr><th>LADO</th><th>TICKER</th><th>STRIKE</th><th>PRÊMIO</th><th>QTD</th></tr>
                 </thead>
                 <tbody>
-                  {selecionada.pernas.map((p, i) => {
-                    const pPremio = p.derivative.premio > 50 ? p.derivative.premio / 100 : p.derivative.premio;
-                    return (
-                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '15px 0', color: p.direction === 'COMPRA' ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>{p.direction}</td>
-                      <td style={{fontWeight: 'bold', color: '#64748b'}}>{p.derivative.tipo}</td>
-                      <td style={{ fontWeight: 'bold' }}>{p.derivative.option_ticker}</td>
-                      <td>R$ {p.derivative.strike.toFixed(2)}</td>
-                      <td>R$ {pPremio.toFixed(2)}</td>
-                      <td style={{ fontWeight: 'bold' }}>{p.multiplier * analise.lote}</td>
+                  {selecionada.pernas.map((p, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
+                      <td style={{ color: p.direction === 'COMPRA' ? '#4ade80' : '#f87171', padding: '12px 0', fontWeight: 'bold' }}>[{p.direction[0]}] {p.derivative.tipo}</td>
+                      <td style={{ color: '#fff' }}>{p.derivative.option_ticker}</td>
+                      <td>{p.derivative.strike.toFixed(2)}</td>
+                      <td>R$ {(p.derivative.premio > 50 ? p.derivative.premio / 100 : p.derivative.premio).toFixed(2)}</td>
+                      <td style={{ color: '#fff' }}>{Math.abs(p.multiplier) * lote}</td>
                     </tr>
-                  )})}
+                  ))}
                 </tbody>
               </table>
-            </div>
 
-            {/* IMPACTO FINANCEIRO */}
-            <div style={darkCard}>
-              <h4 style={dTitle}>📊 IMPACTO FINANCEIRO REAL (LOTE {analise.lote} @ R$ {analise.precoUnitario.toFixed(2)})</h4>
-              <div style={mGrid}>
-                <div><small style={mLabel}>LUCRO LÍQUIDO REAL</small><div style={{...mVal, color: '#4ade80'}}>R$ {analise.lucroLiquido.toFixed(2)}</div></div>
-                <div><small style={mLabel}>RISCO REAL (OPÇÕES + TAXAS)</small><div style={{...mVal, color: '#f87171'}}>R$ {analise.riscoReal.toFixed(2)}</div></div>
-                <div><small style={mLabel}>ALVO BE (SAÍDA UNIT.)</small><div style={mVal}>R$ {analise.alvoRecompra.toFixed(2)}</div></div>
-                <div><small style={mLabel}>ROI REAL</small><div style={{...mVal, color: '#4ade80'}}>{analise.roi}</div></div>
+              <div style={footerMetrics}>
+                <div style={metricItem}><small style={mLabel}>LUCRO ESTIMADO</small><span style={greenVal}>R$ {analise.lucroMaximo.toFixed(2)}</span></div>
+                <div style={metricItem}><small style={mLabel}>RISCO REAL CALCULADO</small><span style={redVal}>R$ {analise.riscoTotal.toFixed(2)}</span></div>
+                <div style={metricItem}><small style={mLabel}>RISCO UNITÁRIO</small><span style={{color: analise.respeitaFiltro ? '#4ade80' : '#f87171', fontSize: '20px', fontWeight: 'bold'}}>R$ {(analise.riscoTotal/lote).toFixed(2)}</span></div>
               </div>
             </div>
-
-            {/* GRÁFICO DE PAYOFF REINSTALADO */}
-            <div style={chartCard}>
-               <PayoffChart strategy={selecionada} lote={analise.lote} taxasIdaVolta={analise.taxasTotais} />
-            </div>
+            <div style={chartContainer}><PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={analise.cicloTotal} /></div>
           </div>
-          
-          <div style={sidebar}>
-            <h3 style={{ fontSize: '16px', marginBottom: '15px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>Estratégias Encontradas</h3>
-            {estrategias.map((est, idx) => (
-              <div key={idx} onClick={() => setSelecionada(est)} style={{ ...estCard, borderColor: selecionada?.name === est.name ? '#2563eb' : '#e2e8f0', backgroundColor: selecionada?.name === est.name ? '#eff6ff' : '#fff' }}>
-                <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{est.name}</div>
-                <div style={{ color: '#2563eb', fontSize: '11px' }}>Venc: {est.expiration}</div>
-              </div>
-            ))}
+
+          <div style={sidebarStyle}>
+            <div style={sidebarHeader}>RANKING POR ROI REAL</div>
+            <div style={{ padding: '10px', overflowY: 'auto', maxHeight: '80vh' }}>
+              {listaOrdenada.map((est, idx) => {
+                const m = calcularMetricas(est, lote);
+                if (!m) return null;
+                return (
+                  <div key={idx} onClick={() => setSelecionada(est)} style={estCard(selecionada.name === est.name)}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{est.name}</span>
+                      <span style={{ color: m.respeitaFiltro ? '#4ade80' : '#f87171' }}>{m.roi}</span>
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>Risco: R$ {(m.riscoTotal/lote).toFixed(2)}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -170,26 +185,29 @@ const App = () => {
   );
 };
 
-// Estilos
-const topBarStyle = { display: 'flex', gap: '15px', backgroundColor: '#fff', padding: '20px', borderRadius: '15px', marginBottom: '25px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', alignItems: 'flex-end' };
-const inputGroup = { display: 'flex', flexDirection: 'column' as const, gap: '5px' };
-const labelStyle = { fontSize: '10px', fontWeight: 'bold', color: '#64748b' };
-const inputStyle = { padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', width: '100px' };
-const btn = { padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 'bold' as const };
-const btnActive = { ...btn, backgroundColor: '#0f172a', color: '#fff' };
-const btnEscanear = { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' as const };
-const boletaCard = { backgroundColor: '#fff', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderLeft: '6px solid #2563eb' };
-const badgeStyle = (bg: string, col: string) => ({ backgroundColor: bg, color: col, padding: '12px 18px', borderRadius: '12px', textAlign: 'right' as const });
-const bLabel = { fontSize: '9px', fontWeight: 'bold', display: 'block', marginBottom: '4px' };
-const bVal = { fontSize: '20px', fontWeight: '800' };
-const tableHeader = { textAlign: 'left' as const, fontSize: '11px', color: '#94a3b8', borderBottom: '2px solid #f1f5f9' };
-const darkCard = { backgroundColor: '#0f172a', color: '#fff', padding: '25px', borderRadius: '15px' };
-const dTitle = { color: '#38bdf8', fontSize: '10px', fontWeight: 'bold', marginTop: 0, marginBottom: '20px' };
-const mGrid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' };
+// --- Estilos simplificados para scannability ---
+const containerStyle = { padding: '30px', backgroundColor: '#0f172a', minHeight: '100vh', fontFamily: 'JetBrains Mono, monospace', color: '#e2e8f0' };
+const headerStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', padding: '15px 30px', borderRadius: '12px', marginBottom: '25px', border: '1px solid #334155' };
+const inputGroup = { display: 'flex', flexDirection: 'column' };
+const labelStyle = { fontSize: '9px', fontWeight: 'bold', color: '#94a3b8', marginBottom: '4px' };
+const inputStyle = { background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '6px', width: '100px' };
+const btnEscanear = { background: '#38bdf8', color: '#0f172a', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' };
+const terminalCard = { backgroundColor: '#1e293b', borderRadius: '16px', border: '1px solid #334155', padding: '25px' };
+const terminalHeader = { display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '20px' };
+const typeBadge = (isDebito: boolean) => ({ backgroundColor: isDebito ? '#450a0a' : '#064e3b', color: isDebito ? '#f87171' : '#4ade80', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' });
+const infoBoxFull = { backgroundColor: '#0f172a', padding: '18px', borderRadius: '12px', border: '1px solid #334155', marginBottom: '15px' };
+const infoTitle = { fontSize: '10px', color: '#94a3b8', marginBottom: '8px' };
+const infoRow = { display: 'flex', justifyContent: 'space-between', fontSize: '13px' };
+const terminalTable = { width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '25px' };
+const footerMetrics = { display: 'flex', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '20px', borderRadius: '12px' };
+const metricItem = { display: 'flex', flexDirection: 'column' };
 const mLabel = { fontSize: '9px', color: '#94a3b8' };
-const mVal = { fontSize: '16px', fontWeight: 'bold' };
-const sidebar = { backgroundColor: '#fff', padding: '20px', borderRadius: '15px', height: 'fit-content', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' };
-const estCard = { padding: '15px', borderRadius: '12px', border: '2px solid', marginBottom: '12px', cursor: 'pointer' };
-const chartCard = { backgroundColor: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' };
+const greenVal = { color: '#4ade80', fontSize: '20px', fontWeight: 'bold' };
+const redVal = { color: '#f87171', fontSize: '20px', fontWeight: 'bold' };
+const red = { color: '#f87171' };
+const sidebarStyle = { backgroundColor: '#1e293b', borderRadius: '16px', border: '1px solid #334155' };
+const sidebarHeader = { padding: '15px', borderBottom: '1px solid #334155', fontSize: '12px', color: '#38bdf8' };
+const estCard = (active: boolean) => ({ padding: '15px', borderBottom: '1px solid #334155', cursor: 'pointer', backgroundColor: active ? '#334155' : 'transparent' });
+const chartContainer = { backgroundColor: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid #334155' };
 
 export default App;
