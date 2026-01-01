@@ -20,7 +20,13 @@ const App = () => {
       const result = await resp.json();
       if (result.status === "success") {
         setEstrategias(result.data);
-        setSelecionada(result.data[0] || null);
+        
+        // Seleciona automaticamente a primeira estratégia que respeita o filtro
+        const primeiraValida = result.data.find((est: StrategyMetrics) => {
+          const m = calcularMetricas(est, lote);
+          return m && m.respeitaFiltro;
+        });
+        setSelecionada(primeiraValida || result.data[0] || null);
       }
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
@@ -46,18 +52,14 @@ const App = () => {
 
     const strikes = est.pernas.map(p => p.derivative.strike).sort((a, b) => a - b);
     
-    // --- LÓGICA DE LARGURA EFETIVA CORRIGIDA ---
     let larguraEfetiva = 0;
     if (nPernas === 3) {
-      // Borboleta: Diferença entre o strike médio e o inferior (Asa)
       larguraEfetiva = strikes[1] - strikes[0];
     } else if (nPernas === 4) {
-      // Iron Condor: O risco é apenas a largura da maior asa (Put ou Call)
       const asaPut = strikes[1] - strikes[0];
       const asaCall = strikes[3] - strikes[2];
       larguraEfetiva = Math.max(asaPut, asaCall);
     } else {
-      // Travas e outras: Distância entre strikes
       larguraEfetiva = strikes.length > 1 ? Math.max(...strikes) - Math.min(...strikes) : 0;
     }
     
@@ -71,12 +73,10 @@ const App = () => {
             ? (larguraEfetiva * loteAtual) - riscoTotal - taxaSaida 
             : (precoMercado * 3 * loteAtual) - cicloTotal;
     } else {
-        // OPERAÇÕES DE CRÉDITO
         lucroMaximo = (unitario * loteAtual) - taxaEntrada;
         if (!temCompra) {
             riscoTotal = (Number(preco) * 0.20) * loteAtual;
         } else {
-            // Risco Real: (Largura da Asa * Lote) - Crédito Recebido + Taxas
             const riscoCalculado = (larguraEfetiva * loteAtual) - (unitario * loteAtual) + taxaEntrada;
             riscoTotal = Math.max(riscoCalculado, taxaEntrada);
         }
@@ -99,12 +99,19 @@ const App = () => {
     return { ...calcularMetricas(selecionada, lote), lote };
   }, [selecionada, lote, filtroRisco]);
 
-  const listaOrdenada = useMemo(() => {
-    return [...estrategias].sort((a, b) => {
-        const mA = calcularMetricas(a, lote);
-        const mB = calcularMetricas(b, lote);
-        return parseFloat(mB?.roi || '0') - parseFloat(mA?.roi || '0');
-    });
+  // --- FILTRAGEM EXCLUSIVA PARAsidebar ---
+  const listaFiltrada = useMemo(() => {
+    return estrategias
+      .map(est => ({
+        est,
+        metricas: calcularMetricas(est, lote)
+      }))
+      .filter(item => item.metricas && item.metricas.respeitaFiltro) // FILTRO ≤ VALOR DEFINIDO
+      .sort((a, b) => {
+        const roiA = parseFloat(a.metricas?.roi || '0');
+        const roiB = parseFloat(b.metricas?.roi || '0');
+        return roiB - roiA;
+      });
   }, [estrategias, lote, filtroRisco]);
 
   return (
@@ -181,21 +188,23 @@ const App = () => {
           </div>
 
           <div style={sidebarStyle}>
-            <div style={sidebarHeader}>RANKING POR ROI REAL</div>
+            <div style={sidebarHeader}>RANKING: RISCO ≤ {filtroRisco}</div>
             <div style={{ padding: '10px', overflowY: 'auto', maxHeight: '80vh' }}>
-              {listaOrdenada.map((est, idx) => {
-                const m = calcularMetricas(est, lote);
-                if (!m) return null;
-                return (
-                  <div key={idx} onClick={() => setSelecionada(est)} style={estCard(selecionada.name === est.name)}>
+              {listaFiltrada.length > 0 ? (
+                listaFiltrada.map((item, idx) => (
+                  <div key={idx} onClick={() => setSelecionada(item.est)} style={estCard(selecionada?.name === item.est.name)}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{est.name}</span>
-                      <span style={{ color: m.respeitaFiltro ? '#4ade80' : '#f87171' }}>{m.roi}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{item.est.name}</span>
+                      <span style={{ color: '#4ade80' }}>{item.metricas?.roi}</span>
                     </div>
-                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>U: {m.valorComparativo.toFixed(2)} / {filtroRisco}</div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>Unit: R$ {item.metricas?.valorComparativo.toFixed(2)}</div>
                   </div>
-                );
-              })}
+                ))
+              ) : (
+                <div style={{ padding: '20px', fontSize: '12px', color: '#f87171', textAlign: 'center' }}>
+                  Nenhuma oportunidade dentro do risco limite.
+                </div>
+              )}
             </div>
           </div>
         </div>
