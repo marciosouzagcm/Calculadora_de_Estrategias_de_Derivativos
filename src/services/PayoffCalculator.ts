@@ -2,20 +2,16 @@ import { IStrategy } from '../interfaces/IStrategy';
 import {
     Greeks,
     OptionLeg,
-    ProfitLossValue,
     StrategyMetrics
 } from '../interfaces/Types';
 
-import { BlackScholes } from './BlackScholes';
+import { BlackScholes } from '../../frontend-app/src/services/BlackScholes';
 
 // Importações das estratégias
 import { BearCallSpread } from '../strategies/BearCallSpread';
 import { BearPutSpread } from '../strategies/BearPutSpread';
 import { BullCallSpread } from '../strategies/BullCallSpread';
 import { BullPutSpread } from '../strategies/BullPutSpread';
-import { ButterflySpread } from '../strategies/ButterflySpread';
-import { CalendarSpread } from '../strategies/CalendarSpread';
-import { IronCondorSpread } from '../strategies/IronCondorSpread';
 import { LongStraddle } from '../strategies/LongStraddle';
 import { LongStrangle } from '../strategies/LongStrangle';
 import { ShortStraddle } from '../strategies/ShortStraddle';

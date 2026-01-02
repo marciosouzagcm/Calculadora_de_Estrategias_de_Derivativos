@@ -26,13 +26,36 @@ export class BlackScholes {
      * Cálculo do d1 (Probabilidade de exercício no dinheiro)
      */
     private static getD1(s: number, k: number, t: number, v: number, r: number): number {
-        // Proteção contra valores inválidos ou tempo zero (vencimento)
         if (v <= 0 || t <= 0 || s <= 0 || k <= 0) return 0;
         return (Math.log(s / k) + (r + (v * v) / 2) * t) / (v * Math.sqrt(t));
     }
 
+    /**
+     * CÁLCULO DO PREÇO TEÓRICO (Essencial para a Fase 4)
+     * @param s Spot Price (Preço da Ação)
+     * @param k Strike Price
+     * @param t Time to Maturity (em anos, ex: 20/252)
+     * @param v Volatilidade (ex: 0.35 para 35%)
+     * @param r Taxa Livre de Risco (Selic)
+     */
+    public static calculatePrice(s: number, k: number, t: number, v: number, r: number = 0.1075, type: 'CALL' | 'PUT'): number {
+        // Se já venceu, retorna o valor intrínseco
+        if (t <= 0) {
+            return type === 'CALL' ? Math.max(0, s - k) : Math.max(0, k - s);
+        }
+
+        const d1 = this.getD1(s, k, t, v, r);
+        const d2 = d1 - v * Math.sqrt(t);
+
+        if (type === 'CALL') {
+            return s * this.cnd(d1) - k * Math.exp(-r * t) * this.cnd(d2);
+        } else {
+            return k * Math.exp(-r * t) * this.cnd(-d2) - s * this.cnd(-d1);
+        }
+    }
+
     public static calculateDelta(s: number, k: number, t: number, v: number, r: number = 0.1075, type: 'CALL' | 'PUT'): number {
-        if (t <= 0) return 0; // Opção expirada
+        if (t <= 0) return (type === 'CALL' && s > k) || (type === 'PUT' && s < k) ? 1 : 0;
         const d1 = this.getD1(s, k, t, v, r);
         return type === 'CALL' ? this.cnd(d1) : this.cnd(d1) - 1;
     }
@@ -46,7 +69,6 @@ export class BlackScholes {
     public static calculateVega(s: number, k: number, t: number, v: number, r: number = 0.1075): number {
         if (s <= 0 || v <= 0 || t <= 0) return 0;
         const d1 = this.getD1(s, k, t, v, r);
-        // Retorna o valor financeiro para mudança de 1% na volatilidade
         return (s * Math.sqrt(t) * this.nd(d1)) / 100;
     }
 
@@ -56,14 +78,12 @@ export class BlackScholes {
         const d1 = this.getD1(s, k, t, v, r);
         const d2 = d1 - v * Math.sqrt(t);
         
-        // Termo 1: Decaimento pela volatilidade
         const term1 = -(s * v * this.nd(d1)) / (2 * Math.sqrt(t));
-        // Termo 2: Decaimento pela taxa de juros (r)
         const term2 = r * k * Math.exp(-r * t);
 
         if (type === 'CALL') {
             const thetaAnual = term1 - term2 * this.cnd(d2);
-            return thetaAnual / 252; // Divide por dias úteis
+            return thetaAnual / 252; 
         } else {
             const thetaAnual = term1 + term2 * this.cnd(-d2);
             return thetaAnual / 252;
