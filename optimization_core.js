@@ -10,7 +10,7 @@
 // =========================================================================
 
 const DEFAULT_ASSET_PRICE = 34.50; // Preço do ativo subjacente (PETR4)
-const FEES = 0.50;                 // Taxa de corretagem por lote (R$)
+const FEES = 22.00;                 // Taxa de corretagem por lote (R$)
 const LOT_SIZE = 100;              // Tamanho do lote padrão (100 opções por contrato)
 
 // TIPAGEM (Mantida por clareza)
