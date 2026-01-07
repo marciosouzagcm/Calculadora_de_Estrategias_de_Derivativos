@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
-import { PayoffChart } from './components/PayoffChart';
-import { StrategyMetrics } from './interfaces/Types';
-import { MarketDataService } from './services/MarketDataService';
+import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
+import { useMemo, useRef, useState } from 'react';
+import { StrategyMetrics } from '../../src/interfaces/Types';
+import { PayoffChart } from './components/PayoffChart';
+import { MarketDataService } from './services/MarketDataService';
 
 const marketService = new MarketDataService();
 
@@ -42,7 +42,6 @@ const App = () => {
     if (!selecionada || !analise) return;
     const doc = new jsPDF();
     
-    // Cabeçalho Principal
     doc.setFontSize(20);
     doc.setTextColor(30, 41, 59);
     doc.text(`TRADING BOARD PRO - ${selecionada.name}`, 14, 20);
@@ -51,14 +50,12 @@ const App = () => {
     doc.setTextColor(100);
     doc.text(`Ativo: ${ticker} | Preço Spot: R$ ${preco} | Lote: ${lote} | Data: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
     
-    // Seção de Resumo e ROI
     doc.setFontSize(12);
-    doc.setTextColor(0, 150, 0);
+    doc.setTextColor(analise.isDebito ? 200 : 0, 150, 0);
     doc.text(`ROI Estimado: ${analise.roi}`, 14, 38);
     doc.setTextColor(200, 150, 0);
     doc.text(`STOP BREAK-EVEN: ${analise.instrucaoDesmonte} a R$ ${analise.valorSaidaZeroaZero.toFixed(2)}`, 14, 45);
 
-    // Tabela de Pernas
     autoTable(doc, {
       startY: 52,
       head: [['LADO', 'TICKER', 'VENC.', 'STRIKE', 'PREMIO', 'QTD']],
@@ -76,19 +73,22 @@ const App = () => {
 
     const finalY = (doc as any).lastAutoTable.finalY;
 
-    // Métricas Financeiras
     doc.setFontSize(11);
     doc.setTextColor(0);
-    doc.text(`LUCRO LÍQUIDO: R$ ${analise.lucroMaximo.toFixed(2)}`, 14, finalY + 10);
-    doc.text(`INVESTIMENTO + TAXAS: R$ ${analise.custoEfetivoEntrada.toFixed(2)}`, 14, finalY + 17);
+    doc.text(`LUCRO MÁXIMO POSSÍVEL: R$ ${analise.lucroMaximo.toFixed(2)}`, 14, finalY + 10);
+    doc.text(`${analise.isDebito ? 'INVESTIMENTO + TAXAS' : 'CRÉDITO LÍQUIDO (EMBOLSO)'}: R$ ${Math.abs(analise.custoEfetivoEntrada).toFixed(2)}`, 14, finalY + 17);
     doc.text(`TOTAL TAXAS (IDA/VOLTA): R$ ${analise.taxasTotais.toFixed(2)}`, 14, finalY + 24);
 
-    // Adição do Gráfico
     if (chartRef.current) {
       const canvas = await html2canvas(chartRef.current);
       const imgData = canvas.toDataURL('image/png');
       doc.addImage(imgData, 'PNG', 14, finalY + 32, 180, 90);
     }
+
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(7);
+    doc.setTextColor(150);
+    doc.text("AVISO: Este relatório é uma simulação teórica. Operações com opções envolvem riscos. Não é recomendação.", 14, pageHeight - 10);
 
     doc.save(`Analise_${ticker}_${selecionada.name.replace(/\s/g, '_')}.pdf`);
   };
@@ -114,42 +114,43 @@ const App = () => {
   const calcularMetricas = (est: StrategyMetrics, loteAtual: number) => {
     if (!est.pernas || est.pernas.length === 0) return null;
     let unitarioMontagem = 0;
-    est.pernas.forEach(p => unitarioMontagem += (p.direction === 'VENDA' ? 1 : -1) * Math.abs(normalizar(p.derivative.premio) * p.multiplier));
-
+    est.pernas.forEach(p => {
+        const sinal = p.direction === 'VENDA' ? 1 : -1;
+        unitarioMontagem += sinal * Math.abs(normalizar(p.derivative.premio) * p.multiplier);
+    });
     const taxasTotais = est.pernas.length * (parseFloat(taxaInformada) || 0) * 2;
-    const premioAbs = Math.abs(unitarioMontagem);
-    const custoEntrada = (premioAbs * loteAtual) + (taxasTotais / 2);
-
+    const isDebito = unitarioMontagem < 0;
+    const custoEfetivoEntrada = (unitarioMontagem * loteAtual) - (taxasTotais / 2);
     const vencimentos = est.pernas.map(p => new Date(p.derivative.vencimento).getTime()).sort((a,b)=>a-b);
     const isCalendar = new Set(vencimentos).size > 1;
-    const todasCompradas = est.pernas.every(p => p.direction === 'COMPRA');
 
     let lucroLiquidoFinal = 0;
-    if (todasCompradas) {
-        lucroLiquidoFinal = (custoEntrada * 0.5); 
-    } else if (isCalendar) {
+    if (isCalendar) {
         const pernaLonga = est.pernas.find(p => new Date(p.derivative.vencimento).getTime() === vencimentos[vencimentos.length - 1]);
         if (pernaLonga) {
             const strikeLonga = normalizar(pernaLonga.derivative.strike);
             const diasRest = (vencimentos[vencimentos.length - 1] - vencimentos[0]) / (1000 * 60 * 60 * 24 * 365);
             const valorTeorico = blackScholes(strikeLonga, strikeLonga, diasRest, 0.35, 0.12, pernaLonga.derivative.tipo);
-            lucroLiquidoFinal = (valorTeorico * loteAtual) - custoEntrada;
+            lucroLiquidoFinal = (valorTeorico * loteAtual) + custoEfetivoEntrada;
         }
     } else {
         const strikes = est.pernas.map(p => normalizar(p.derivative.strike)).sort((a, b) => a - b);
-        lucroLiquidoFinal = ((strikes[strikes.length - 1] - strikes[0]) * loteAtual) - custoEntrada - (taxasTotais / 2);
+        const diffStrikes = strikes[strikes.length - 1] - strikes[0];
+        lucroLiquidoFinal = isDebito 
+            ? (diffStrikes * loteAtual) + custoEfetivoEntrada - (taxasTotais / 2)
+            : custoEfetivoEntrada - (taxasTotais / 2);
     }
 
     return {
-      isDebito: unitarioMontagem < 0,
-      premioUnitario: premioAbs,
-      dentroDoFiltro: premioAbs <= parseFloat(filtroRisco),
+      isDebito,
+      premioUnitario: Math.abs(unitarioMontagem),
+      dentroDoFiltro: Math.abs(unitarioMontagem) <= parseFloat(filtroRisco),
       lucroMaximo: Math.abs(lucroLiquidoFinal),
-      custoEfetivoEntrada: custoEntrada,
+      custoEfetivoEntrada,
       taxasTotais,
-      instrucaoDesmonte: unitarioMontagem < 0 ? "VENDER" : "COMPRAR",
-      valorSaidaZeroaZero: (custoEntrada + (taxasTotais / 2)) / loteAtual,
-      roi: ((Math.abs(lucroLiquidoFinal) / custoEntrada) * 100).toFixed(1) + '%'
+      instrucaoDesmonte: isDebito ? "VENDER" : "COMPRAR",
+      valorSaidaZeroaZero: Math.abs(custoEfetivoEntrada - (taxasTotais / 2)) / loteAtual,
+      roi: ((Math.abs(lucroLiquidoFinal) / Math.abs(custoEfetivoEntrada)) * 100).toFixed(1) + '%'
     };
   };
 
@@ -214,12 +215,18 @@ const App = () => {
               </table>
               <div style={footerMetrics}>
                 <div style={metricItem}><small style={metricLabel}>LUCRO LÍQUIDO</small><span style={{color: '#4ade80', fontSize: '18px', fontWeight: 'bold'}}>R$ {analise.lucroMaximo.toFixed(2)}</span></div>
-                <div style={metricItem}><small style={metricLabel}>INVESTIMENTO + TAXAS</small><span style={{color: '#f87171', fontSize: '18px', fontWeight: 'bold'}}>R$ {analise.custoEfetivoEntrada.toFixed(2)}</span></div>
+                <div style={metricItem}>
+                    <small style={metricLabel}>{analise.isDebito ? 'INVESTIMENTO + TAXAS' : 'CRÉDITO LÍQUIDO (EMBOLSO)'}</small>
+                    <span style={{color: analise.isDebito ? '#f87171' : '#4ade80', fontSize: '18px', fontWeight: 'bold'}}>R$ {Math.abs(analise.custoEfetivoEntrada).toFixed(2)}</span>
+                </div>
                 <div style={metricItem}><small style={metricLabel}>TOTAL TAXAS</small><span style={{color: '#94a3b8', fontSize: '18px', fontWeight: 'bold'}}>R$ {analise.taxasTotais.toFixed(2)}</span></div>
               </div>
             </div>
             <div ref={chartRef} style={chartContainer}>
               <PayoffChart strategy={selecionada!} lote={lote} taxasIdaVolta={analise.taxasTotais} />
+            </div>
+            <div style={disclaimerBox}>
+              <strong>DISCLAIMER:</strong> Esta ferramenta é um simulador de suporte à decisão baseado no modelo Black-Scholes. Operações com derivativos envolvem alto risco. Não garantimos execução nos preços simulados.
             </div>
           </div>
 
@@ -236,8 +243,8 @@ const App = () => {
                       <b style={{color: '#4ade80', fontSize:'13px'}}>{item.m?.roi}</b>
                     </div>
                     <div style={{display:'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', marginTop: '10px'}}>
-                      <div style={sidebarMiniMetric}><span style={miniLabel}>CUSTO</span><span style={{color: '#f87171', fontSize: '10px'}}>R$ {item.m?.custoEfetivoEntrada.toFixed(2)}</span></div>
-                      <div style={sidebarMiniMetric}><span style={miniLabel}>DIF. STRIKES</span><span style={{color: '#94a3b8', fontSize: '10px'}}>{range}</span></div>
+                      <div style={sidebarMiniMetric}><span style={miniLabel}>{item.m?.isDebito ? 'CUSTO' : 'CRÉDITO'}</span><span style={{color: item.m?.isDebito ? '#f87171' : '#4ade80', fontSize: '10px'}}>R$ {Math.abs(item.m?.custoEfetivoEntrada || 0).toFixed(2)}</span></div>
+                      <div style={sidebarMiniMetric}><span style={miniLabel}>STRIKES</span><span style={{color: '#94a3b8', fontSize: '10px'}}>{range}</span></div>
                       <div style={sidebarMiniMetric}><span style={{...miniLabel, color: '#fbbf24'}}>RISCO MAX.</span><span style={{color: '#fbbf24', fontSize: '10px'}}>{item.m?.premioUnitario.toFixed(2)}</span></div>
                     </div>
                   </div>
@@ -251,7 +258,6 @@ const App = () => {
   );
 };
 
-// --- ESTILOS ---
 const containerStyle: React.CSSProperties = { padding: '20px', backgroundColor: '#0f172a', minHeight: '100vh', fontFamily: 'monospace', color: '#e2e8f0' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#1e293b', padding: '20px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #334155' };
 const headerInputs: React.CSSProperties = { display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' };
@@ -279,5 +285,6 @@ const estCard = (act: boolean): React.CSSProperties => ({ padding: '15px', borde
 const sidebarMiniMetric: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '2px' };
 const miniLabel: React.CSSProperties = { fontSize: '8px', color: '#64748b', fontWeight: 'bold' };
 const chartContainer: React.CSSProperties = { backgroundColor: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid #334155' };
+const disclaimerBox: React.CSSProperties = { marginTop: '20px', padding: '15px', backgroundColor: '#0f172a', borderRadius: '10px', fontSize: '10px', color: '#64748b', textAlign: 'justify' };
 
 export default App;

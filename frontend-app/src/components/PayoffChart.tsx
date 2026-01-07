@@ -1,13 +1,13 @@
 import {
-  Area,
-  CartesianGrid,
-  ComposedChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis, YAxis
+    Area,
+    CartesianGrid,
+    ComposedChart,
+    ReferenceLine,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis, YAxis
 } from 'recharts';
-import { StrategyMetrics } from '../interfaces/Types';
+import { StrategyMetrics } from '../../../src/interfaces/Types';
 
 interface PayoffProps {
   strategy: StrategyMetrics;
