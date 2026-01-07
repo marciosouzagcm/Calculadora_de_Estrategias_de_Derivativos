@@ -54,6 +54,7 @@ graph TD
     B -->|EM CURSO| C[v40.0: Integração Real-Time B3]
     C -->|Q3 2026| D[Superfície de Volatilidade Dinâmica]
     D -->|Q4 2026| E[What-if Simulation Engine]
+
 📟 Output de Performance (Exemplo Real)
 Bash
 
@@ -66,6 +67,7 @@ ROI LÍQUIDO: 22.4% | LUCRO MÁX: R$ 3.120,00
 RISCO UNITÁRIO: R$ 0.12 (Abaixo do teto de 0.30)
 SAÍDA NO ZERO A ZERO: Vender a R$ 0.48/un
 ------------------------------------------------------
+
 📝 Disclaimer Técnico
 Este software é uma ferramenta de suporte à decisão baseada em modelos estocásticos. Operar derivativos envolve riscos. O BoardPRO fornece a estatística; a decisão final e a gestão de risco são responsabilidade do operador.
 
