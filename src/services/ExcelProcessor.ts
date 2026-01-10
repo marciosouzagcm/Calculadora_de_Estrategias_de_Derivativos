@@ -76,17 +76,15 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
         const ticker = String(getVal('ticker') || '').trim();
         if (ticker.length < 5 || ticker.toUpperCase() === 'TICKER') continue;
 
-        // --- CORREÇÃO DO STRIKE (Multiplicando por 10 para ajustar a escala de 2.07 para 20.70) ---
-        let strike = cleanAndParseNumber(getVal('strike'));
-        if (strike < 10) strike = strike * 10; // Ajuste dinâmico de escala
+        // --- SOLUÇÃO DEFINITIVA DO STRIKE ---
+        // Pegamos o valor bruto (ex: 210.00) e dividimos por 100 (vira 2.10)
+        let strikeRaw = cleanAndParseNumber(getVal('strike'));
+        let strike = strikeRaw / 100; 
 
         const premio = cleanAndParseNumber(getVal('premioPct')) / FATOR_CORRECAO_ESCALA_PRECO;
         const vol = cleanAndParseNumber(getVal('volImplicita')) / FATOR_CORRECAO_ESCALA_VI;
 
-        // --- REGRA DE DESCARTE: Se Prêmio ou Strike ou Vol forem 0, ignora a linha ---
-        if (premio === 0 || strike === 0 || vol === 0) {
-            continue; 
-        }
+        if (premio === 0 || strike === 0 || vol === 0) continue; 
 
         const tipoRaw = String(getVal('tipo') || '').toUpperCase();
         const tipo = (tipoRaw.startsWith('P') || tipoRaw.startsWith('A') || ticker.charAt(4) > 'L') ? 'PUT' : 'CALL';
@@ -97,7 +95,7 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
             formatVencimento(getVal('vencimento')),
             parseInt(getVal('diasUteis')) || 0,
             tipo,
-            Number(strike.toFixed(2)),
+            Number(strike.toFixed(2)), // Agora salvará 2.10
             Number(premio.toFixed(4)),
             Number(vol.toFixed(4)),
             Number((cleanAndParseNumber(getVal('delta')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
@@ -120,7 +118,7 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
 
     try {
         await pool.query(sql, [valoresParaInserir]);
-        console.log(`[MYSQL] ✅ SUCESSO! ${valoresParaInserir.length} registros válidos inseridos (Zeros descartados).`);
+        console.log(`[MYSQL] ✅ SUCESSO! ${valoresParaInserir.length} registros com Strike Corrigido (Scale 1/100).`);
     } catch (error: any) {
         console.error(`[MYSQL ERROR]: ${error.message}`);
     }

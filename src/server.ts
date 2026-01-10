@@ -1,36 +1,17 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
-import { pool } from './config/database'; // Importado para o Health Check
+import { pool } from './config/database'; 
 import { DataOrchestrator } from './services/DataOrchestrator';
 import { StrategyService } from './services/StrategyService';
 
 const app = express();
 
-// Configuração de CORS - Mantida flexível para o seu Frontend (Vite)
-app.use(cors({
-    origin: '*', 
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-})); 
-
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] })); 
 app.use(express.json());
 
-// --- ROTA DE HEALTH CHECK ---
-// Útil para verificar se a API e o Banco estão vivos sem processar nada pesado
-app.get('/api/health', async (_req: Request, res: Response) => {
-    try {
-        await pool.query('SELECT 1');
-        res.json({ status: "ok", database: "connected", timestamp: new Date() });
-    } catch (error: any) {
-        res.status(500).json({ status: "error", database: "disconnected", message: error.message });
-    }
-});
-
-// --- ROTA PRINCIPAL DE ANÁLISE ---
 app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     try {
         const { ticker, preco, lote } = req.query;
-
         if (!ticker) {
             res.status(400).json({ status: "error", message: "Ticker é obrigatório." });
             return;
@@ -40,51 +21,74 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
         const loteNum = parseInt(String(lote)) || 100;
         const precoNum = (preco && preco !== 'undefined' && preco !== '') ? parseFloat(String(preco)) : undefined;
 
-        console.log(`[API] 🔍 Buscando Top 11 para: ${tickerStr} (Lote: ${loteNum})`);
+        // Busca as oportunidades no Service
+        const resultados: any[] = await StrategyService.getOportunidades(tickerStr, loteNum, precoNum);
 
-        // Busca as oportunidades no StrategyService
-        const resultados = await StrategyService.getOportunidades(
-            tickerStr, 
-            loteNum,
-            precoNum
-        );
+        console.log(`\n[API] 🔍 Oportunidades para ${tickerStr} | Lote: ${loteNum}`);
+        console.log(`--------------------------------------------------------------------------------`);
+
+        if (resultados && resultados.length > 0) {
+            resultados.forEach((item: any, index: number) => {
+                // 1. MAPEAMENTO DO NOME: Prioriza o nome da estratégia (Ex: Butterfly)
+                const nomeEstrategia = item.strategyName || item.tipo || "OPÇÃO";
+                
+                // 2. MAPEAMENTO DO STRIKE: Tenta encontrar em todas as estruturas possíveis
+                let strikeExibicao = 0;
+                
+                if (item.strike && item.strike !== 0) {
+                    // Opção Seca
+                    strikeExibicao = parseFloat(item.strike);
+                } else if (item.legs && item.legs.length > 0) {
+                    // Estratégia Estruturada (Array de Pernas)
+                    strikeExibicao = parseFloat(item.legs[0].strike);
+                } else if (item.pernaA && item.pernaA.strike) {
+                    // Estratégia Estruturada (Objetos Nomeados)
+                    strikeExibicao = parseFloat(item.pernaA.strike);
+                } else if (item.strikeLong || item.strikeBuy) {
+                    // Travas (Strike da ponta comprada)
+                    strikeExibicao = parseFloat(item.strikeLong || item.strikeBuy);
+                }
+
+                // 3. MAPEAMENTO DO LUCRO: Tenta encontrar o valor líquido ou máximo
+                const lucroVal = item.lucroLiquido || item.lucroMaximo || item.maxProfit || item.profit || 0;
+
+                // 4. FORMATAÇÃO PARA O TERMINAL (PT-BR)
+                const strikeFormatado = strikeExibicao.toLocaleString('pt-BR', { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                });
+
+                const lucroFormatado = lucroVal.toLocaleString('pt-BR', { 
+                    style: 'currency', 
+                    currency: 'BRL' 
+                });
+
+                const roi = item.roi !== undefined ? item.roi.toFixed(1) : "0.0";
+
+                // Log formatado e alinhado
+                const idx = (index + 1).toString().padStart(2, '0');
+                console.log(`[${idx}] ${nomeEstrategia.padEnd(25)} | STRIKE: ${strikeFormatado.padStart(6)} | ROI: ${roi.padStart(6)}% | LUCRO: ${lucroFormatado}`);
+            });
+            console.log(`--------------------------------------------------------------------------------`);
+            console.log(`✅ [SUCESSO] ${resultados.length} estratégias enviadas ao Dashboard.\n`);
+        }
 
         res.json({
             status: "success",
-            timestamp: new Date().toISOString(),
-            info: {
-                ticker: tickerStr,
-                lote: loteNum,
-                precoReferencia: precoNum || "Preço de Mercado (DB)"
-            },
+            info: { ticker: tickerStr, lote: loteNum },
             count: resultados.length,
             data: resultados
         });
 
     } catch (error: any) {
-        // Log detalhado no servidor para facilitar o seu Debug
-        console.error(`[API ERROR] ❌ ${new Date().toISOString()}: ${error.message}`);
-        
-        if (!res.headersSent) {
-            res.status(500).json({ 
-                status: "error", 
-                message: "Erro ao processar estratégias. Verifique a conexão com o banco.",
-                details: error.message 
-            });
-        }
+        console.error(`\n[API ERROR] ❌ ${error.message}`);
+        if (!res.headersSent) res.status(500).json({ status: "error", message: error.message });
     }
 });
 
 const PORT = process.env.PORT || 3001;
-
-// Inicialização com tratamento de erro no Orchestrator
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-    
-    try {
-        console.log(`📡 [WATCHER] Iniciando monitoramento de arquivos...`);
-        DataOrchestrator.init();
-    } catch (error: any) {
-        console.error(`[ORCHESTRATOR ERROR] ❌ Falha ao iniciar: ${error.message}`);
-    }
+    console.log(`\n🚀 TRADING BOARD PRO V38.5 ON`);
+    console.log(`📡 Aguardando varredura de arquivos...`);
+    DataOrchestrator.init();
 });
