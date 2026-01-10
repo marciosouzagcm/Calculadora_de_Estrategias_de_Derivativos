@@ -1,15 +1,30 @@
+import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 
+// Carrega as variáveis do arquivo .env
+dotenv.config();
+
 export const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: 'seguRa1$', 
-    database: 'trading_options',
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || process.env.DB_PASS, 
+    database: process.env.DB_NAME || 'trading_options',
+    port: Number(process.env.DB_PORT) || 4000,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
+    
+    // CONFIGURAÇÕES ANTI-ECONNRESET (ESTABILIDADE)
     enableKeepAlive: true,
-    keepAliveInitialDelay: 0
+    keepAliveInitialDelay: 10000, // Envia um ping a cada 10 segundos
+    maxIdle: 10, // Mantém conexões prontas no pool
+    idleTimeout: 60000, // Renova conexões inativas após 1 minuto
+    
+    // CONEXÃO SEGURA TI DB CLOUD
+    ssl: {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
+    }
 });
 
 export class DatabaseService {
@@ -17,7 +32,6 @@ export class DatabaseService {
     static async getSpotPrice(ticker: string): Promise<number> {
         try {
             const cleanTicker = ticker.toUpperCase().trim();
-            // Usamos LIKE para encontrar o preço mesmo que o ticker no banco tenha prefixos
             const [rows]: any = await pool.execute(
                 'SELECT preco_atual FROM ativos WHERE ticker LIKE ? LIMIT 1',
                 [`%${cleanTicker}%`]
@@ -39,10 +53,6 @@ export class DatabaseService {
         try {
             const cleanTicker = ticker.toUpperCase().trim();
 
-            /**
-             * AJUSTE CRÍTICO: 
-             * Mudamos "idAcao = ?" para "idAcao LIKE ?" para capturar "1BOVA11", "2BOVA11", etc.
-             */
             const query = `
                 SELECT 
                     id, idAcao, ticker, vencimento, diasUteis, tipo, 
@@ -55,10 +65,9 @@ export class DatabaseService {
 
             const [rows]: any = await pool.execute(query, [`%${cleanTicker}%`]);
 
-            console.log(`📡 DB: ${rows.length} linhas brutas encontradas para filtro: %${cleanTicker}%`);
+            console.log(`📡 DB (TiDB): ${rows.length} linhas encontradas para: %${cleanTicker}%`);
 
             return rows.map((row: any) => {
-                // Remove prefixos numéricos do idAcao (ex: "1BOVA11" -> "BOVA11")
                 const normalizedAtivo = row.idAcao.replace(/^\d+/, '');
 
                 return {
@@ -71,8 +80,6 @@ export class DatabaseService {
                     vencimento: row.vencimento, 
                     dias_uteis: Number(row.diasUteis || 0),
                     vol_implicita: Number(row.volImplicita || 0),
-                    // O motor de estratégias espera as gregas dentro de 'gregas_unitarias' ou direto?
-                    // Ajustamos para o padrão que o StrategyService que te enviei espera:
                     delta: Number(row.delta || 0),
                     gamma: Number(row.gamma || 0),
                     theta: Number(row.theta || 0),
@@ -81,6 +88,7 @@ export class DatabaseService {
             });
         } catch (error) {
             console.error('❌ Erro ao buscar opções no banco:', error);
+            // Se houver erro de conexão, o pool tentará se recuperar na próxima chamada
             return [];
         }
     }
