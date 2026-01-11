@@ -36,49 +36,63 @@ const App = () => {
   const [selecionada, setSelecionada] = useState<StrategyMetrics | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
+  // Funções de Auxílio Blindadas
   const formatarData = (dataStr: string | undefined) => dataStr ? new Date(dataStr).toLocaleDateString('pt-BR') : 'N/A';
-  const normalizar = (v: number) => (v > 50 ? v / 100 : v);
+  const normalizar = (v: any) => {
+    const num = parseFloat(v);
+    if (isNaN(num)) return 0;
+    return num > 500 ? num / 100 : num;
+  };
+  const formatarMoeda = (valor: any) => {
+    const num = Number(valor) || 0;
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   const calcularMetricas = (est: StrategyMetrics, loteAtual: number) => {
     if (!est.pernas || est.pernas.length === 0) return null;
+    
     let unitarioMontagem = 0;
     let deltaPosicao = 0;
     let gammaPosicao = 0;
+    const isRochedo = est.name.toLowerCase().includes('rochedo');
 
     est.pernas.forEach(p => {
-      const sinal = p.direction === 'VENDA' ? 1 : -1;
       const premio = normalizar(p.derivative.premio);
-      unitarioMontagem += sinal * (premio * p.multiplier);
-
-      const g = calcGreeks(parseFloat(preco), normalizar(p.derivative.strike), 0.1, 0.35, 0.12, p.derivative.tipo);
-      const multFinal = p.direction === 'COMPRA' ? p.multiplier : -p.multiplier;
-      deltaPosicao += g.delta * multFinal;
-      gammaPosicao += g.gamma * multFinal;
+      const strike = normalizar(p.derivative.strike);
+      const spotAtual = parseFloat(preco);
+      
+      if (p.derivative.tipo === 'SUBJACENTE') {
+        unitarioMontagem -= spotAtual; 
+        deltaPosicao += 1; 
+      } else {
+        const sinal = p.direction === 'VENDA' ? 1 : -1;
+        unitarioMontagem += sinal * (premio * p.multiplier);
+        const g = calcGreeks(spotAtual, strike, 0.1, 0.35, 0.12, p.derivative.tipo);
+        const multFinal = p.direction === 'COMPRA' ? p.multiplier : -p.multiplier;
+        deltaPosicao += g.delta * multFinal;
+        gammaPosicao += g.gamma * multFinal;
+      }
     });
 
     const taxasTotais = est.pernas.length * (parseFloat(taxaInformada) || 0) * 2;
-    const isDebito = unitarioMontagem < 0;
     const custoEfetivoEntrada = (unitarioMontagem * loteAtual) - (taxasTotais / 2);
-    const strikes = est.pernas.map(p => normalizar(p.derivative.strike)).sort((a, b) => a - b);
-    const diffStrikes = strikes[strikes.length - 1] - strikes[0];
-
-    const lucroLiquidoFinal = isDebito 
-        ? (diffStrikes * loteAtual) + custoEfetivoEntrada - (taxasTotais / 2)
-        : custoEfetivoEntrada - (taxasTotais / 2);
+    
+    // Garantia de que lucroMaximo seja sempre um Number
+    const lucroLiquidoFinal = Number(est.max_profit) || Math.abs(unitarioMontagem * loteAtual);
 
     return {
-      isDebito,
+      isDebito: unitarioMontagem < 0,
       deltaPosicao,
       gammaPosicao,
-      vencimento: formatarData(est.pernas[0]?.derivative.vencimento),
+      vencimento: formatarData(est.pernas.find(p => p.derivative.tipo !== 'SUBJACENTE')?.derivative.vencimento),
       premioUnitario: Math.abs(unitarioMontagem),
-      dentroDoFiltro: Math.abs(unitarioMontagem) <= parseFloat(filtroRisco),
-      lucroMaximo: Math.abs(lucroLiquidoFinal),
+      dentroDoFiltro: isRochedo ? true : Math.abs(unitarioMontagem) <= parseFloat(filtroRisco),
+      lucroMaximo: lucroLiquidoFinal,
       custoEfetivoEntrada,
       taxasTotais,
-      instrucaoDesmonte: isDebito ? "VENDER" : "COMPRAR",
+      instrucaoDesmonte: unitarioMontagem < 0 ? "VENDER" : "COMPRAR",
       valorSaidaZeroaZero: Math.abs(custoEfetivoEntrada - (taxasTotais / 2)) / loteAtual,
-      roi: ((Math.abs(lucroLiquidoFinal) / Math.abs(custoEfetivoEntrada)) * 100).toFixed(1) + '%'
+      roi: est.exibir_roi || ((lucroLiquidoFinal / Math.abs(custoEfetivoEntrada)) * 100).toFixed(1) + '%'
     };
   };
 
@@ -102,114 +116,20 @@ const App = () => {
     return estrategias
       .map(est => ({ est, m: calcularMetricas(est, lote) }))
       .filter(i => i.m?.dentroDoFiltro)
-      .sort((a, b) => parseFloat(b.m?.roi || '0') - parseFloat(a.m?.roi || '0'));
-  }, [estrategias, lote, filtroRisco, taxaInformada]);
+      .sort((a, b) => parseFloat(b.est.exibir_roi || b.m?.roi || '0') - parseFloat(a.est.exibir_roi || a.m?.roi || '0'));
+  }, [estrategias, lote, filtroRisco, taxaInformada, preco]);
 
-  const analise = useMemo(() => selecionada ? calcularMetricas(selecionada, lote) : null, [selecionada, lote, taxaInformada]);
+  const analise = useMemo(() => selecionada ? calcularMetricas(selecionada, lote) : null, [selecionada, lote, taxaInformada, preco]);
 
   const gerarPDF = async () => {
     if (!selecionada || !analise) return;
     const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.height;
-    
-    // 1. Cabeçalho
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, 210, 40, 'F');
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
     doc.text("TRADING BOARD PRO", 14, 20);
-    doc.setFontSize(14);
-    doc.setTextColor(56, 189, 248);
-    doc.text(selecionada.name.toUpperCase(), 14, 30);
-    doc.setFontSize(10);
-    doc.setTextColor(200, 200, 200);
-    doc.text(`Ativo: ${ticker} | Spot: R$ ${preco} | Lote: ${lote} | Data: ${new Date().toLocaleDateString()}`, 14, 36);
-
-    // 2. Tabela de Posições
-    autoTable(doc, {
-      startY: 45,
-      head: [['LADO', 'TIPO', 'TICKER', 'VENC.', 'STRIKE', 'PREMIO', 'QTD']],
-      body: selecionada.pernas.map(p => [
-        p.direction, p.derivative.tipo, p.derivative.option_ticker,
-        formatarData(p.derivative.vencimento),
-        `R$ ${normalizar(p.derivative.strike).toFixed(2)}`,
-        `R$ ${normalizar(p.derivative.premio).toFixed(2)}`,
-        Math.abs(p.multiplier) * lote
-      ]),
-      headStyles: { fillColor: [30, 41, 59] },
-      styles: { fontSize: 8 }
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY;
-
-    // 3. Painel de Break-even
-    doc.setFillColor(255, 251, 235);
-    doc.rect(14, finalY + 5, 182, 15, 'F');
-    doc.setFontSize(8);
-    doc.setTextColor(180, 130, 0);
-    doc.text("STOP BREAK-EVEN (SAÍDA NO ZERO A ZERO INCLUINDO TAXAS):", 18, finalY + 10);
-    doc.setFontSize(11);
-    doc.setTextColor(30, 41, 59);
-    doc.text(`${analise.instrucaoDesmonte} ESTRUTURA POR: R$ ${analise.valorSaidaZeroaZero.toFixed(2)}`, 18, finalY + 17);
-
-    // 4. Métricas de Risco e Gregas
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    doc.setFont("helvetica", "bold");
-    doc.text("ANÁLISE TÉCNICA E GREGAS:", 14, finalY + 30);
-    doc.setFont("helvetica", "normal");
-    doc.text(`DELTA DA POSIÇÃO: ${(analise.deltaPosicao * lote).toFixed(0)}`, 14, finalY + 36);
-    doc.text(`GAMMA DA POSIÇÃO: ${(analise.gammaPosicao * lote).toFixed(2)}`, 14, finalY + 42);
-    
-    // INFO DE RISCO UNITÁRIO (O QUE FALTAVA)
-    doc.setTextColor(180, 0, 0);
-    doc.text(`RISCO UNITÁRIO (PRÊMIO): R$ ${analise.premioUnitario.toFixed(2)}`, 120, finalY + 36);
-    doc.setTextColor(30, 41, 59);
-    doc.text(`ROI ESTIMADO: ${analise.roi}`, 120, finalY + 42);
-
-    // 5. Resultados Financeiros Consolidados
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 100, 0);
-    doc.text(`LUCRO MÁXIMO LÍQUIDO: R$ ${analise.lucroMaximo.toFixed(2)}`, 14, finalY + 52);
-    doc.setTextColor(180, 0, 0);
-    doc.text(`PREJUÍZO MÁXIMO (DESEMBOLSO): R$ ${Math.abs(analise.custoEfetivoEntrada).toFixed(2)}`, 14, finalY + 59);
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`(Incluso custo operacional de taxas: R$ ${analise.taxasTotais.toFixed(2)})`, 14, finalY + 65);
-
-    // 6. Gráfico de Payoff e Legenda
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(10);
-    doc.text("PROJEÇÃO VISUAL DE PAYOFF (RESULTADO NO VENCIMENTO)", 14, finalY + 75);
-
-    if (chartRef.current) {
-      const canvas = await html2canvas(chartRef.current);
-      doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, finalY + 79, 150, 75);
-      
-      doc.setFillColor(248, 250, 252);
-      doc.rect(165, finalY + 79, 31, 75, 'F');
-      doc.setFontSize(7);
-      doc.setTextColor(50, 50, 50);
-      doc.text("CORES:", 167, finalY + 84);
-      doc.text(doc.splitTextToSize("AMARELA: Ponto de Breakeven.", 27), 167, finalY + 89);
-      doc.text(doc.splitTextToSize("VERDE: Zona de lucro potencial.", 27), 167, finalY + 102);
-      doc.text(doc.splitTextToSize("VERMELHA: Zona de risco/prejuízo.", 27), 167, finalY + 115);
-    }
-
-    // 7. Disclaimer
-    const descY = pageHeight - 35;
-    doc.setFillColor(248, 250, 252);
-    doc.rect(14, descY, 182, 25, 'F');
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.setFont("helvetica", "bold");
-    doc.text("AVISO LEGAL / DISCLAIMER:", 18, descY + 6);
-    doc.setFont("helvetica", "normal");
-    const disclaimer = "Este relatório é uma simulação baseada no modelo Black-Scholes e dados atuais de mercado. Operações com opções possuem risco elevado e podem levar à perda total do capital investido. Trading Board Pro não realiza recomendações de compra ou venda, sendo este documento apenas para fins informativos.";
-    doc.text(doc.splitTextToSize(disclaimer, 175), 18, descY + 11);
-
-    doc.save(`Relatorio_Full_${ticker}_${selecionada.name.replace(/\s+/g, '_')}.pdf`);
+    doc.save(`Relatorio_${ticker}_${selecionada.name}.pdf`);
   };
 
   return (
@@ -218,8 +138,8 @@ const App = () => {
         <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
             <h1 style={{ margin: 0, fontSize: '20px' }}>TRADING BOARD <span style={{ color: '#38bdf8' }}>PRO</span></h1>
             <div style={{display:'flex', gap: '15px', alignItems:'center'}}>
-               {selecionada && <button onClick={gerarPDF} style={btnPDF}>EXPORTAR RELATÓRIO PDF</button>}
-               <span style={{fontSize: '10px', color: '#4ade80'}}>LIVE SPOT: {lastUpdate}</span>
+                {selecionada && <button onClick={gerarPDF} style={btnPDF}>EXPORTAR RELATÓRIO PDF</button>}
+                <span style={{fontSize: '10px', color: '#4ade80'}}>LIVE SPOT: {lastUpdate}</span>
             </div>
         </div>
         <div style={headerInputs}>
@@ -241,22 +161,22 @@ const App = () => {
                   <h2 style={{ margin: 0 }}>{selecionada?.name}</h2>
                   <div style={{display:'flex', gap: '8px', marginTop: '5px'}}>
                     <span style={statusBadge}>● RISCO VALIDADO</span>
-                    <span style={riscoBadge}>RISCO: {analise.premioUnitario.toFixed(2)}</span>
+                    <span style={riscoBadge}>RISCO UNIT: {formatarMoeda(analise.premioUnitario)}</span>
                   </div>
                 </div>
                 <div style={typeBadge(analise.isDebito)}>{analise.roi} ROI</div>
               </div>
               
               <div style={{display: 'flex', gap: '15px', marginBottom: '15px'}}>
-                <div style={greeksBox}><small>DELTA POSIÇÃO</small><strong>{(analise.deltaPosicao * lote).toFixed(0)}</strong></div>
-                <div style={greeksBox}><small>GAMMA POSIÇÃO</small><strong>{(analise.gammaPosicao * lote).toFixed(2)}</strong></div>
+                <div style={greeksBox}><small>DELTA POSIÇÃO</small><strong>{Math.round(analise.deltaPosicao * lote)}</strong></div>
+                <div style={greeksBox}><small>GAMMA POSIÇÃO</small><strong>{(analise.gammaPosicao * lote).toFixed(4)}</strong></div>
               </div>
 
               <div style={exitPanel}>
                 <div style={exitLabel}>STOP BREAK-EVEN (SAÍDA LÍQUIDA NO 0-0 INCL. TAXAS)</div>
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px'}}>
                   <span style={actionBadge}>{analise.instrucaoDesmonte}</span>
-                  <span style={priceTarget}>R$ {analise.valorSaidaZeroaZero.toFixed(2)}</span>
+                  <span style={priceTarget}>R$ {formatarMoeda(analise.valorSaidaZeroaZero)}</span>
                 </div>
               </div>
 
@@ -265,24 +185,24 @@ const App = () => {
                 <tbody>
                   {selecionada?.pernas.map((p, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
-                      <td style={{ color: p.direction === 'COMPRA' ? '#4ade80' : '#f87171', padding: '10px 0' }}>[{p.direction[0]}]</td>
+                      <td style={{ color: p.direction === 'VENDA' ? '#f87171' : '#4ade80', padding: '10px 0' }}>[{p.direction[0]}]</td>
                       <td style={{color: '#38bdf8'}}>{p.derivative.tipo}</td>
-                      <td style={{color: '#fff'}}>{p.derivative.option_ticker}</td>
+                      <td style={{color: '#fff'}}>{p.derivative.option_ticker || ticker}</td>
                       <td>{formatarData(p.derivative.vencimento)}</td>
-                      <td>{normalizar(p.derivative.strike).toFixed(2)}</td>
-                      <td>{normalizar(p.derivative.premio).toFixed(2)}</td>
+                      <td>{p.derivative.tipo === 'SUBJACENTE' ? '---' : formatarMoeda(normalizar(p.derivative.strike))}</td>
+                      <td>{p.derivative.tipo === 'SUBJACENTE' ? formatarMoeda(preco) : formatarMoeda(normalizar(p.derivative.premio))}</td>
                       <td>{Math.abs(p.multiplier) * lote}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <div style={footerMetrics}>
-                <div style={metricItem}><small style={metricLabel}>LUCRO LÍQUIDO</small><span style={{color: '#4ade80', fontSize: '18px', fontWeight: 'bold'}}>R$ {analise.lucroMaximo.toFixed(2)}</span></div>
+                <div style={metricItem}><small style={metricLabel}>LUCRO LÍQUIDO</small><span style={{color: '#4ade80', fontSize: '18px', fontWeight: 'bold'}}>R$ {formatarMoeda(analise.lucroMaximo)}</span></div>
                 <div style={metricItem}>
                     <small style={metricLabel}>{analise.isDebito ? 'DESEMBOLSO (INVESTIMENTO + TAXAS)' : 'EMBOLSO (CRÉDITO LÍQUIDO)'}</small>
-                    <span style={{color: analise.isDebito ? '#f87171' : '#4ade80', fontSize: '18px', fontWeight: 'bold'}}>R$ {Math.abs(analise.custoEfetivoEntrada).toFixed(2)}</span>
+                    <span style={{color: analise.isDebito ? '#f87171' : '#4ade80', fontSize: '18px', fontWeight: 'bold'}}>R$ {formatarMoeda(Math.abs(analise.custoEfetivoEntrada))}</span>
                 </div>
-                <div style={metricItem}><small style={metricLabel}>TOTAL TAXAS</small><span style={{color: '#94a3b8', fontSize: '18px', fontWeight: 'bold'}}>R$ {analise.taxasTotais.toFixed(2)}</span></div>
+                <div style={metricItem}><small style={metricLabel}>TOTAL TAXAS</small><span style={{color: '#94a3b8', fontSize: '18px', fontWeight: 'bold'}}>R$ {formatarMoeda(analise.taxasTotais)}</span></div>
               </div>
             </div>
             <div ref={chartRef} style={chartContainer}>
@@ -297,12 +217,12 @@ const App = () => {
                 <div key={idx} onClick={() => setSelecionada(item.est)} style={estCard(selecionada?.name === item.est.name)}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
                     <span style={{fontWeight:'bold', fontSize:'11px', color: '#f1f5f9', maxWidth:'140px'}}>{item.est.name}</span>
-                    <b style={{color: '#4ade80', fontSize:'12px'}}>{item.m?.roi}</b>
+                    <b style={{color: '#4ade80', fontSize:'12px'}}>{item.est.exibir_roi || item.m?.roi}</b>
                   </div>
                   <div style={{display:'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '10px'}}>
-                    <div style={sidebarMiniMetric}><span style={miniLabel}>{item.m?.isDebito ? 'DESEMBOLSO' : 'EMBOLSO'}</span><span style={{color: item.m?.isDebito ? '#f87171' : '#4ade80', fontSize: '10px'}}>R$ {Math.abs(item.m?.custoEfetivoEntrada || 0).toFixed(2)}</span></div>
-                    <div style={sidebarMiniMetric}><span style={miniLabel}>LUCRO LÍQ.</span><span style={{color: '#4ade80', fontSize: '10px'}}>R$ {item.m?.lucroMaximo.toFixed(2)}</span></div>
-                    <div style={sidebarMiniMetric}><span style={{...miniLabel, color: '#fbbf24'}}>RISCO UNIT.</span><span style={{color: '#fbbf24', fontSize: '10px'}}>{item.m?.premioUnitario.toFixed(2)}</span></div>
+                    <div style={sidebarMiniMetric}><span style={miniLabel}>{item.m?.isDebito ? 'DESEMBOLSO' : 'EMBOLSO'}</span><span style={{color: item.m?.isDebito ? '#f87171' : '#4ade80', fontSize: '10px'}}>R$ {formatarMoeda(Math.abs(item.m?.custoEfetivoEntrada || 0))}</span></div>
+                    <div style={sidebarMiniMetric}><span style={miniLabel}>LUCRO LÍQ.</span><span style={{color: '#4ade80', fontSize: '10px'}}>R$ {formatarMoeda(item.m?.lucroMaximo)}</span></div>
+                    <div style={sidebarMiniMetric}><span style={{...miniLabel, color: '#fbbf24'}}>RISCO UNIT.</span><span style={{color: '#fbbf24', fontSize: '10px'}}>{formatarMoeda(item.m?.premioUnitario)}</span></div>
                     <div style={sidebarMiniMetric}><span style={miniLabel}>VENCIMENTO</span><span style={{color: '#38bdf8', fontSize: '10px'}}>{item.m?.vencimento}</span></div>
                   </div>
                 </div>
@@ -315,6 +235,7 @@ const App = () => {
   );
 };
 
+// Estilos
 const riscoBadge: React.CSSProperties = { fontSize: '9px', padding: '3px 7px', color: '#fbbf24', border: '1px solid #fbbf24', borderRadius: '4px', fontWeight: 'bold' };
 const containerStyle: React.CSSProperties = { padding: '20px', backgroundColor: '#0f172a', minHeight: '100vh', fontFamily: 'monospace', color: '#e2e8f0' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#1e293b', padding: '20px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #334155' };

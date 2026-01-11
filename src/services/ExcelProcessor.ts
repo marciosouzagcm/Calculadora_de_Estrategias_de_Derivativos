@@ -3,29 +3,31 @@ import * as XLSX from 'xlsx';
 import { pool } from '../config/database';
 
 const COLUNAS_MAP: { [key: string]: string[] } = {
-    'ticker': ['Ticker'], 
+    'ticker': ['Ticker', 'Ativo'], 
     'vencimento': ['Vencimento'],
-    'diasUteis': ['Dias úteis'],
+    'diasUteis': ['Dias úteis', 'Dias p/ Venc.'],
     'tipo': ['Tipo', 'TipoF.M.'],
     'strike': ['Strike'], 
-    'premioPct': ['Prêmio', 'Último', 'Último '],
+    'premioPct': ['Prêmio', 'Último', 'Preço'],
     'volImplicita': ['Vol. Implícita (%)', 'Vol. Impl.', 'Vol. Implícita'], 
     'delta': ['Delta'],
     'gamma': ['Gamma'],
-    'theta': ['Theta ($)', 'Theta (%)', 'Theta'],
+    'theta': ['Theta'],
     'vega': ['Vega'],
 };
 
-const FATOR_CORRECAO_ESCALA_PRECO = 100.0;
-const FATOR_CORRECAO_ESCALA_GREGA = 10000.0;
-const FATOR_CORRECAO_ESCALA_VI = 100.0;
+// CONSTANTES DE CORREÇÃO DE ESCALA
+const DIVISOR_STRIKE = 100.0;     // 1317 -> 13.17
+const DIVISOR_PREMIO = 100.0;     // 20.00 -> 0.20 (O AJUSTE QUE FALTA!)
+const DIVISOR_GREGAS = 10000.0;   // 8657 -> 0.8657
+const DIVISOR_VOL    = 100.0;     // 3.16 -> 0.0316
 
 function cleanAndParseNumber(value: any): number {
     if (value === null || value === undefined || value === "") return 0;
     if (typeof value === 'number') return value;
     try {
         const strValue = String(value).trim();
-        const cleaned = strValue.replace(/\./g, '').replace(/,/g, '.');
+        const cleaned = strValue.replace('%', '').replace(/\./g, '').replace(/,/g, '.');
         const parsed = parseFloat(cleaned);
         return isNaN(parsed) ? 0 : parsed;
     } catch { return 0; }
@@ -40,7 +42,12 @@ function formatVencimento(value: any): string {
         } else {
             const str = String(value).trim();
             const parts = str.split(/[\/\-]/);
-            date = parts.length === 3 ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : new Date(str);
+            if (parts.length === 3) {
+                const d = parts[0].length === 4 ? parts[0] : parts[2];
+                const m = parts[1];
+                const day = parts[0].length === 4 ? parts[2] : parts[0];
+                date = new Date(`${d}-${m}-${day}`);
+            } else { date = new Date(str); }
         }
         return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
     } catch { return ''; }
@@ -49,16 +56,19 @@ function formatVencimento(value: any): string {
 export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<void> {
     const nomeBase = path.basename(nomeArquivoExcel);
     const match = nomeBase.match(/Opções\s+(\w+)/i);
-    const ativoBase = match ? match[1].toUpperCase() : 'BBAS3';
+    const ativoBase = match ? match[1].toUpperCase() : 'ABEV3';
 
     const workbook = XLSX.readFile(nomeArquivoExcel);
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const sheetAsArray: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+    const sheetAsArray: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-    if (sheetAsArray.length < 2) return;
+    const headerRowIndex = sheetAsArray.findIndex(row => 
+        row.some(cell => String(cell).toLowerCase().includes('ticker'))
+    );
+    if (headerRowIndex === -1) return;
 
-    const headerOriginal = sheetAsArray[1].map(h => String(h || '').trim());
-    const dataRows = sheetAsArray.slice(2);
+    const headerOriginal = sheetAsArray[headerRowIndex].map(h => String(h || '').trim());
+    const dataRows = sheetAsArray.slice(headerRowIndex + 1);
     const valoresParaInserir: any[][] = [];
 
     for (const row of dataRows) {
@@ -68,7 +78,7 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
         const getVal = (key: string) => {
             const nomesPossiveis = COLUNAS_MAP[key];
             const encontrado = headerOriginal.find(col => 
-                nomesPossiveis.some(p => col.toLowerCase().includes(p.toLowerCase()))
+                nomesPossiveis.some(p => col.toLowerCase() === p.toLowerCase() || col.toLowerCase().includes(p.toLowerCase()))
             );
             return encontrado ? rowObj[encontrado] : undefined;
         };
@@ -76,15 +86,13 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
         const ticker = String(getVal('ticker') || '').trim();
         if (ticker.length < 5 || ticker.toUpperCase() === 'TICKER') continue;
 
-        // --- SOLUÇÃO DEFINITIVA DO STRIKE ---
-        // Pegamos o valor bruto (ex: 210.00) e dividimos por 100 (vira 2.10)
-        let strikeRaw = cleanAndParseNumber(getVal('strike'));
-        let strike = strikeRaw / 100; 
+        // APLICAÇÃO DOS DIVISORES
+        const strike = cleanAndParseNumber(getVal('strike')) / DIVISOR_STRIKE;
+        const premio = cleanAndParseNumber(getVal('premioPct')) / DIVISOR_PREMIO; // AGORA CORRIGIDO
+        const vol    = cleanAndParseNumber(getVal('volImplicita')) / DIVISOR_VOL;
 
-        const premio = cleanAndParseNumber(getVal('premioPct')) / FATOR_CORRECAO_ESCALA_PRECO;
-        const vol = cleanAndParseNumber(getVal('volImplicita')) / FATOR_CORRECAO_ESCALA_VI;
-
-        if (premio === 0 || strike === 0 || vol === 0) continue; 
+        // PREMISSA: Excluir se qualquer valor fundamental for zero
+        if (strike <= 0 || premio <= 0 || vol <= 0) continue;
 
         const tipoRaw = String(getVal('tipo') || '').toUpperCase();
         const tipo = (tipoRaw.startsWith('P') || tipoRaw.startsWith('A') || ticker.charAt(4) > 'L') ? 'PUT' : 'CALL';
@@ -95,13 +103,13 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
             formatVencimento(getVal('vencimento')),
             parseInt(getVal('diasUteis')) || 0,
             tipo,
-            Number(strike.toFixed(2)), // Agora salvará 2.10
+            Number(strike.toFixed(2)),
             Number(premio.toFixed(4)),
             Number(vol.toFixed(4)),
-            Number((cleanAndParseNumber(getVal('delta')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
-            Number((cleanAndParseNumber(getVal('gamma')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
-            Number((cleanAndParseNumber(getVal('theta')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
-            Number((cleanAndParseNumber(getVal('vega')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
+            Number((cleanAndParseNumber(getVal('delta')) / DIVISOR_GREGAS).toFixed(4)),
+            Number((cleanAndParseNumber(getVal('gamma')) / DIVISOR_GREGAS).toFixed(4)),
+            Number((cleanAndParseNumber(getVal('theta')) / DIVISOR_GREGAS).toFixed(4)),
+            Number((cleanAndParseNumber(getVal('vega')) / DIVISOR_GREGAS).toFixed(4)),
             new Date()
         ]);
     }
@@ -113,12 +121,13 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
         (idAcao, ticker, vencimento, diasUteis, tipo, strike, premioPct, volImplicita, delta, gamma, theta, vega, dataHora)
         VALUES ? 
         ON DUPLICATE KEY UPDATE 
-        strike=VALUES(strike), premioPct=VALUES(premioPct), volImplicita=VALUES(volImplicita), dataHora=VALUES(dataHora)
+        strike=VALUES(strike), premioPct=VALUES(premioPct), volImplicita=VALUES(volImplicita), 
+        delta=VALUES(delta), gamma=VALUES(gamma), theta=VALUES(theta), vega=VALUES(vega), dataHora=VALUES(dataHora)
     `;
 
     try {
         await pool.query(sql, [valoresParaInserir]);
-        console.log(`[MYSQL] ✅ SUCESSO! ${valoresParaInserir.length} registros com Strike Corrigido (Scale 1/100).`);
+        console.log(`[MYSQL] ✅ TUDO CORRIGIDO! ${valoresParaInserir.length} registros para ${ativoBase}.`);
     } catch (error: any) {
         console.error(`[MYSQL ERROR]: ${error.message}`);
     }

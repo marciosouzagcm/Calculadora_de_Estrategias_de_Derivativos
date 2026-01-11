@@ -1,15 +1,15 @@
 import {
-    Area,
-    CartesianGrid,
-    ComposedChart,
-    ReferenceLine,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis, YAxis,
-    Label,
-    ReferenceDot
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Label,
+  ReferenceDot,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis, YAxis
 } from 'recharts';
-import { StrategyMetrics } from '../../../src/interfaces/Types';
+import { StrategyMetrics } from '../types/Types';
 
 interface PayoffProps {
   strategy: StrategyMetrics;
@@ -22,13 +22,20 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta }: PayoffProps) => {
   
   const generateData = () => {
     const data = [];
-    const strikes = strategy.pernas.map(p => {
+    
+    // Coletar strikes válidos (incluindo o preço atual para o Rochedo)
+    const strikes = strategy.pernas
+      .map(p => {
+        if (p.derivative.tipo === 'SUBJACENTE') return spotPrice;
         const s = Number(p.derivative.strike);
         return s > 500 ? s / 100 : s; 
-    });
+      })
+      .filter(s => s > 0);
     
     const minStrike = Math.min(...strikes, spotPrice);
     const maxStrike = Math.max(...strikes, spotPrice);
+    
+    // Margem de visualização
     const min = minStrike * 0.85;
     const max = maxStrike * 1.15;
     
@@ -44,10 +51,24 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta }: PayoffProps) => {
         const premio = Number(perna.derivative.premio) > 50 ? Number(perna.derivative.premio) / 100 : Number(perna.derivative.premio);
         
         let payoff = 0;
-        if (perna.derivative.tipo === 'CALL') payoff = Math.max(0, precoSimulado - strike);
-        else if (perna.derivative.tipo === 'PUT') payoff = Math.max(0, strike - precoSimulado);
+
+        // --- CORREÇÃO AQUI: TRATAMENTO DO TIPO SUBJACENTE ---
+        if (perna.derivative.tipo === 'CALL') {
+          payoff = Math.max(0, precoSimulado - strike);
+        } else if (perna.derivative.tipo === 'PUT') {
+          payoff = Math.max(0, strike - precoSimulado);
+        } else if (perna.derivative.tipo === 'SUBJACENTE') {
+          // No Rochedo, você ganha/perde com a variação direta do preço da ação
+          payoff = precoSimulado; 
+        }
         
-        const pnlUnidade = perna.direction === 'COMPRA' ? (payoff - premio) : (premio - payoff);
+        // No caso de SUBJACENTE, o "premio" é o preço que você pagou na ação (spotPrice)
+        const custoBase = perna.derivative.tipo === 'SUBJACENTE' ? spotPrice : premio;
+        
+        const pnlUnidade = perna.direction === 'COMPRA' || perna.direction === 'SUBJACENTE' 
+          ? (payoff - custoBase) 
+          : (custoBase - payoff);
+          
         pnlUnitarioTotal += pnlUnidade;
       });
 
@@ -86,11 +107,19 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta }: PayoffProps) => {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-          <XAxis dataKey="preco" type="number" domain={['dataMin', 'dataMax']} stroke="#94a3b8" fontSize={10} />
+          <XAxis 
+            dataKey="preco" 
+            type="number" 
+            domain={['dataMin', 'dataMax']} 
+            stroke="#94a3b8" 
+            fontSize={10} 
+            tickFormatter={(v) => v.toFixed(2)}
+          />
           <YAxis stroke="#94a3b8" fontSize={10} tickFormatter={(v) => `R$${v}`} />
           <Tooltip 
-             contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
-             formatter={(v: any) => [`R$ ${v}`, 'Resultado']}
+              contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
+              itemStyle={{ color: '#f8fafc' }}
+              formatter={(v: any) => [`R$ ${v}`, 'Resultado']}
           />
           <ReferenceLine y={0} stroke="#f1f5f9" strokeWidth={2} strokeOpacity={0.5} />
           <ReferenceLine x={spotPrice} stroke="#3b82f6" strokeWidth={1} strokeDasharray="3 3">
