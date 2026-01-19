@@ -1,35 +1,28 @@
 {
   "compilerOptions": {
-    // ESSENCIAL: Diz ao TypeScript para compilar 'import' para 'require' (ES Modules -> CommonJS).
     "module": "CommonJS",
-    
-    // Alvo de saída do JavaScript (versão moderna)
     "target": "ES2020",
-    
-    // RECOMENDADO: Garante que o TypeScript use as regras de resolução de módulos do Node.js.
     "moduleResolution": "Node",
-    
-    // Permite que módulos ES sejam tratados como CJS, crucial para muitas dependências
     "esModuleInterop": true,
     
-    // CORRIGIDO: O "rootDir" agora aponta para o diretório atual do projeto.
-    // Isso é importante para o ts-node e para a estrutura de pastas.
-    "rootDir": "./", 
-    
-    // Pasta onde o JavaScript compilado será gerado (usado apenas se "noEmit" for "false")
+    /* Ajustado para ./src para evitar que o TS tente compilar 
+       pastas de backup ou arquivos soltos na raiz 
+    */
+    "rootDir": "./src", 
     "outDir": "./dist", 
     
-    // Configurações de tipagem rigorosa (boa prática)
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     
-    // Mantido como "true" para usar o ts-node sem gerar arquivos .js no disco.
-    "noEmit": true 
+    /* OBRIGATÓRIO PARA DEPLOY: Deve ser false para que os arquivos 
+       .js sejam criados na pasta /dist 
+    */
+    "noEmit": false 
   },
-  // CORRIGIDO: Inclui todos os arquivos .ts (e .tsx) na raiz e em todas as subpastas.
-  "include": ["**/*.ts", "**/*.tsx", "../frontend-app/src/firebase.ts", "../frontend-app/src/services/MarketDataService.ts", "../frontend-app/src/services/BlackScholes.ts"], 
-  
-  // Exclui as pastas que não contêm código-fonte a ser processado.
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts", 
+    "src/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "dist", "uploads"]
 }
