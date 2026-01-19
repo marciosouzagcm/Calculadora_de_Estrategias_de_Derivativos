@@ -2,16 +2,25 @@ import { DatabaseService } from '../config/database';
 import { StrategyFactory } from '../factories/StrategyFactory';
 import { OptionLeg, StrategyMetrics } from '../interfaces/Types';
 
+/**
+ * BOARDPRO V40.0 - Strategy Orchestrator
+ * Responsável por buscar, limpar e processar os modelos matemáticos.
+ */
 export class StrategyService {
-    // ATUALIZADO: Taxa de R$ 22,00 por perna (corretagem cheia)
+    // Custo operacional por perna (Corretagem + Emolumentos estimativos)
     private static readonly FEE_PER_LEG = 22.00; 
 
+    /**
+     * Engine Principal: Retorna as melhores oportunidades filtradas entre os 13 modelos.
+     */
     static async getOportunidades(ticker: string, lot: number, manualPrice?: number): Promise<StrategyMetrics[]> {
         const cleanTicker = ticker.trim().toUpperCase();
         
+        // 1. Obtenção de Dados de Mercado
         const spotPrice = manualPrice || await DatabaseService.getSpotPrice(cleanTicker);
         let rawOptions = await DatabaseService.getOptionsByTicker(cleanTicker);
 
+        // Fallback para tickers de 4 dígitos (ex: PETR em vez de PETR4)
         if ((!rawOptions || rawOptions.length === 0) && cleanTicker.length > 4) {
             const shortTicker = cleanTicker.substring(0, 4);
             rawOptions = await DatabaseService.getOptionsByTicker(shortTicker);
@@ -19,10 +28,12 @@ export class StrategyService {
 
         if (!rawOptions || rawOptions.length === 0) return [];
 
+        // 2. Normalização e Higienização dos Dados da TiDB
         const options: OptionLeg[] = rawOptions.map((opt: any) => {
             const cleanAtivo = opt.ativo_subjacente.replace(/^\d+/, '');
             let correctedStrike = parseFloat(opt.strike);
             
+            // Correção de escala para o ETF BOVA11 se necessário
             if (cleanAtivo.includes('BOVA') && correctedStrike < 80) {
                 correctedStrike = correctedStrike * 10;
             }
@@ -42,68 +53,80 @@ export class StrategyService {
             };
         });
 
+        // 3. Execução dos 13 Modelos Matemáticos via Factory
         const allStrategies = StrategyFactory.getAllStrategies();
         const bestOfEach = new Map<string, StrategyMetrics>();
 
         for (const strategy of allStrategies) {
             try {
-                // Passamos a taxa de 22.00 para o cálculo interno da estratégia
+                // O cálculo interno já deve receber a taxa para ajustar o Break-even
                 const combinations = strategy.calculateMetrics(options, spotPrice, this.FEE_PER_LEG);
                 
                 if (Array.isArray(combinations)) {
                     combinations.forEach(m => {
                         const formatted = this.formatForFrontend(m, lot);
                         
-                        const currentROI = formatted.roi ?? -999;
+                        // Lógica de Seleção: Mantemos apenas a melhor variação (maior ROI) de cada tipo de estratégia
+                        const currentROI = Number(formatted.roi) || -999;
                         const existing = bestOfEach.get(formatted.name);
 
-                        // Garante apenas 1 estratégia de cada tipo (a melhor)
-                        if (!existing || currentROI > (existing.roi ?? -999)) {
+                        if (!existing || currentROI > (Number(existing.roi) || -999)) {
                             bestOfEach.set(formatted.name, formatted);
                         }
                     });
                 }
             } catch (err) {
-                console.error(`❌ Erro em ${strategy.name}:`, err);
+                console.error(`[ENGINE_ERROR] Falha no modelo ${strategy.name}:`, err);
             }
         }
 
+        // 4. Ordenação Final por Lucratividade Relativa (ROI)
         return Array.from(bestOfEach.values())
             .sort((a, b) => (Number(b.roi) || 0) - (Number(a.roi) || 0));
     }
 
+    /**
+     * Transforma métricas brutas em valores monetários e formatados para o Dashboard.
+     */
     private static formatForFrontend(s: StrategyMetrics, lot: number): StrategyMetrics {
-        // Taxa Total = R$ 22,00 * quantidade de pernas
         const feesTotal = s.pernas.length * this.FEE_PER_LEG;
-        const isIlimitado = (val: any) => val === 'Ilimitado' || (typeof val === 'number' && val > 90000);
+        const checkIlimitado = (val: any) => val === 'Ilimitado' || (typeof val === 'number' && val > 900000);
 
-        // Ajuste financeiro baseado no Lote
-        let profitRaw = isIlimitado(s.max_profit) ? 10 : Number(s.max_profit);
-        let lossRaw = isIlimitado(s.max_loss) ? 50 : Math.abs(Number(s.max_loss));
+        // Cálculo de Lucro e Risco Líquido (Pós-Taxas e Multiplicado pelo Lote)
+        let rawProfit = checkIlimitado(s.max_profit) ? 0 : Number(s.max_profit);
+        let rawLoss = checkIlimitado(s.max_loss) ? 0 : Math.abs(Number(s.max_loss));
 
-        const netProfit = (profitRaw * lot) - feesTotal;
-        const netRisk = (lossRaw * lot) + feesTotal;
-        const finalROI = netRisk > 0 ? (netProfit / netRisk) : 0;
+        const netProfitValue = (rawProfit * lot) - feesTotal;
+        const netRiskValue = (rawLoss * lot) + feesTotal;
+        
+        // ROI Realista: Lucro Líquido / Risco Total Empenhado
+        const finalROI = netRiskValue > 0 ? (netProfitValue / netRiskValue) : 0;
 
         return {
             ...s,
             roi: finalROI,
-            exibir_roi: isIlimitado(s.max_profit) ? 'Ilimitado' : (finalROI * 100).toFixed(2) + '%',
-            exibir_risco: isIlimitado(s.max_loss) ? 'Ilimitado' : Number(netRisk.toFixed(2)),
+            exibir_roi: checkIlimitado(s.max_profit) ? 'ILIMITADO' : (finalROI * 100).toFixed(2) + '%',
+            exibir_lucro: checkIlimitado(s.max_profit) ? 'ILIMITADO' : `R$ ${netProfitValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            exibir_risco: checkIlimitado(s.max_loss) ? 'ILIMITADO' : `R$ ${netRiskValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
+            
+            // Atualização de campos numéricos para o PayoffChart e PDF
             taxas_ciclo: feesTotal, 
-            max_profit: isIlimitado(s.max_profit) ? 'Ilimitado' : Number(netProfit.toFixed(2)),
-            max_loss: isIlimitado(s.max_loss) ? 'Ilimitado' : Number(netRisk.toFixed(2)),
-            lucro_maximo: isIlimitado(s.max_profit) ? 'Ilimitado' : Number(netProfit.toFixed(2)),
-            risco_maximo: isIlimitado(s.max_loss) ? 'Ilimitado' : Number(netRisk.toFixed(2)),
+            max_profit: checkIlimitado(s.max_profit) ? 'Ilimitado' : netProfitValue,
+            max_loss: checkIlimitado(s.max_loss) ? 'Ilimitado' : netRiskValue,
+            lucro_maximo: checkIlimitado(s.max_profit) ? 'Ilimitado' : netProfitValue,
+            risco_maximo: checkIlimitado(s.max_loss) ? 'Ilimitado' : netRiskValue,
+            
             initialCashFlow: Number((s.initialCashFlow * lot).toFixed(2)),
             net_premium: Number((s.net_premium * lot).toFixed(2)),
+            
+            // Consolidação de Gregas da Carteira (Portfolio Greeks)
             greeks: {
                 delta: Number((s.greeks?.delta || 0).toFixed(4)),
                 gamma: Number((s.greeks?.gamma || 0).toFixed(4)),
                 theta: Number((s.greeks?.theta || 0).toFixed(4)),
                 vega: Number((s.greeks?.vega || 0).toFixed(4))
             },
-            breakEvenPoints: s.breakEvenPoints ? s.breakEvenPoints.map(p => Number(p.toFixed(2))) : []
+            breakEvenPoints: s.breakEvenPoints ? s.breakEvenPoints.map(p => Number(Number(p).toFixed(2))) : []
         };
     }
 }
