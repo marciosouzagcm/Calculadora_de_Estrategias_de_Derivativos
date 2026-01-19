@@ -1,16 +1,25 @@
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, NaturezaOperacao, OptionLeg, StrategyMetrics } from '../interfaces/Types';
+import { 
+    Greeks, 
+    NaturezaOperacao, 
+    OptionLeg, 
+    StrategyMetrics 
+} from '../interfaces/Types';
 
 /**
- * Gera a string de exibição para as pernas do Iron Condor
+ * Helper: Gera a string de exibição para as pernas do Iron Condor.
  */
 function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const action = direction === 'COMPRA' ? 'C' : 'V';
-    // Removido leg.sigla para evitar erro TS2339 (Property does not exist on type OptionLeg)
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strike.toFixed(2)}`;
+    const action = direction === 'COMPRA' ? '[C]' : '[V]';
+    return `${action} ${leg.option_ticker} (${typeInitial}) K:${strike.toFixed(2)}`;
 }
 
+/**
+ * CLASSE: IronCondorSpread
+ * FUNCIONALIDADE: Combina 4 pernas (2 Puts e 2 Calls) para lucrar com a baixa volatilidade.
+ * ESTRUTURA: Put Comprada (K1) < Put Vendida (K2) < Call Vendida (K3) < Call Comprada (K4).
+ */
 export class IronCondorSpread implements IStrategy {
     public readonly name: string = 'Iron Condor';
     public readonly marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'NEUTRA';
@@ -18,55 +27,66 @@ export class IronCondorSpread implements IStrategy {
     calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
         const results: StrategyMetrics[] = [];
 
-        // 1. Separar e ordenar
+        // 1. Filtragem e Ordenação por Strike
         const puts = allOptions
-            .filter(l => l.tipo === 'PUT' && l.strike !== null)
-            .sort((a, b) => (a.strike || 0) - (b.strike || 0));
+            .filter(l => l.tipo === 'PUT' && l.strike > 0 && l.premio > 0)
+            .sort((a, b) => a.strike - b.strike);
         
         const calls = allOptions
-            .filter(l => l.tipo === 'CALL' && l.strike !== null)
-            .sort((a, b) => (a.strike || 0) - (b.strike || 0));
+            .filter(l => l.tipo === 'CALL' && l.strike > 0 && l.premio > 0)
+            .sort((a, b) => a.strike - b.strike);
 
         if (puts.length < 2 || calls.length < 2) return [];
 
-        // 2. Scanner de combinações (4 pernas)
-        for (let p1 = 0; p1 < puts.length - 1; p1++) { // K1: Put Comprada (Asa Esquerda)
-            for (let p2 = p1 + 1; p2 < puts.length; p2++) { // K2: Put Vendida (Corpo Esquerdo)
-                for (let c1 = 0; c1 < calls.length - 1; c1++) { // K3: Call Vendida (Corpo Direito)
-                    for (let c2 = c1 + 1; c2 < calls.length; c2++) { // K4: Call Comprada (Asa Direita)
+        // 2. Scanner de Combinações (O(n⁴) - Mitigado por filtros de estrutura)
+        for (let p1 = 0; p1 < puts.length - 1; p1++) { // K1: Put Longa
+            for (let p2 = p1 + 1; p2 < puts.length; p2++) { // K2: Put Curta
+                for (let c1 = 0; c1 < calls.length - 1; c1++) { // K3: Call Curta
+                    for (let c2 = c1 + 1; c2 < calls.length; c2++) { // K4: Call Longa
                         
-                        const K1_l = puts[p1]; const K2_s = puts[p2];
-                        const K3_s = calls[c1]; const K4_l = calls[c2];
+                        const k1PutLong = puts[p1];
+                        const k2PutShort = puts[p2];
+                        const k3CallShort = calls[c1];
+                        const k4CallLong = calls[c2];
 
-                        // --- CORREÇÃO DE DATA ---
-                        const dP1 = String(K1_l.vencimento).split('T')[0];
-                        const dP2 = String(K2_s.vencimento).split('T')[0];
-                        const dC1 = String(K3_s.vencimento).split('T')[0];
-                        const dC2 = String(K4_l.vencimento).split('T')[0];
+                        // Validação de Vencimento Único
+                        if (
+                            k1PutLong.vencimento !== k2PutShort.vencimento || 
+                            k2PutShort.vencimento !== k3CallShort.vencimento || 
+                            k3CallShort.vencimento !== k4CallLong.vencimento
+                        ) continue;
 
-                        if (dP1 !== dP2 || dP2 !== dC1 || dC1 !== dC2) continue;
+                        // Validação de Estrutura: Miolo deve ser neutro (K2 < K3)
+                        // E o preço atual preferencialmente deve estar entre K2 e K3
+                        if (k2PutShort.strike >= k3CallShort.strike) continue; 
 
-                        // Validação de Estrutura: Put vendida < Call vendida para garantir o "miolo" neutro
-                        if (K2_s.strike! >= K3_s.strike!) continue; 
-
-                        // 3. Financeiro (CRÉDITO)
-                        const credit = (K2_s.premio + K3_s.premio) - (K1_l.premio + K4_l.premio);
-                        const widthPut = K2_s.strike! - K1_l.strike!;
-                        const widthCall = K4_l.strike! - K3_s.strike!;
+                        // --- Cálculo Financeiro (CRÉDITO) ---
+                        const credit = (k2PutShort.premio + k3CallShort.premio) - (k1PutLong.premio + k4CallLong.premio);
+                        
+                        // Largura das travas (usamos a maior para o risco máximo)
+                        const widthPut = k2PutShort.strike - k1PutLong.strike;
+                        const widthCall = k4CallLong.strike - k3CallShort.strike;
                         const maxWidth = Math.max(widthPut, widthCall);
 
-                        // FILTROS DE SANIDADE:
+                        /**
+                         * FILTROS DE SANIDADE:
+                         * 1. Crédito positivo.
+                         * 2. Crédito não pode ser maior que a largura (arbitragem impossível).
+                         * 3. Simetria aproximada: Evita condors bizarros onde uma asa é 10x maior que a outra.
+                         */
                         if (credit <= 0.05 || credit >= maxWidth) continue;
+                        if (Math.abs(widthPut - widthCall) > maxWidth * 0.5) continue;
 
                         const maxLoss = maxWidth - credit;
                         const roi = credit / maxLoss;
 
-                        // 4. Gregas Net com proteção contra undefined
+                        // --- Cálculo das Gregas Net ---
                         const getG = (l: OptionLeg) => l.gregas_unitarias || { delta: 0, gamma: 0, theta: 0, vega: 0 };
-                        const gP1 = getG(K1_l); const gP2 = getG(K2_s);
-                        const gC1 = getG(K3_s); const gC2 = getG(K4_l);
+                        const gP1 = getG(k1PutLong); const gP2 = getG(k2PutShort);
+                        const gC1 = getG(k3CallShort); const gC2 = getG(k4CallLong);
 
-                        const greeks: Greeks = {
+                        const netGreeks: Greeks = {
+                            // Vendas (Short) invertem o sinal das gregas unitárias
                             delta: Number((gP1.delta - gP2.delta - gC1.delta + gC2.delta).toFixed(4)),
                             gamma: Number((gP1.gamma - gP2.gamma - gC1.gamma + gC2.gamma).toFixed(4)),
                             theta: Number((gP1.theta - gP2.theta - gC1.theta + gC2.theta).toFixed(4)),
@@ -75,12 +95,12 @@ export class IronCondorSpread implements IStrategy {
 
                         results.push({
                             name: this.name,
-                            asset: K1_l.ativo_subjacente,
+                            asset: k1PutLong.ativo_subjacente,
                             asset_price: assetPrice,
                             spread_type: 'IRON CONDOR',
-                            expiration: dP1,
-                            dias_uteis: K1_l.dias_uteis || 0,
-                            strike_description: `P:${K1_l.strike}/${K2_s.strike} | C:${K3_s.strike}/${K4_l.strike}`,
+                            expiration: k1PutLong.vencimento,
+                            dias_uteis: k1PutLong.dias_uteis || 0,
+                            strike_description: `P:${k1PutLong.strike}/${k2PutShort.strike} | C:${k3CallShort.strike}/${k4CallLong.strike}`,
                             net_premium: Number(credit.toFixed(2)),
                             initialCashFlow: Number(credit.toFixed(2)),
                             natureza: 'CRÉDITO' as NaturezaOperacao,
@@ -90,17 +110,17 @@ export class IronCondorSpread implements IStrategy {
                             risco_maximo: Number(maxLoss.toFixed(2)),
                             roi: roi,
                             breakEvenPoints: [
-                                Number((K2_s.strike! - credit).toFixed(2)), 
-                                Number((K3_s.strike! + credit).toFixed(2))
+                                Number((k2PutShort.strike - credit).toFixed(2)), 
+                                Number((k3CallShort.strike + credit).toFixed(2))
                             ],
-                            greeks: greeks,
+                            greeks: netGreeks,
                             pernas: [
-                                { derivative: K1_l, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K1_l, 'COMPRA', K1_l.strike!) },
-                                { derivative: K2_s, direction: 'VENDA', multiplier: 1, display: generateDisplay(K2_s, 'VENDA', K2_s.strike!) },
-                                { derivative: K3_s, direction: 'VENDA', multiplier: 1, display: generateDisplay(K3_s, 'VENDA', K3_s.strike!) },
-                                { derivative: K4_l, direction: 'COMPRA', multiplier: 1, display: generateDisplay(K4_l, 'COMPRA', K4_l.strike!) }
+                                { derivative: k1PutLong, direction: 'COMPRA', multiplier: 1, display: generateDisplay(k1PutLong, 'COMPRA', k1PutLong.strike) },
+                                { derivative: k2PutShort, direction: 'VENDA', multiplier: 1, display: generateDisplay(k2PutShort, 'VENDA', k2PutShort.strike) },
+                                { derivative: k3CallShort, direction: 'VENDA', multiplier: 1, display: generateDisplay(k3CallShort, 'VENDA', k3CallShort.strike) },
+                                { derivative: k4CallLong, direction: 'COMPRA', multiplier: 1, display: generateDisplay(k4CallLong, 'COMPRA', k4CallLong.strike) }
                             ]
-                        } as any);
+                        } as StrategyMetrics);
                     }
                 }
             }
@@ -110,9 +130,8 @@ export class IronCondorSpread implements IStrategy {
     }
 
     getDescription(): string {
-        return 'Estratégia neutra a crédito que combina uma trava de alta com puts e uma trava de baixa com calls.';
+        return 'Estratégia neutra que busca lucrar com o ativo dentro de um intervalo de preço. Combina uma trava de alta com Puts e uma trava de baixa com Calls, limitando o risco nas duas extremidades.';
     }
 
     getLegCount(): number { return 4; }
-    generatePayoff(): any[] { return []; }
 }

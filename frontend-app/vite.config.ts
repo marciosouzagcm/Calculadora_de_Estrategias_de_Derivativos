@@ -1,12 +1,23 @@
-import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  root: '.', // raiz é o diretório frontend-app/
-  server: {
-    port: 5173,
-    open: true,
-    strictPort: false, // tenta próxima porta se 5173 estiver ocupada
+  root: '.',
+  resolve: {
+    alias: {
+      // Usamos um alias para o diretório raiz do pacote
+      'recharts': resolve(__dirname, 'node_modules/recharts')
+    }
   },
+  optimizeDeps: {
+    // Forçamos o Recharts a ser pré-processado pelo Vite no início
+    include: ['recharts']
+  },
+  server: {
+    port: 5174,
+    host: true,
+    open: true
+  }
 })

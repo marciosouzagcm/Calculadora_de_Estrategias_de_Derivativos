@@ -1,31 +1,47 @@
 import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, NaturezaOperacao, OptionLeg, StrategyMetrics } from '../interfaces/Types';
+import { 
+    Greeks, 
+    NaturezaOperacao, 
+    OptionLeg, 
+    StrategyMetrics 
+} from '../interfaces/Types';
 
+/**
+ * Helper: Gera a string de exibição para as pernas do Straddle.
+ */
 function generateDisplay(leg: OptionLeg, direction: 'COMPRA' | 'VENDA', strike: number): string {
     const typeInitial = leg.tipo === 'CALL' ? 'C' : 'P';
-    const action = direction === 'COMPRA' ? 'C' : 'V';
-    return `${action}-${typeInitial} ${leg.option_ticker} K${strike.toFixed(2)}`;
+    const action = direction === 'COMPRA' ? '[C]' : '[V]';
+    return `${action} ${leg.option_ticker} (${typeInitial}) K:${strike.toFixed(2)}`;
 }
 
+/**
+ * CLASSE: Long Straddle
+ * FUNCIONALIDADE: Compra de uma CALL e uma PUT com o mesmo strike e mesmo vencimento.
+ * OBJETIVO: Lucrar com um movimento forte do ativo subjacente, independente da direção.
+ * CARACTERÍSTICA: Delta Neutro (inicialmente), Theta Negativo e Vega Positivo.
+ */
 export class LongStraddle implements IStrategy {
     public readonly name: string = 'Long Straddle';
     public readonly marketView: 'VOLÁTIL' = 'VOLÁTIL'; 
 
+    /**
+     * Scanner: Busca pares de Call/Put no mesmo vencimento e strike (com tolerância).
+     */
     calculateMetrics(allOptions: OptionLeg[], assetPrice: number, feePerLeg: number): StrategyMetrics[] {
         const results: StrategyMetrics[] = [];
 
-        // 1. Agrupar por data de vencimento primeiro (Obrigatório para Straddle)
+        // 1. Agrupar opções por vencimento para otimizar o scanner
         const groupsByDate: { [date: string]: OptionLeg[] } = {};
         
         allOptions.forEach(leg => {
-            if (!leg.vencimento || leg.tipo === 'SUBJACENTE') return;
-            // Normaliza a data para evitar problemas com ISO Strings (T00:00:00Z)
+            if (!leg.vencimento || leg.tipo === 'SUBJACENTE' || leg.premio <= 0) return;
             const dateKey = String(leg.vencimento).split(/[T ]/)[0];
             if (!groupsByDate[dateKey]) groupsByDate[dateKey] = [];
             groupsByDate[dateKey].push(leg);
         });
 
-        // 2. Analisar cada vencimento
+        // 2. Analisar cada grupo de vencimento
         for (const date in groupsByDate) {
             const options = groupsByDate[date];
             const calls = options.filter(o => o.tipo === 'CALL');
@@ -33,21 +49,27 @@ export class LongStraddle implements IStrategy {
 
             for (const call of calls) {
                 for (const put of puts) {
-                    // --- O PULO DO GATO: TOLERÂNCIA DE STRIKE ---
-                    // Em vez de call.strike === put.strike, usamos uma margem de 0.6%
-                    // Isso une strikes como 30.12 e 30.15 de PETR4
+                    /**
+                     * VALIDAÇÃO DE STRIKE (Pulo do Gato):
+                     * Usamos uma tolerância de 0.6% para unir strikes que deveriam ser idênticos
+                     * mas sofrem pequenos desvios por ajustes de proventos.
+                     */
                     const strikeDiff = Math.abs(call.strike! - put.strike!);
                     const avgStrike = (call.strike! + put.strike!) / 2;
 
                     if (strikeDiff > (avgStrike * 0.006)) continue; 
 
-                    // Filtro de Proximidade (Opcional - 15% do spot)
-                    if (Math.abs(avgStrike - assetPrice) / assetPrice > 0.15) continue;
+                    // Filtro de Proximidade: Straddles são montados "At-The-Money" (ATM)
+                    if (Math.abs(avgStrike - assetPrice) / assetPrice > 0.10) continue;
 
+                    // --- Cálculo Financeiro (DÉBITO) ---
                     const netCost = call.premio + put.premio;
                     if (netCost <= 0.05) continue;
 
-                    // Gregas Net com tratamento de erro
+                    // Lucro máximo é tecnicamente infinito na alta, mas usamos um valor simbólico ou null
+                    const maxProfit = Infinity; 
+                    
+                    // Gregas Consolidadas
                     const g: Greeks = {
                         delta: Number(((call.gregas_unitarias?.delta || 0) + (put.gregas_unitarias?.delta || 0)).toFixed(4)),
                         gamma: Number(((call.gregas_unitarias?.gamma || 0) + (put.gregas_unitarias?.gamma || 0)).toFixed(4)),
@@ -63,14 +85,14 @@ export class LongStraddle implements IStrategy {
                         dias_uteis: call.dias_uteis || 0,
                         strike_description: `K: ${avgStrike.toFixed(2)}`,
                         asset_price: assetPrice,
-                        net_premium: Number((-netCost).toFixed(2)),
-                        initialCashFlow: Number((-netCost).toFixed(2)),
+                        net_premium: -netCost,
+                        initialCashFlow: -netCost,
                         natureza: 'DÉBITO' as NaturezaOperacao,
-                        max_profit: 999999,
-                        max_loss: Number((-netCost).toFixed(2)),
-                        lucro_maximo: 999999,
-                        risco_maximo: Number(netCost.toFixed(2)),
-                        roi: 0,
+                        max_profit: maxProfit,
+                        max_loss: -netCost,
+                        lucro_maximo: maxProfit,
+                        risco_maximo: netCost,
+                        roi: 0, // ROI é indefinido para lucro infinito
                         breakEvenPoints: [
                             Number((avgStrike - netCost).toFixed(2)), 
                             Number((avgStrike + netCost).toFixed(2))
@@ -80,14 +102,16 @@ export class LongStraddle implements IStrategy {
                             { derivative: call, direction: 'COMPRA', multiplier: 1, display: generateDisplay(call, 'COMPRA', call.strike!) },
                             { derivative: put, direction: 'COMPRA', multiplier: 1, display: generateDisplay(put, 'COMPRA', put.strike!) }
                         ]
-                    } as any);
+                    } as StrategyMetrics);
                 }
             }
         }
         return results;
     }
 
-    getDescription(): string { return 'Compra de Call e Put no mesmo strike.'; }
+    getDescription(): string { 
+        return 'Estratégia de volatilidade pura. Consiste na compra simultânea de uma Call e uma Put de mesmo strike. O lucro ocorre se o ativo se mover agressivamente para qualquer lado.'; 
+    }
+
     getLegCount(): number { return 2; }
-    generatePayoff(): any[] { return []; }
 }
