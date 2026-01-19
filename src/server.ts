@@ -4,93 +4,115 @@ import dotenv from 'dotenv';
 import { DataOrchestrator } from './services/DataOrchestrator';
 import { StrategyService } from './services/StrategyService';
 
-// Carrega variáveis de ambiente (.env) - Essencial para a Nuvem
+// Carrega variáveis de ambiente (.env)
 dotenv.config();
 
 const app = express();
 
-// --- Middleware de Segurança e CORS ---
+/**
+ * --- CONFIGURAÇÃO DE SEGURANÇA (CORS) ---
+ * Permite que o seu Frontend (React/Vercel) acesse a API no Render.
+ */
 app.use(cors({
-    origin: '*', // Em produção, substitua pelo domínio da sua Vercel
-    methods: ['GET', 'POST'],
+    origin: '*', 
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 })); 
+
 app.use(express.json());
 
-// --- Endpoint de Saúde (Health Check) ---
-// Útil para o Render saber que a instância está viva
+/**
+ * --- ENDPOINT DE SAÚDE (HEALTH CHECK) ---
+ * Essencial para o Render manter a instância ativa e monitorar o status.
+ */
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: "ok", environment: process.env.NODE_ENV });
+    res.status(200).json({ 
+        status: "ok", 
+        server: "BoardPro API",
+        database: "Connected",
+        timestamp: new Date().toISOString()
+    });
 });
 
-// --- Rota Principal de Análise ---
+/**
+ * --- ROTA PRINCIPAL DE ANÁLISE ---
+ * GET /api/analise?ticker=PETR4&lote=100
+ */
 app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     try {
         const { ticker, preco, lote } = req.query;
 
         if (!ticker) {
-            res.status(400).json({ status: "error", message: "Ticker é obrigatório." });
+            res.status(400).json({ status: "error", message: "Ticker (ex: PETR4) é obrigatório." });
             return;
         }
 
         const tickerStr = String(ticker).toUpperCase().trim();
         const loteNum = parseInt(String(lote)) || 100;
         
-        // Melhor tratamento para o preço de referência
+        // Conversão segura de preço manual (se houver)
         let precoNum: number | undefined;
         if (preco && preco !== 'undefined' && preco !== '') {
             precoNum = parseFloat(String(preco));
         }
 
-        console.log(`[API] 🔍 Buscando Oportunidades: ${tickerStr} (Lote: ${loteNum})`);
+        console.log(`[API] 🔍 Scanner acionado para: ${tickerStr} | Lote: ${loteNum}`);
 
-        // Busca estratégias (Agora integra MarketDataService + Nuvem)
+        // Invoca o motor de estratégias (StrategyService)
         const resultados = await StrategyService.getOportunidades(
             tickerStr, 
             loteNum,
             precoNum
         );
 
+        // Resposta formatada para o Dashboard
         res.json({
             status: "success",
             timestamp: new Date().toISOString(),
             info: {
                 ticker: tickerStr,
                 lote: loteNum,
-                precoReferencia: precoNum || "REAL-TIME/DB"
+                precoReferencia: precoNum || "Preço de Mercado (DB)"
             },
             count: resultados.length,
             data: resultados
         });
 
     } catch (error: any) {
-        console.error(`[API ERROR] ❌: ${error.message}`);
+        console.error(`[API ERROR] ❌ Erro ao processar ticker ${req.query.ticker}: ${error.message}`);
+        
         if (!res.headersSent) {
             res.status(500).json({ 
                 status: "error", 
-                message: "Erro interno no processamento da estratégia." 
+                message: "Erro interno ao calcular estratégias. Verifique a conexão com o banco de dados." 
             });
         }
     }
 });
 
-// --- Inicialização do Servidor ---
-const PORT = process.env.PORT || 3001;
+/**
+ * --- INICIALIZAÇÃO DO SERVIÇO ---
+ */
+const PORT = process.env.PORT || 10000; // Render usa a porta 10000 por padrão
 
-// Função para iniciar banco e servidor em ordem
 const startServer = async () => {
     try {
-        // Inicializa orquestrador de dados (Conexão com Banco de Dados Nuvem)
+        console.log("⏳ [STARTUP] Inicializando serviços de dados...");
+        
+        // Inicializa a conexão com o TiDB Cloud via DataOrchestrator
         await DataOrchestrator.init();
-        console.log("✅ Banco de Dados conectado com sucesso.");
-
+        
         app.listen(PORT, () => {
-            console.log(`🚀 BoardPro API rodando na porta ${PORT}`);
-            console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+            console.log("--------------------------------------------------");
+            console.log(`🚀 BOARDPRO API RODANDO NA PORTA: ${PORT}`);
+            console.log(`📡 ENDPOINT: http://localhost:${PORT}/api/analise`);
+            console.log(`🌍 AMBIENTE: ${process.env.NODE_ENV || 'production'}`);
+            console.log("--------------------------------------------------");
         });
     } catch (err) {
-        console.error("❌ Falha crítica na inicialização do servidor:", err);
-        process.exit(1); // Encerra se não conseguir conectar ao banco
+        console.error("❌ [FATAL] Falha crítica ao conectar ao TiDB/Banco de Dados:", err);
+        // Em produção, não queremos que o servidor suba se o banco estiver fora.
+        process.exit(1); 
     }
 };
 
