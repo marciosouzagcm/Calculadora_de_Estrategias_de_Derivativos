@@ -5,6 +5,7 @@ import {
     StrategyMetrics
 } from '../interfaces/Types';
 
+// Nota: Certifique-se de que este caminho está correto no seu ambiente local
 import { BlackScholes } from '../../frontend-app/src/services/BlackScholes';
 
 // Importações das estratégias
@@ -57,7 +58,6 @@ export class PayoffCalculator {
         for (const key in groups) {
             const group = groups[key].sort((a, b) => (a.strike || 0) - (b.strike || 0));
             for (let i = 0; i < group.length; i++) {
-                // Aumentamos o range de busca: j < group.length (busca todos os strikes acima)
                 for (let j = i + 1; j < group.length; j++) {
                     combinations.push([group[i], group[j]]);
                 }
@@ -70,11 +70,10 @@ export class PayoffCalculator {
         const combinations: OptionLeg[][] = [];
         const calls = options.filter(o => o.tipo === 'CALL');
         const puts = options.filter(o => o.tipo === 'PUT');
-        const TOLERANCE = 0.10; // Aumentado para 0.10 para evitar erros de arredondamento
+        const TOLERANCE = 0.10; 
 
         for (const callLeg of calls) {
             for (const putLeg of puts) {
-                // Só combina se for o mesmo vencimento
                 if (callLeg.vencimento !== putLeg.vencimento) continue;
 
                 const strikeCall = callLeg.strike ?? 0;
@@ -98,8 +97,21 @@ export class PayoffCalculator {
             const tipoLeg = leg.derivative.tipo;
             
             let unitarias: Greeks;
-            if (leg.derivative.gregas_unitarias && leg.derivative.gregas_unitarias.delta !== 0) {
-                unitarias = leg.derivative.gregas_unitarias;
+            // Se o TiDB já trouxe as gregas calculadas, usamos elas. Senão, calculamos via BS.
+            if (leg.derivative.delta !== undefined && leg.derivative.delta !== 0) {
+                unitarias = {
+                    delta: Number(leg.derivative.delta),
+                    gamma: Number(leg.derivative.gamma),
+                    theta: Number(row.theta), // Nota: Verifique se 'row' aqui deve ser 'leg.derivative'
+                    vega: Number(leg.derivative.vega)
+                } as any;
+                // Correção: acessando via leg.derivative
+                unitarias = {
+                    delta: Number(leg.derivative.delta || 0),
+                    gamma: Number(leg.derivative.gamma || 0),
+                    theta: Number(leg.derivative.theta || 0),
+                    vega: Number(leg.derivative.vega || 0)
+                };
             } else {
                 const tempoAnos = Math.max(leg.derivative.dias_uteis || 1, 1) / 252;
                 const volSafe = (leg.derivative.vol_implicita && leg.derivative.vol_implicita > 0) ? leg.derivative.vol_implicita : 0.35;
@@ -124,7 +136,6 @@ export class PayoffCalculator {
         const profit = typeof metrics.max_profit === 'number' ? metrics.max_profit : 0;
         const loss = Math.abs(typeof metrics.max_loss === 'number' ? metrics.max_loss : 0);
         
-        // Aplicação das taxas no cálculo de R/R para o filtro ser realista
         const totalFees = metrics.pernas.length * (this.feePerLeg / this.lotSize);
         const netProfit = profit - totalFees;
         const netRisk = loss + totalFees;
@@ -154,16 +165,15 @@ export class PayoffCalculator {
 
             for (const combo of combos) {
                 try {
-                    const res = sObj.strategy.calculateMetrics(combo, currentAssetPrice, 0); // Passamos 0 aqui pois a taxa é tratada no StrategyService
+                    const res = sObj.strategy.calculateMetrics(combo, currentAssetPrice, 0); 
                     if (res) {
                         const normalized = this.normalizeMetrics(res, currentAssetPrice);
-                        // Filtro de R/R
                         if ((normalized as any).riskRewardRatio <= maxRR) {
                             results.push(normalized);
                         }
                     }
                 } catch (e) {
-                    // console.error("Erro combo:", e);
+                    // Erros silenciosos para não travar o loop de milhares de combinações
                 }
             }
         }

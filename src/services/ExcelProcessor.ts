@@ -1,6 +1,11 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { pool } from '../config/database';
+
+// Ajuste de compatibilidade para ESM (Node 20 / TSX)
+const lib = (XLSX as any).default || XLSX;
+const { readFile, utils } = lib;
 
 const COLUNAS_MAP: { [key: string]: string[] } = {
     'ticker': ['Ticker'], 
@@ -40,88 +45,109 @@ function formatVencimento(value: any): string {
         } else {
             const str = String(value).trim();
             const parts = str.split(/[\/\-]/);
-            date = parts.length === 3 ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : new Date(str);
+            if (parts.length === 3) {
+                date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            } else {
+                date = new Date(str);
+            }
         }
         return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
     } catch { return ''; }
 }
 
 export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<void> {
-    const nomeBase = path.basename(nomeArquivoExcel);
-    const match = nomeBase.match(/Opções\s+(\w+)/i);
-    const ativoBase = match ? match[1].toUpperCase() : 'BBAS3';
+    try {
+        const nomeBase = path.basename(nomeArquivoExcel);
+        const match = nomeBase.match(/Opções\s+(\w+)/i);
+        const ativoBase = match ? match[1].toUpperCase() : 'ATIVO';
 
-    const workbook = XLSX.readFile(nomeArquivoExcel);
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const sheetAsArray: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+        console.log(`[TiDB PROCESSOR] 📑 Iniciando processamento: ${nomeBase}`);
 
-    if (sheetAsArray.length < 2) return;
+        const workbook = readFile(nomeArquivoExcel);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const sheetAsArray: any[][] = utils.sheet_to_json(worksheet, { header: 1, raw: false });
 
-    const headerOriginal = sheetAsArray[1].map(h => String(h || '').trim());
-    const dataRows = sheetAsArray.slice(2);
-    const valoresParaInserir: any[][] = [];
-
-    for (const row of dataRows) {
-        const rowObj: any = {};
-        headerOriginal.forEach((name, idx) => { if (name) rowObj[name] = row[idx]; });
-
-        const getVal = (key: string) => {
-            const nomesPossiveis = COLUNAS_MAP[key];
-            const encontrado = headerOriginal.find(col => 
-                nomesPossiveis.some(p => col.toLowerCase().includes(p.toLowerCase()))
-            );
-            return encontrado ? rowObj[encontrado] : undefined;
-        };
-
-        const ticker = String(getVal('ticker') || '').trim();
-        if (ticker.length < 5 || ticker.toUpperCase() === 'TICKER') continue;
-
-        // --- CORREÇÃO DO STRIKE (Multiplicando por 10 para ajustar a escala de 2.07 para 20.70) ---
-        let strike = cleanAndParseNumber(getVal('strike'));
-        if (strike < 10) strike = strike * 10; // Ajuste dinâmico de escala
-
-        const premio = cleanAndParseNumber(getVal('premioPct')) / FATOR_CORRECAO_ESCALA_PRECO;
-        const vol = cleanAndParseNumber(getVal('volImplicita')) / FATOR_CORRECAO_ESCALA_VI;
-
-        // --- REGRA DE DESCARTE: Se Prêmio ou Strike ou Vol forem 0, ignora a linha ---
-        if (premio === 0 || strike === 0 || vol === 0) {
-            continue; 
+        if (sheetAsArray.length < 2) {
+            console.warn(`[PROCESSOR] ⚠️ Arquivo insuficiente: ${nomeBase}`);
+            return;
         }
 
-        const tipoRaw = String(getVal('tipo') || '').toUpperCase();
-        const tipo = (tipoRaw.startsWith('P') || tipoRaw.startsWith('A') || ticker.charAt(4) > 'L') ? 'PUT' : 'CALL';
+        const headerOriginal = sheetAsArray[1].map(h => String(h || '').trim());
+        const dataRows = sheetAsArray.slice(2);
+        const valoresParaInserir: any[][] = [];
 
-        valoresParaInserir.push([
-            ativoBase,
-            ticker,
-            formatVencimento(getVal('vencimento')),
-            parseInt(getVal('diasUteis')) || 0,
-            tipo,
-            Number(strike.toFixed(2)),
-            Number(premio.toFixed(4)),
-            Number(vol.toFixed(4)),
-            Number((cleanAndParseNumber(getVal('delta')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
-            Number((cleanAndParseNumber(getVal('gamma')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
-            Number((cleanAndParseNumber(getVal('theta')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
-            Number((cleanAndParseNumber(getVal('vega')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
-            new Date()
-        ]);
-    }
+        for (const row of dataRows) {
+            const rowObj: any = {};
+            headerOriginal.forEach((name, idx) => { if (name) rowObj[name] = row[idx]; });
 
-    if (valoresParaInserir.length === 0) return;
+            const getVal = (key: string) => {
+                const nomesPossiveis = COLUNAS_MAP[key];
+                const encontrado = headerOriginal.find(col => 
+                    nomesPossiveis.some(p => col.toLowerCase().includes(p.toLowerCase()))
+                );
+                return encontrado ? rowObj[encontrado] : undefined;
+            };
 
-    const sql = `
-        INSERT INTO opcoes 
-        (idAcao, ticker, vencimento, diasUteis, tipo, strike, premioPct, volImplicita, delta, gamma, theta, vega, dataHora)
-        VALUES ? 
-        ON DUPLICATE KEY UPDATE 
-        strike=VALUES(strike), premioPct=VALUES(premioPct), volImplicita=VALUES(volImplicita), dataHora=VALUES(dataHora)
-    `;
+            const ticker = String(getVal('ticker') || '').trim();
+            if (ticker.length < 5 || ticker.toUpperCase() === 'TICKER') continue;
 
-    try {
-        await pool.query(sql, [valoresParaInserir]);
-        console.log(`[MYSQL] ✅ SUCESSO! ${valoresParaInserir.length} registros válidos inseridos (Zeros descartados).`);
+            let strike = cleanAndParseNumber(getVal('strike'));
+            if (strike < 10 && strike > 0) strike = strike * 10; 
+
+            const premio = cleanAndParseNumber(getVal('premioPct')) / FATOR_CORRECAO_ESCALA_PRECO;
+            const vol = cleanAndParseNumber(getVal('volImplicita')) / FATOR_CORRECAO_ESCALA_VI;
+
+            if (premio === 0 || strike === 0) continue; 
+
+            const tipoRaw = String(getVal('tipo') || '').toUpperCase();
+            const tipo = (tipoRaw.startsWith('P') || tipoRaw.startsWith('A') || ticker.charAt(4) > 'L') ? 'PUT' : 'CALL';
+
+            valoresParaInserir.push([
+                ativoBase,
+                ticker,
+                formatVencimento(getVal('vencimento')),
+                parseInt(getVal('diasUteis')) || 0,
+                tipo,
+                Number(strike.toFixed(2)),
+                Number(premio.toFixed(4)),
+                Number(vol.toFixed(4)),
+                Number((cleanAndParseNumber(getVal('delta')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
+                Number((cleanAndParseNumber(getVal('gamma')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
+                Number((cleanAndParseNumber(getVal('theta')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
+                Number((cleanAndParseNumber(getVal('vega')) / FATOR_CORRECAO_ESCALA_GREGA).toFixed(4)),
+                new Date()
+            ]);
+        }
+
+        if (valoresParaInserir.length === 0) return;
+
+        // SQL Otimizado para TiDB Cloud (Uso de transação para garantir atomicidade na nuvem)
+        const sql = `
+            INSERT INTO opcoes 
+            (idAcao, ticker, vencimento, diasUteis, tipo, strike, premioPct, volImplicita, delta, gamma, theta, vega, dataHora)
+            VALUES ? 
+            ON DUPLICATE KEY UPDATE 
+            strike=VALUES(strike), 
+            premioPct=VALUES(premioPct), 
+            volImplicita=VALUES(volImplicita),
+            diasUteis=VALUES(diasUteis),
+            dataHora=VALUES(dataHora)
+        `;
+
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            await connection.query(sql, [valoresParaInserir]);
+            await connection.commit();
+            console.log(`[TiDB CLOUD] ☁️ SUCESSO! ${valoresParaInserir.length} registros de ${ativoBase} sincronizados.`);
+        } catch (dbError: any) {
+            await connection.rollback();
+            throw dbError;
+        } finally {
+            connection.release();
+        }
+
     } catch (error: any) {
-        console.error(`[MYSQL ERROR]: ${error.message}`);
+        console.error(`[PROCESSOR ERROR] ❌ Falha na sincronização com TiDB:`, error.message);
     }
 }

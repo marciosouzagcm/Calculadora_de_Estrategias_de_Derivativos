@@ -1,17 +1,29 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
+import dotenv from 'dotenv';
 import { DataOrchestrator } from './services/DataOrchestrator';
 import { StrategyService } from './services/StrategyService';
 
+// Carrega variáveis de ambiente (.env) - Essencial para a Nuvem
+dotenv.config();
+
 const app = express();
 
+// --- Middleware de Segurança e CORS ---
 app.use(cors({
-    origin: '*', 
+    origin: '*', // Em produção, substitua pelo domínio da sua Vercel
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization']
 })); 
 app.use(express.json());
 
+// --- Endpoint de Saúde (Health Check) ---
+// Útil para o Render saber que a instância está viva
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: "ok", environment: process.env.NODE_ENV });
+});
+
+// --- Rota Principal de Análise ---
 app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     try {
         const { ticker, preco, lote } = req.query;
@@ -23,11 +35,16 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
 
         const tickerStr = String(ticker).toUpperCase().trim();
         const loteNum = parseInt(String(lote)) || 100;
-        const precoNum = (preco && preco !== 'undefined' && preco !== '') ? parseFloat(String(preco)) : undefined;
+        
+        // Melhor tratamento para o preço de referência
+        let precoNum: number | undefined;
+        if (preco && preco !== 'undefined' && preco !== '') {
+            precoNum = parseFloat(String(preco));
+        }
 
-        console.log(`[API] 🔍 Buscando Top 11 para: ${tickerStr} (Lote: ${loteNum})`);
+        console.log(`[API] 🔍 Buscando Oportunidades: ${tickerStr} (Lote: ${loteNum})`);
 
-        // O StrategyService agora já retorna apenas 1 de cada estratégia, ordenadas por ROI
+        // Busca estratégias (Agora integra MarketDataService + Nuvem)
         const resultados = await StrategyService.getOportunidades(
             tickerStr, 
             loteNum,
@@ -40,7 +57,7 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
             info: {
                 ticker: tickerStr,
                 lote: loteNum,
-                precoReferencia: precoNum || "DB"
+                precoReferencia: precoNum || "REAL-TIME/DB"
             },
             count: resultados.length,
             data: resultados
@@ -49,15 +66,32 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     } catch (error: any) {
         console.error(`[API ERROR] ❌: ${error.message}`);
         if (!res.headersSent) {
-            res.status(500).json({ status: "error", message: error.message });
+            res.status(500).json({ 
+                status: "error", 
+                message: "Erro interno no processamento da estratégia." 
+            });
         }
     }
 });
 
+// --- Inicialização do Servidor ---
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+
+// Função para iniciar banco e servidor em ordem
+const startServer = async () => {
     try {
-        DataOrchestrator.init();
-    } catch (e) {}
-    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-});
+        // Inicializa orquestrador de dados (Conexão com Banco de Dados Nuvem)
+        await DataOrchestrator.init();
+        console.log("✅ Banco de Dados conectado com sucesso.");
+
+        app.listen(PORT, () => {
+            console.log(`🚀 BoardPro API rodando na porta ${PORT}`);
+            console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+        });
+    } catch (err) {
+        console.error("❌ Falha crítica na inicialização do servidor:", err);
+        process.exit(1); // Encerra se não conseguir conectar ao banco
+    }
+};
+
+startServer();
