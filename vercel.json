@@ -6,6 +6,22 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/analise",
+      "destination": "/api/analise.ts"
+    },
+    {
+      "source": "/api/buscar-opcoes",
+      "destination": "/api/buscar-opcoes.ts"
+    },
+    {
+      "source": "/api/cotacao",
+      "destination": "/api/cotacao.ts"
+    },
+    {
+      "source": "/api/salvar-estrategia",
+      "destination": "/api/salvar-estrategia.ts"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.ts"
     },
