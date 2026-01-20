@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { DataOrchestrator } from './services/DataOrchestrator';
-import { DatabaseService, pool } from './config/database';
-import { PayoffCalculator } from './services/PayoffCalculator';
-import { StrategyMetrics } from './interfaces/Types';
+import { DataOrchestrator } from '../services/DataOrchestrator';
+import { DatabaseService, pool } from '../config/database';
+import { PayoffCalculator } from '../services/PayoffCalculator';
+import { StrategyMetrics } from '../interfaces/Types';
 
 dotenv.config();
 
