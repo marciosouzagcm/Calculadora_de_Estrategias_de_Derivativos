@@ -1,8 +1,8 @@
 import chokidar from 'chokidar';
 import fs from 'fs';
 import path from 'path';
-import { processarDadosOpcoes } from './ExcelProcessor';
-import { DatabaseService } from '../config/database';
+import { processarDadosOpcoes } from './ExcelProcessor.js'; // Adicionado .js para NodeNext
+import { DatabaseService } from '../config/database.js';  // Adicionado .js para NodeNext
 
 /**
  * BOARDPRO V40.0 - Orchestrator
@@ -29,7 +29,6 @@ export class DataOrchestrator {
             }
 
             // 3. Ativar o Monitor de Arquivos APENAS em ambiente de desenvolvimento/local
-            // No Render, process.env.NODE_ENV costuma ser 'production'
             if (process.env.NODE_ENV !== 'production' && fs.existsSync(this.DOWNLOADS_DIR)) {
                 this.startWatcher();
             } else {
@@ -38,8 +37,24 @@ export class DataOrchestrator {
 
         } catch (error) {
             console.error("❌ [ORCHESTRATOR ERROR] Falha no startup:", error);
-            throw error; // Repassa o erro para o server.ts interromper o boot se necessário
+            throw error;
         }
+    }
+
+    /**
+     * CORREÇÃO PARA VERCEL: Método para buscar dados de opções.
+     * Encaminha a chamada para o DatabaseService.
+     */
+    public static async getOptionsData(ticker: string) {
+        return await DatabaseService.getOptionsByTicker(ticker);
+    }
+
+    /**
+     * CORREÇÃO PARA VERCEL: Método para buscar preço spot (underlying).
+     * Encaminha a chamada para o DatabaseService.
+     */
+    public static async getUnderlyingPrice(ticker: string) {
+        return await DatabaseService.getSpotPrice(ticker);
     }
 
     private static startWatcher() {

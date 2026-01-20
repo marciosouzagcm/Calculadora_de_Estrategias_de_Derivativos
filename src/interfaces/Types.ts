@@ -24,6 +24,7 @@ export interface OptionLeg {
     premio: number; 
     vol_implicita: number | null; 
     gregas_unitarias: Greeks; 
+    // Atalhos para gessão facilitada
     delta?: number;
     gamma?: number;
     theta?: number;
@@ -60,12 +61,13 @@ export interface StrategyMetrics {
     greeks: Greeks; 
     pernas: StrategyLeg[]; 
 
-    // Campos de exibição consumidos pelo Frontend
+    // --- Campos de exibição (Consumidos pelo Frontend) ---
+    // Marcados como opcionais (?) para permitir a criação da estratégia antes da formatação final
     roi?: number;
-    exibir_roi: string;           // Tornado obrigatório para o App.tsx
-    exibir_lucro: string;         // Adicionado para bater com o App.tsx
-    exibir_risco: string;         // Alterado para string (formatado R$)
-    probabilidade_lucro?: string;  // Adicionado para o Scanner
+    exibir_roi?: string;           
+    exibir_lucro?: string;         
+    exibir_risco?: string;         
+    probabilidade_lucro?: string;  
     taxas_ciclo?: number;
     stop_loss_sugerido?: string;
     alvo_zero_a_zero?: string;
