@@ -7,30 +7,31 @@ export default defineConfig({
   root: 'frontend-app',
   base: '/',
   resolve: {
+    // Adicionamos a node_modules da raiz como um local de busca prioritário
+    modules: [resolve(__dirname, 'node_modules'), 'node_modules'],
     alias: {
       '@': resolve(__dirname, './src'),
-      // Forçamos o redirecionamento do lodash para a node_modules da raiz
-      'lodash': resolve(__dirname, 'node_modules/lodash'),
-      'recharts': resolve(__dirname, 'node_modules/recharts')
     }
   },
   build: {
     outDir: '../dist',
     emptyOutDir: true,
     commonjsOptions: {
-      include: [/node_modules/], // Garante que dependências CommonJS como lodash sejam convertidas
+      include: [/node_modules/],
+      transformMixedEsModules: true // Ajuda com pacotes que misturam import/require
     },
     rollupOptions: {
+      // Se o Rollup ainda reclamar de algo, tratamos como externo ou forçamos a resolução
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'recharts', 'lodash'],
+          vendor: ['react', 'react-dom', 'recharts'],
         },
       },
     },
   },
   optimizeDeps: {
-    // Incluímos o lodash no pré-processamento para evitar erros de importação
-    include: ['recharts', 'react', 'react-dom', 'lodash']
+    // Forçamos o pré-bundle das dependências problemáticas
+    include: ['recharts', 'react-smooth', 'lodash', 'recharts-scale']
   },
   server: {
     port: 5174,
