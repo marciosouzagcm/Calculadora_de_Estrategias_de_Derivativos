@@ -1,12 +1,8 @@
-import mysql, { PoolOptions } from 'mysql2/promise';
+import mysql, { Pool, PoolOptions } from 'mysql2/promise';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-/**
- * Configuração de conexão para o TiDB Cloud
- * Ajustado para evitar erros de sobrecarga no TypeScript
- */
 const dbConfig: PoolOptions = {
     host: process.env.TIDB_HOST,
     user: process.env.TIDB_USER,
@@ -24,17 +20,15 @@ const dbConfig: PoolOptions = {
     }
 };
 
-// Se DATABASE_URL existir, usamos ela diretamente (string), caso contrário, o objeto de config.
-export const pool = mysql.createPool(process.env.DATABASE_URL ? process.env.DATABASE_URL : dbConfig);
+// Forçamos a tipagem aqui para evitar o erro de Overload TS2769
+export const pool: Pool = process.env.DATABASE_URL 
+    ? mysql.createPool(process.env.DATABASE_URL as string) 
+    : mysql.createPool(dbConfig);
 
 export class DatabaseService {
-    
-    /**
-     * Valida a conexão com o banco de dados
-     */
     static async testConnection(): Promise<void> {
         try {
-            const [rows] = await pool.query('SELECT 1');
+            await pool.query('SELECT 1');
             console.log('📡 [TiDB Cloud] Conexão estabelecida com sucesso.');
         } catch (error: any) {
             console.error('❌ [TiDB Cloud] Falha na conexão:', error.message);
@@ -42,9 +36,6 @@ export class DatabaseService {
         }
     }
 
-    /**
-     * Busca o preço atual do ativo (Spot)
-     */
     static async getSpotPrice(ticker: string): Promise<number> {
         try {
             const cleanTicker = ticker.toUpperCase().trim();
@@ -54,14 +45,10 @@ export class DatabaseService {
             );
             return (rows && rows.length > 0) ? Number(rows[0].preco_atual) : 0;
         } catch (error) {
-            console.error('❌ Erro ao buscar Spot Price:', error);
             return 0;
         }
     }
 
-    /**
-     * Recupera a grade de opções filtrada por ticker
-     */
     static async getOptionsByTicker(ticker: string): Promise<any[]> {
         try {
             const cleanTicker = ticker.toUpperCase().trim();
@@ -74,7 +61,6 @@ export class DatabaseService {
                 AND vencimento >= CURDATE()
             `;
             const [rows]: any = await pool.execute(query, [`%${cleanTicker}%`]);
-            
             return rows.map((row: any) => ({
                 id: row.id,
                 option_ticker: row.ticker,
@@ -91,7 +77,6 @@ export class DatabaseService {
                 vega: Number(row.vega || 0)
             }));
         } catch (error) {
-            console.error('❌ Erro ao buscar opções:', error);
             return [];
         }
     }
