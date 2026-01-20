@@ -58,9 +58,10 @@ const App: React.FC = () => {
       
       setLastUpdate(marketData.updatedAt.toLocaleTimeString());
 
+      // AJUSTE: Detecta se é localhost (porta 10000) ou produção
       const baseUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:10000' 
-        : 'https://calculadora-de-estrategias-de-derivativos.onrender.com';
+        : window.location.origin; // Usa o próprio domínio da Vercel em produção
 
       const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${riscoMaximo}&slot=${pSlot}`;
       
@@ -72,12 +73,12 @@ const App: React.FC = () => {
         setEstrategias(result.data);
         setSelecionada(result.data[0]);
       } else {
-        alert("Nenhuma oportunidade encontrada.");
+        alert("Nenhuma oportunidade encontrada para este ativo no momento.");
         setEstrategias([]);
       }
     } catch (err) {
       console.error("❌ Falha no Scanner:", err);
-      alert("ERRO DE CONEXÃO: Verifique se o BACKEND está rodando na porta 3001.");
+      alert("ERRO DE CONEXÃO: Não foi possível acessar a API de análise.");
     } finally {
       setLoading(false);
     }
@@ -116,7 +117,7 @@ const App: React.FC = () => {
           <h1 style={logoStyle}>TRADING BOARD <span style={{color:'#0ea5e9'}}>PRO V4.0</span></h1>
           <div style={badgeContainer}>
             {selecionada && <button onClick={gerarPDF} style={btnPdf}>EXPORTAR PDF</button>}
-            <span style={liveBadge}>● TIme: {lastUpdate || '--:--'}</span>
+            <span style={liveBadge}>● Time: {lastUpdate || '--:--'}</span>
             <span style={priceBadge}>REF {ticker}: R$ {precoSlot}</span>
           </div>
         </div>
@@ -199,7 +200,7 @@ const App: React.FC = () => {
               </div>
             </>
           ) : (
-            <div style={empty}>Execute o Scanner para carregar dados do TiDB...</div>
+            <div style={empty}>Execute o Scanner para carregar dados do TiDB Cloud...</div>
           )}
         </section>
       </main>
