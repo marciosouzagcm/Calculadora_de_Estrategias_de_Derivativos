@@ -18,12 +18,14 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/**/*.ts" // MANTENHA APENAS A SRC AQUI
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules", 
     "dist", 
     "frontend-app",
-    "tests/**/*.ts" // ADICIONE ISSO PARA O BUILD IGNORAR OS TESTES
+    "tests",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }
