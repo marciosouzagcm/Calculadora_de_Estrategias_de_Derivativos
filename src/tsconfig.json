@@ -1,28 +1,29 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
     "target": "ES2020",
-    "moduleResolution": "Node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
+    "isolatedModules": true,
     
-    /* Ajustado para ./src para evitar que o TS tente compilar 
-       pastas de backup ou arquivos soltos na raiz 
-    */
+    /* Configurações de Emissão */
+    "outDir": "./dist",
     "rootDir": "./src", 
-    "outDir": "./dist", 
+    "noEmit": false,
     
+    /* Rigor e Performance */
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    
-    /* OBRIGATÓRIO PARA DEPLOY: Deve ser false para que os arquivos 
-       .js sejam criados na pasta /dist 
-    */
-    "noEmit": false 
+    "resolveJsonModule": true
   },
   "include": [
-    "src/**/*.ts", 
-    "src/**/*.tsx"
+    "src/**/*.ts" // MANTENHA APENAS A SRC AQUI
   ],
-  "exclude": ["node_modules", "dist", "uploads"]
+  "exclude": [
+    "node_modules", 
+    "dist", 
+    "frontend-app",
+    "tests/**/*.ts" // ADICIONE ISSO PARA O BUILD IGNORAR OS TESTES
+  ]
 }
