@@ -1,10 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { DataOrchestrator } from '../services/DataOrchestrator';
-import { DatabaseService, pool } from '../config/database';
-import { PayoffCalculator } from '../services/PayoffCalculator';
-import { StrategyMetrics } from '../interfaces/Types';
+
+/** * CORREÇÃO CRÍTICA DE IMPORT (NodeNext):
+ * Quando usamos module: NodeNext, o TypeScript exige a extensão .js 
+ * nos imports de arquivos locais, mesmo que o arquivo físico seja .ts.
+ */
+import { DataOrchestrator } from '../src/services/DataOrchestrator.js';
+import { DatabaseService, pool } from '../src/config/database.js';
+import { PayoffCalculator } from '../src/services/PayoffCalculator.js';
+import { StrategyMetrics } from '../src/interfaces/Types.js';
 
 dotenv.config();
 
@@ -18,7 +23,7 @@ const FEE_PER_LEG = 22.00;
 // Helper para formatar moeda
 const fmtBRL = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-// Função de preparação para o Frontend (mesma lógica do server anterior)
+// Função de preparação para o Frontend
 function prepareStrategyForFrontend(metrics: StrategyMetrics, lot: number): any {
     const isExplosion = metrics.name.toLowerCase().includes('str');
     const numPernas = metrics.pernas.length;
@@ -70,21 +75,24 @@ app.get('/api/analise', async (req, res) => {
 
 async function start() {
     try {
-        // Testa conexão com TiDB
+        // Testa conexão com TiDB antes de abrir a porta
         await pool.query('SELECT 1');
         console.log('✅ [DATABASE] TiDB Cloud conectado.');
 
-        // Inicia Watcher de Downloads
-        DataOrchestrator.init();
+        if (process.env.NODE_ENV !== 'production') {
+            DataOrchestrator.init();
+        }
 
-        app.listen(PORT, () => {
-            console.log(`🚀 [BOARDPRO] Unificado e rodando em http://localhost:${PORT}`);
-            console.log(`📂 [WATCHER] Monitorando sua pasta de Downloads...`);
-        });
+        if (process.env.VERCEL !== '1') {
+            app.listen(PORT, () => {
+                console.log(`🚀 [BOARDPRO] Online em http://localhost:${PORT}`);
+            });
+        }
     } catch (err) {
         console.error('❌ Erro na inicialização:', err);
-        process.exit(1);
     }
 }
 
 start();
+
+export default app;

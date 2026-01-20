@@ -1,20 +1,27 @@
 import { Request, Response } from 'express';
-// AJUSTE: Importação nomeada corrigida para evitar erro TS1192
-import { pool } from '../config/database'; 
-import { OptionLeg } from '../interfaces/Types';
+
+/** * CORREÇÃO CRÍTICA (NodeNext): 
+ * 1. O caminho aponta para fora da pasta api e entra em '../src/...'
+ * 2. Adição da extensão '.js' é obrigatória para evitar o erro ERR_MODULE_NOT_FOUND
+ * no ambiente de produção (Render/Vercel) usando ESM.
+ */
+import { pool } from '../src/config/database.js'; 
+import { OptionLeg } from '../src/interfaces/Types.js';
 
 export const getOptions = async (req: Request, res: Response) => {
     try {
         // 1. Busca os dados brutos do MySQL usando o pool exportado
-        // O pool.query retorna um array onde a primeira posição são as linhas
         const [rows]: any = await pool.query('SELECT * FROM opcoes');
+
+        // Se não houver dados, retorna array vazio para evitar erro no map
+        if (!rows) return res.status(200).json([]);
 
         // 2. Mapeia e Normaliza os dados
         const normalizedData: OptionLeg[] = rows.map((row: any) => {
             // Remove o prefixo numérico do ticker (ex: "1BOVA11" -> "BOVA11")
             const ativoSubjacente = (row.ativo_subjacente || row.idAcao || '').replace(/^\d+/, '');
             
-            let strike = parseFloat(row.strike);
+            let strike = parseFloat(row.strike || 0);
             
             // Corrige a escala do BOVA11 se necessário
             if (ativoSubjacente === 'BOVA11' && strike < 100) {
@@ -23,7 +30,7 @@ export const getOptions = async (req: Request, res: Response) => {
 
             return {
                 id: row.id,
-                option_ticker: row.ticker,
+                option_ticker: row.ticker || row.option_ticker,
                 ativo_subjacente: ativoSubjacente,
                 tipo: (row.tipo || '').toUpperCase(),
                 strike: strike,

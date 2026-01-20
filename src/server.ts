@@ -1,10 +1,14 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
-import { DataOrchestrator } from './services/DataOrchestrator';
-import { StrategyService } from './services/StrategyService';
-// IMPORTANTE: Importando as novas rotas de opções corrigidas
-import optionsRouter from './api/routes'; 
+import { DataOrchestrator } from './services/DataOrchestrator.js';
+import { StrategyService } from './services/StrategyService.js';
+
+/** * CORREÇÃO CRÍTICA (NodeNext):
+ * 1. O caminho sobe um nível (../) pois a pasta 'api' está na raiz.
+ * 2. O uso da extensão '.js' é obrigatório para que o NodeNext resolva o módulo corretamente.
+ */
+import optionsRouter from '../api/routes.js'; 
 
 // Carrega variáveis de ambiente (.env)
 dotenv.config();
@@ -13,7 +17,6 @@ const app = express();
 
 /**
  * --- CONFIGURAÇÃO DE SEGURANÇA (CORS) ---
- * Permite que o Frontend acesse a API sem bloqueios de segurança.
  */
 app.use(cors({
     origin: '*', 
@@ -26,7 +29,7 @@ app.use(express.json());
 /**
  * --- REGISTRO DE ROTAS ---
  */
-// Acopla as rotas de busca de opções (GET /api/opcoes)
+// Acopla as rotas de busca de opções (ex: GET /api/opcoes)
 app.use('/api', optionsRouter);
 
 /**
@@ -42,7 +45,6 @@ app.get('/health', (req: Request, res: Response) => {
 
 /**
  * --- ROTA DE ANÁLISE QUANTITATIVA ---
- * GET /api/analise?ticker=PETR4&lote=100
  */
 app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     try {
@@ -93,7 +95,6 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
 /**
  * --- INICIALIZAÇÃO ---
  */
-// CORREÇÃO TS2769: Garantindo que a porta seja tratada como Number
 const PORT: number = Number(process.env.PORT) || 10000;
 
 const startServer = async () => {
@@ -103,7 +104,7 @@ const startServer = async () => {
         // Inicializa a conexão com o TiDB Cloud
         await DataOrchestrator.init();
         
-        // Escuta em 0.0.0.0 para garantir acessibilidade em ambientes cloud (Vercel/Render)
+        // Escuta em 0.0.0.0 para garantir acessibilidade em ambientes cloud
         app.listen(PORT, '0.0.0.0', () => {
             console.log("--------------------------------------------------");
             console.log(`🚀 BOARDPRO API RODANDO NA PORTA: ${PORT}`);

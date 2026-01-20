@@ -1,7 +1,12 @@
 import { Request, Response, Router } from 'express';
-// CORREÇÃO TS1192: Importação correta do pool (com chaves)
-import { pool } from '../config/database'; 
-import { OptionLeg } from '../interfaces/Types';
+
+/** * CORREÇÃO CRÍTICA (NodeNext): 
+ * 1. O caminho agora entra na pasta '../src/...'
+ * 2. O uso de '.js' no final do import é obrigatório para ESM com NodeNext, 
+ * mesmo o arquivo físico sendo '.ts'.
+ */
+import { pool } from '../src/config/database.js'; 
+import { OptionLeg } from '../src/interfaces/Types.js';
 
 const router = Router();
 
@@ -10,7 +15,7 @@ const router = Router();
  */
 router.get('/opcoes', async (req: Request, res: Response) => {
     try {
-        // 1. Busca os dados brutos usando o pool exportado
+        // 1. Busca os dados brutos usando o pool exportado do TiDB
         const [rows]: any = await pool.query('SELECT * FROM opcoes');
 
         if (!rows || rows.length === 0) {
