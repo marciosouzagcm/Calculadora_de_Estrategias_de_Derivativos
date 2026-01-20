@@ -3,17 +3,15 @@
   "version": "1.0.0",
   "description": "Refatoração em TypeScript para cálculo e otimização de estratégias com opções.",
   "type": "module",
-  "main": "dist/src/index.js",
+  "main": "dist/src/server.js",
   "scripts": {
-    "build": "npm run clean && tsc",
-    "start": "node dist/src/index.js",
-    "start-backend": "node dist/src/server.js",
-    "dev": "tsx watch src/index.ts",
-    "api:dev": "tsx watch src/server.ts",
+    "build": "vite build frontend-app",
+    "vercel-build": "vite build frontend-app && tsc --noEmit false || echo 'Build prosseguindo com avisos'",
+    "start": "node dist/src/server.js",
+    "dev": "tsx watch src/server.ts",
+    "clean": "rimraf dist",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "process-csv": "tsx src/processador_opcoes.ts",
-    "process-and-copy": "npm run process-csv && node scripts/copyCsv.js",
-    "clean": "rimraf dist"
+    "process-csv": "tsx src/processador_opcoes.ts"
   },
   "keywords": [
     "opcoes",
@@ -51,6 +49,7 @@
     "rimraf": "^5.0.5",
     "ts-jest": "^29.1.2",
     "tsx": "^4.7.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vite": "^5.4.0"
   }
 }

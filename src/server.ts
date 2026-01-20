@@ -3,7 +3,7 @@ import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import { DataOrchestrator } from './services/DataOrchestrator';
 import { StrategyService } from './services/StrategyService';
-// IMPORTANTE: Importando as novas rotas de opções
+// IMPORTANTE: Importando as novas rotas de opções corrigidas
 import optionsRouter from './api/routes'; 
 
 // Carrega variáveis de ambiente (.env)
@@ -13,6 +13,7 @@ const app = express();
 
 /**
  * --- CONFIGURAÇÃO DE SEGURANÇA (CORS) ---
+ * Permite que o Frontend acesse a API sem bloqueios de segurança.
  */
 app.use(cors({
     origin: '*', 
@@ -31,7 +32,7 @@ app.use('/api', optionsRouter);
 /**
  * --- ENDPOINT DE SAÚDE (HEALTH CHECK) ---
  */
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ 
         status: "ok", 
         server: "BoardPro API",
@@ -63,6 +64,7 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
 
         console.log(`[API] 🔍 Scanner acionado: ${tickerStr} | Lote: ${loteNum} | Risco: ${riscoMax}`);
 
+        // Invoca o motor de estratégias
         const resultados = await StrategyService.getOportunidades(
             tickerStr, 
             loteNum,
@@ -91,7 +93,8 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
 /**
  * --- INICIALIZAÇÃO ---
  */
-const PORT = process.env.PORT || 10000;
+// CORREÇÃO TS2769: Garantindo que a porta seja tratada como Number
+const PORT: number = Number(process.env.PORT) || 10000;
 
 const startServer = async () => {
     try {
@@ -100,7 +103,8 @@ const startServer = async () => {
         // Inicializa a conexão com o TiDB Cloud
         await DataOrchestrator.init();
         
-        app.listen(PORT, () => {
+        // Escuta em 0.0.0.0 para garantir acessibilidade em ambientes cloud (Vercel/Render)
+        app.listen(PORT, '0.0.0.0', () => {
             console.log("--------------------------------------------------");
             console.log(`🚀 BOARDPRO API RODANDO NA PORTA: ${PORT}`);
             console.log(`🌍 AMBIENTE: ${process.env.NODE_ENV || 'production'}`);
