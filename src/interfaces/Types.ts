@@ -1,14 +1,10 @@
 /**
  * Tipos fundamentais para o motor de estratégias de opções
  */
-
 export type ProfitLossValue = number | 'Ilimitado' | 'Ilimitada';
 export type PositionDirection = 'COMPRA' | 'VENDA' | 'SUBJACENTE';
 export type NaturezaOperacao = 'DÉBITO' | 'CRÉDITO' | 'NEUTRA'; 
 
-/**
- * Gregas Net ou Unitárias
- */
 export interface Greeks {
     delta: number; 
     gamma: number; 
@@ -16,9 +12,6 @@ export interface Greeks {
     vega: number; 
 }
 
-/**
- * Representação de uma opção vinda do Banco de Dados
- */
 export interface OptionLeg {
     ticker?: string;           
     option_ticker?: string;    
@@ -26,27 +19,17 @@ export interface OptionLeg {
     vencimento: string; 
     dias_uteis: number; 
     tipo: 'CALL' | 'PUT' | 'SUBJACENTE'; 
-    strike: number; // Alterado para number para evitar check de null constante
+    strike: number; 
     multiplicador_contrato?: number; 
-    
     premio: number; 
     vol_implicita: number | null; 
-    
-    /**
-     * Gregas calculadas/armazenadas
-     */
     gregas_unitarias: Greeks; 
-
-    // Campos auxiliares para facilitar o acesso direto
     delta?: number;
     gamma?: number;
     theta?: number;
     vega?: number;
 }
 
-/**
- * Estrutura de uma perna dentro de uma estratégia montada
- */
 export interface StrategyLeg {
     direction: PositionDirection; 
     multiplier: number; 
@@ -55,9 +38,6 @@ export interface StrategyLeg {
     side_display?: string; 
 }
 
-/**
- * Interface Principal de Resultados das Estratégias
- */
 export interface StrategyMetrics {
     name: string; 
     asset: string; 
@@ -71,7 +51,6 @@ export interface StrategyMetrics {
     initialCashFlow: number; 
     natureza: NaturezaOperacao;
 
-    // Valores teóricos (podem ser strings como "Ilimitado")
     max_profit: ProfitLossValue; 
     max_loss: ProfitLossValue;   
     lucro_maximo: ProfitLossValue; 
@@ -81,14 +60,13 @@ export interface StrategyMetrics {
     greeks: Greeks; 
     pernas: StrategyLeg[]; 
 
-    /**
-     * Propriedades de Gestão e Exibição (Calculadas pelo StrategyService)
-     * Adicionadas para resolver erros de compilação e alimentar o Frontend
-     */
-    roi?: number;                 // Valor decimal (ex: 0.155) para ordenação
-    exibir_roi?: string;          // String formatada (ex: "15.50%")
-    exibir_risco?: ProfitLossValue; // [CORREÇÃO]: Alterado de number para ProfitLossValue
-    taxas_ciclo?: number;         // TAXA TOTAL DA OPERAÇÃO (EX: R$ 44.00)
+    // Campos de exibição consumidos pelo Frontend
+    roi?: number;
+    exibir_roi: string;           // Tornado obrigatório para o App.tsx
+    exibir_lucro: string;         // Adicionado para bater com o App.tsx
+    exibir_risco: string;         // Alterado para string (formatado R$)
+    probabilidade_lucro?: string;  // Adicionado para o Scanner
+    taxas_ciclo?: number;
     stop_loss_sugerido?: string;
     alvo_zero_a_zero?: string;
 }

@@ -1,14 +1,14 @@
-import React, { useRef, useState, useMemo } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { StrategyMetrics } from './interfaces/Types'; 
+import React, { useMemo, useRef, useState } from 'react';
 import { PayoffChart } from './components/PayoffChart';
+import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
 
 const marketService = new MarketDataService();
 
-const App = () => {
+const App: React.FC = () => {
   const [ticker, setTicker] = useState('PETR4');
   const [precoSlot, setPrecoSlot] = useState('0.00'); 
   const [lote, setLote] = useState(1000);
@@ -25,7 +25,8 @@ const App = () => {
   const analiseAvancada = useMemo(() => {
     if (!selecionada) return null;
     const est = selecionada;
-    const taxasTotais = est.pernas.length * (parseFloat(taxaInformada) || 0) * 2;
+    const taxasPorPerna = parseFloat(taxaInformada) || 0;
+    const taxasTotais = est.pernas.length * taxasPorPerna * 2;
     
     let financeiroNet = 0;
     est.pernas.forEach(p => {
@@ -52,18 +53,16 @@ const App = () => {
     try {
       const marketData = await marketService.getAssetPrice(ticker.trim().toUpperCase());
       
-      // Se o precoSlot for 0.00, atualizamos com o valor de mercado real
-      if (precoSlot === '0.00') {
-        setPrecoSlot(marketData.price.toFixed(2));
-      }
+      const pSlot = precoSlot === '0.00' ? marketData.price.toFixed(2) : precoSlot;
+      if (precoSlot === '0.00') setPrecoSlot(pSlot);
+      
       setLastUpdate(marketData.updatedAt.toLocaleTimeString());
 
       const baseUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3001' 
+        ? 'http://localhost:10000' 
         : 'https://calculadora-de-estrategias-de-derivativos.onrender.com';
 
-      // Montagem da URL com todos os parâmetros quantitativos
-      const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${riscoMaximo}&slot=${precoSlot}`;
+      const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${riscoMaximo}&slot=${pSlot}`;
       
       const resp = await fetch(url);
       if (!resp.ok) throw new Error("Erro na comunicação com o servidor.");
@@ -73,27 +72,41 @@ const App = () => {
         setEstrategias(result.data);
         setSelecionada(result.data[0]);
       } else {
-        alert("Nenhuma oportunidade encontrada para os parâmetros informados.");
+        alert("Nenhuma oportunidade encontrada.");
         setEstrategias([]);
-        setSelecionada(null);
       }
     } catch (err) {
       console.error("❌ Falha no Scanner:", err);
-      alert("ERRO DE CONEXÃO: Certifique-se que o BACKEND está rodando na porta 3001.");
+      alert("ERRO DE CONEXÃO: Verifique se o BACKEND está rodando na porta 3001.");
     } finally {
       setLoading(false);
     }
   };
 
   const gerarPDF = async () => {
-    if (!selecionada || !analiseAvancada) return;
+    if (!selecionada || !analiseAvancada || !chartRef.current) return;
+    
     const doc = new jsPDF();
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, 210, 40, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.text(`Relatório de Estratégia: ${selecionada.name}`, 14, 25);
-    doc.save(`Analise_${ticker}_${selecionada.name}.pdf`);
+    doc.setFontSize(22);
+    doc.text(`ESTRATÉGIA: ${selecionada.name}`, 14, 25);
+    
+    autoTable(doc, {
+      startY: 45,
+      head: [['OPER', 'TIPO', 'TICKER', 'STRIKE', 'QTD']],
+      body: selecionada.pernas.map((p) => [
+        p.direction, p.derivative.tipo, p.derivative.option_ticker,
+        `R$ ${p.derivative.strike.toFixed(2)}`, Math.abs(p.multiplier) * lote
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59] }
+    });
+
+    const canvas = await html2canvas(chartRef.current);
+    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 120, 180, 80);
+    doc.save(`BOARDPRO_${ticker}_${selecionada.name}.pdf`);
   };
 
   return (
@@ -103,7 +116,7 @@ const App = () => {
           <h1 style={logoStyle}>TRADING BOARD <span style={{color:'#0ea5e9'}}>PRO V4.0</span></h1>
           <div style={badgeContainer}>
             {selecionada && <button onClick={gerarPDF} style={btnPdf}>EXPORTAR PDF</button>}
-            <span style={liveBadge}>● SERVER 3001</span>
+            <span style={liveBadge}>● TIme: {lastUpdate || '--:--'}</span>
             <span style={priceBadge}>REF {ticker}: R$ {precoSlot}</span>
           </div>
         </div>
@@ -125,14 +138,14 @@ const App = () => {
             <input type="number" value={taxaInformada} onChange={e => setTaxaInformada(e.target.value)} style={input} />
           </div>
           <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>
-            {loading ? 'ANALISANDO MERCADO...' : 'EXECUTAR SCANNER QUANT'}
+            {loading ? 'PROCESSANDO...' : 'EXECUTAR SCANNER QUANT'}
           </button>
         </div>
       </header>
 
       <main style={mainLayout}>
         <aside style={sidebar}>
-          <div style={sidebarTitle}>SINAIS DE VOLATILIDADE</div>
+          <div style={sidebarTitle}>OPORTUNIDADES IDENTIFICADAS</div>
           <div style={listScroll}>
             {estrategias.map((est, idx) => (
               <div key={idx} onClick={() => setSelecionada(est)} style={strategyCard(selecionada?.name === est.name)}>
@@ -140,7 +153,7 @@ const App = () => {
                   <span style={{fontWeight:'bold', fontSize:'13px'}}>{est.name}</span>
                   <span style={{color:'#4ade80', fontSize:'12px'}}>{est.exibir_roi}</span>
                 </div>
-                <div style={{fontSize:'10px', color:'#64748b', marginTop:'4px'}}>Risco Estimado: {est.exibir_risco}</div>
+                <div style={{fontSize:'10px', color:'#64748b', marginTop:'4px'}}>Risco: {est.exibir_risco}</div>
               </div>
             ))}
           </div>
@@ -151,20 +164,20 @@ const App = () => {
             <>
               <div style={metricsRow}>
                 <div style={card}><small style={label}>LUCRO MÁXIMO</small><div style={{...val, color:'#4ade80'}}>R$ {analiseAvancada.lucroMax.toFixed(2)}</div></div>
-                <div style={card}><small style={label}>CUSTO/CRÉDITO LÍQUIDO</small><div style={{...val, color: analiseAvancada.isDebito ? '#f87171' : '#4ade80'}}>R$ {Math.abs(analiseAvancada.custoEfetivo).toFixed(2)}</div></div>
+                <div style={card}><small style={label}>EXPOSIÇÃO LÍQUIDA</small><div style={{...val, color: analiseAvancada.isDebito ? '#f87171' : '#4ade80'}}>R$ {Math.abs(analiseAvancada.custoEfetivo).toFixed(2)}</div></div>
                 <div style={card}><small style={label}>PROJEÇÃO DE ROI</small><div style={{...val, color:'#0ea5e9'}}>{analiseAvancada.roi}</div></div>
-                <div style={card}><small style={label}>PONTO DE EQUILÍBRIO</small><div style={val}>R$ {analiseAvancada.breakEven.toFixed(2)}</div></div>
+                <div style={card}><small style={label}>BREAK-EVEN</small><div style={val}>R$ {analiseAvancada.breakEven.toFixed(2)}</div></div>
               </div>
 
               <div style={detailGrid}>
                 <div style={panel}>
-                  <div style={panelHeader}>MODELAGEM DA ESTRUTURA</div>
+                  <div style={panelHeader}>COMPOSIÇÃO TÉCNICA</div>
                   <table style={table}>
                     <thead>
-                      <tr><th style={th}>OPERAÇÃO</th><th style={th}>TIPO</th><th style={th}>TICKER</th><th style={th}>STRIKE</th><th style={th}>QUANT</th></tr>
+                      <tr><th style={th}>OPERAÇÃO</th><th style={th}>TIPO</th><th style={th}>TICKER</th><th style={th}>STRIKE</th><th style={th}>QTD</th></tr>
                     </thead>
                     <tbody>
-                      {selecionada.pernas.map((p:any, i:number) => (
+                      {selecionada.pernas.map((p, i) => (
                         <tr key={i} style={tr}>
                           <td style={{color: p.direction === 'COMPRA' ? '#4ade80' : '#f87171', fontWeight:'bold', padding:'12px'}}>{p.direction}</td>
                           <td>{p.derivative.tipo}</td>
@@ -179,19 +192,14 @@ const App = () => {
 
                 <div style={panel}>
                   <div style={panelHeader}>CURVA DE PAYOFF ESTIMADA</div>
-                  <div ref={chartRef} style={{flex:1, padding:'15px', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                  <div ref={chartRef} style={{flex:1, padding:'15px', minHeight:'300px'}}>
                     <PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={analiseAvancada.taxasTotais} />
                   </div>
                 </div>
               </div>
             </>
           ) : (
-            <div style={empty}>
-               <div style={{textAlign:'center'}}>
-                  <div style={{fontSize:'40px', marginBottom:'10px'}}>📡</div>
-                  Aguardando input do Scanner para processar dados do TiDB...
-               </div>
-            </div>
+            <div style={empty}>Execute o Scanner para carregar dados do TiDB...</div>
           )}
         </section>
       </main>
@@ -199,7 +207,7 @@ const App = () => {
   );
 };
 
-// --- DESIGN SYSTEM (CSS-IN-JS) ---
+// --- DESIGN SYSTEM ---
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: '"JetBrains Mono", monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '20px', borderRadius: '10px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '20px', fontWeight: '900', letterSpacing: '-1px' };
@@ -211,10 +219,10 @@ const controlGrid: React.CSSProperties = { display: 'flex', gap: '15px', alignIt
 const inputGroup: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '5px' };
 const label: React.CSSProperties = { fontSize: '10px', color: '#64748b', fontWeight: '800' };
 const input: React.CSSProperties = { backgroundColor: '#020617', border: '1px solid #334155', color: '#fff', padding: '8px 12px', borderRadius: '5px', width: '130px', outline: 'none', fontWeight: 'bold' };
-const btnScan: React.CSSProperties = { backgroundColor: '#0ea5e9', color: '#fff', border: 'none', padding: '10px 25px', borderRadius: '5px', fontWeight: '900', cursor: 'pointer', flexGrow: 1, textTransform:'uppercase' };
+const btnScan: React.CSSProperties = { backgroundColor: '#0ea5e9', color: '#fff', border: 'none', padding: '10px 25px', borderRadius: '5px', fontWeight: '900', cursor: 'pointer', flexGrow: 1 };
 const mainLayout: React.CSSProperties = { display: 'flex', gap: '15px', height: 'calc(100vh - 200px)' };
 const sidebar: React.CSSProperties = { width: '320px', backgroundColor: '#0f172a', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column' };
-const sidebarTitle: React.CSSProperties = { padding: '15px', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid #1e293b', color: '#94a3b8', textTransform:'uppercase' };
+const sidebarTitle: React.CSSProperties = { padding: '15px', fontSize: '11px', fontWeight: 'bold', borderBottom: '1px solid #1e293b', color: '#94a3b8' };
 const listScroll: React.CSSProperties = { overflowY: 'auto', flex: 1 };
 const workspace: React.CSSProperties = { flex: 1, display: 'flex', flexDirection: 'column', gap: '15px' };
 const metricsRow: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px' };
@@ -224,9 +232,9 @@ const detailGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 
 const panel: React.CSSProperties = { backgroundColor: '#0f172a', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
 const panelHeader: React.CSSProperties = { backgroundColor: '#1e293b', padding: '10px 15px', fontSize: '11px', fontWeight: 'bold', color: '#38bdf8' };
 const table: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '12px' };
-const th: React.CSSProperties = { textAlign: 'left', padding: '12px', color: '#475569', borderBottom: '1px solid #1e293b', fontSize:'11px' };
+const th: React.CSSProperties = { textAlign: 'left', padding: '12px', color: '#475569', borderBottom: '1px solid #1e293b' };
 const tr: React.CSSProperties = { borderBottom: '1px solid #020617' };
-const empty: React.CSSProperties = { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontWeight: 'bold', fontSize: '18px', backgroundColor:'#0f172a', borderRadius:'10px', border:'1px dashed #1e293b' };
+const empty: React.CSSProperties = { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontWeight: 'bold', fontSize: '18px', border:'1px dashed #1e293b', borderRadius:'10px' };
 
 const strategyCard = (active: boolean): React.CSSProperties => ({
   padding: '15px', borderBottom: '1px solid #1e293b', cursor: 'pointer',
