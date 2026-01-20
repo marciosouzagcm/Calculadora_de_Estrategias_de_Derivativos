@@ -16,7 +16,7 @@ export interface MarketData {
  * BOARDPRO V38.5 - Gerenciamento de Dados de Mercado
  */
 export class MarketDataService {
-    // Chave de API da BRAPI (Recuperada do Commit b492082)
+    // Chave de API da BRAPI
     private readonly API_KEY = 'uwKJhawCxugzzGcMbRgNsd'; 
     private readonly BASE_URL = 'https://brapi.dev/api';
 
@@ -29,13 +29,14 @@ export class MarketDataService {
             // Limpeza de string: remove espaços e garante uppercase
             const cleanTicker = ticker.trim().toUpperCase();
             
-            // Chamada à API BRAPI
+            // Chamada à API BRAPI com Timeout para evitar travamentos na Vercel
             const response = await axios.get(`${this.BASE_URL}/quote/${cleanTicker}`, {
                 params: { 
                     token: this.API_KEY,
                     range: '1d',
                     interval: '1m'
-                }
+                },
+                timeout: 5000 // 5 segundos de limite
             });
 
             const result = response.data.results[0];
@@ -67,7 +68,6 @@ export class MarketDataService {
      * Atualmente retorna um valor base (fallback) para alimentar o modelo Black-Scholes.
      */
     async getOptionsVolatility(ticker: string): Promise<number> {
-        // Para um sistema SaaS, aqui buscaríamos a IV média das opções ATM da BRAPI
         // Valor padrão de 35% (0.35) conforme especificação técnica do projeto
         return 0.35; 
     }

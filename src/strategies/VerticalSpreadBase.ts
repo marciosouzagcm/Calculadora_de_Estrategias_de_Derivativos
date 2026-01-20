@@ -1,5 +1,5 @@
-import { IStrategy } from '../interfaces/IStrategy';
-import { OptionLeg, StrategyMetrics, Greeks } from '../interfaces/Types';
+import { IStrategy } from '../interfaces/IStrategy.js';
+import { OptionLeg, StrategyMetrics, Greeks } from '../interfaces/Types.js';
 
 export abstract class VerticalSpreadBase implements IStrategy {
     abstract name: string;

@@ -1,10 +1,10 @@
-import { IStrategy } from '../interfaces/IStrategy';
+import { IStrategy } from '../interfaces/IStrategy.js';
 import { 
     Greeks, 
     NaturezaOperacao, 
     OptionLeg, 
     StrategyMetrics 
-} from '../interfaces/Types';
+} from '../interfaces/Types.js';
 
 /**
  * CLASSE: CalendarSpread (Trava de Linha / Horizontal)
@@ -89,6 +89,7 @@ export class CalendarSpread implements IStrategy {
                     lucro_maximo: estimatedMaxProfit,
                     risco_maximo: netCost,
                     roi: roi,
+                    dias_uteis: legShort.dias_uteis || 0, // RESOLVE O ERRO TS2352
                     breakEvenPoints: [], // O BE de Calendar é dinâmico (depende da Vol)
                     greeks: netGreeks,
                     pernas: [

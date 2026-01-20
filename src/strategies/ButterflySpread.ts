@@ -1,10 +1,10 @@
-import { IStrategy } from '../interfaces/IStrategy';
+import { IStrategy } from '../interfaces/IStrategy.js';
 import { 
     Greeks, 
     NaturezaOperacao, 
     OptionLeg, 
     StrategyMetrics 
-} from '../interfaces/Types';
+} from '../interfaces/Types.js';
 
 /**
  * Helper: Gera a string de exibição para as pernas da Borboleta.

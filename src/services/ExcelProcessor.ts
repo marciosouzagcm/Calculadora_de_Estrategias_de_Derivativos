@@ -1,7 +1,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
-import { pool } from '../config/database';
+// Atualizado com .js para garantir compatibilidade com o ambiente Vercel/Node ESM
+import { pool } from '../config/database.js';
 
 // Ajuste de compatibilidade para ESM (Node 20 / TSX)
 const lib = (XLSX as any).default || XLSX;
@@ -63,12 +64,17 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
 
         console.log(`[TiDB PROCESSOR] 📑 Iniciando processamento: ${nomeBase}`);
 
+        // Verificação de existência do arquivo para evitar crash em Serverless
+        if (!fs.existsSync(nomeArquivoExcel)) {
+            throw new Error(`Arquivo não encontrado no caminho: ${nomeArquivoExcel}`);
+        }
+
         const workbook = readFile(nomeArquivoExcel);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const sheetAsArray: any[][] = utils.sheet_to_json(worksheet, { header: 1, raw: false });
 
         if (sheetAsArray.length < 2) {
-            console.warn(`[PROCESSOR] ⚠️ Arquivo insuficiente: ${nomeBase}`);
+            console.warn(`[PROCESSOR] ⚠️ Arquivo insuficiente ou vazio: ${nomeBase}`);
             return;
         }
 
@@ -92,7 +98,8 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
             if (ticker.length < 5 || ticker.toUpperCase() === 'TICKER') continue;
 
             let strike = cleanAndParseNumber(getVal('strike'));
-            if (strike < 10 && strike > 0) strike = strike * 10; 
+            // Normalização de Strike (Ex: BOVA11 15.5 -> 155.0)
+            if (strike < 15 && strike > 0) strike = strike * 10; 
 
             const premio = cleanAndParseNumber(getVal('premioPct')) / FATOR_CORRECAO_ESCALA_PRECO;
             const vol = cleanAndParseNumber(getVal('volImplicita')) / FATOR_CORRECAO_ESCALA_VI;
@@ -119,9 +126,12 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
             ]);
         }
 
-        if (valoresParaInserir.length === 0) return;
+        if (valoresParaInserir.length === 0) {
+            console.warn(`[PROCESSOR] ⚠️ Nenhuma linha válida encontrada em: ${nomeBase}`);
+            return;
+        }
 
-        // SQL Otimizado para TiDB Cloud (Uso de transação para garantir atomicidade na nuvem)
+        // SQL Otimizado para TiDB Cloud (Uso de transação para garantir atomicidade)
         const sql = `
             INSERT INTO opcoes 
             (idAcao, ticker, vencimento, diasUteis, tipo, strike, premioPct, volImplicita, delta, gamma, theta, vega, dataHora)

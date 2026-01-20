@@ -1,54 +1,60 @@
-import { Greeks, OptionLeg } from '../interfaces/Types';
+import fs from 'fs';
+/**
+ * Em sistemas NodeNext/ESM, a importação de submódulos sync pode ser problemática.
+ * Usamos a importação do pacote principal ou o caminho direto compatível.
+ */
+import { parse } from 'csv-parse/sync';
+import { OptionLeg } from '../interfaces/Types.js';
 
-export function parseOptionsDump(rawText: string): OptionLeg[] {
-    // Divide o texto em linhas
-    const lines = rawText.split('\n').filter(line => line.trim().length > 0);
+/**
+ * Utilitário para leitura e conversão de arquivos CSV para o formato OptionLeg.
+ * BOARDPRO V40.0 - CSV Engine
+ */
+export class CSVReader {
+    /**
+     * Lê um arquivo CSV e converte em um array de OptionLeg.
+     * @param filePath Caminho completo do arquivo
+     */
+    public static readOptionsCSV(filePath: string): OptionLeg[] {
+        try {
+            // Verifica se o arquivo existe antes de tentar ler (evita crash em serverless)
+            if (!fs.existsSync(filePath)) {
+                console.error(`[CSV READER] Arquivo não encontrado: ${filePath}`);
+                return [];
+            }
 
-    return lines.map(line => {
-        // Regex para capturar os blocos de dados baseados no seu dump
-        // O segredo está em separar o ID inicial do Ticker do Ativo
-        const parts = line.trim().split(/\s+/);
-        
-        if (parts.length < 10) return null;
+            const fileContent = fs.readFileSync(filePath, 'utf-8');
+            
+            // O parser 'sync' é ideal para scripts de processamento de carga
+            const records: any[] = parse(fileContent, {
+                columns: true,
+                skip_empty_lines: true,
+                delimiter: ';', // Padrão comum em CSVs brasileiros (Excel)
+                trim: true,
+                cast: false // Desativamos o cast automático para tratar strings brasileiras manualmente
+            });
 
-        // Limpeza do Ativo: Remove números iniciais (ID) do ticker BOVA11
-        const rawAtivo = parts[0];
-        const ativoBase = rawAtivo.replace(/^\d+/, ''); // Transforma "1BOVA11" em "BOVA11"
-        
-        const optionTicker = parts[1];
-        const vencimento = parts[2];
-        const diasUteis = parseInt(parts[3]);
-        const tipo = parts[4] as 'CALL' | 'PUT';
-        
-        // Conversão Numérica com ajuste de escala para BOVA11
-        const parseNum = (val: string) => parseFloat(val.replace(',', '.'));
-        
-        let strike = parseNum(parts[5]);
-        const premio = parseNum(parts[6]);
+            return records.map((row: any) => ({
+                ativo_subjacente: row.ativo_subjacente || row.Ativo || '',
+                option_ticker: row.option_ticker || row.Ticker || '',
+                vencimento: row.vencimento || row.Vencimento || '',
+                dias_uteis: parseInt(String(row.dias_uteis || row['Dias Úteis'] || 0)),
+                tipo: (String(row.tipo || row.Tipo || 'CALL').toUpperCase()) as 'CALL' | 'PUT',
+                strike: parseFloat(String(row.strike || row.Strike || 0).replace(',', '.')),
+                premio: parseFloat(String(row.premio || row.Prêmio || 0).replace(',', '.')),
+                vol_implicita: parseFloat(String(row.vol_implicita || row['Vol. Implícita'] || 0).replace(',', '.')),
+                multiplicador_contrato: 100,
+                gregas_unitarias: {
+                    delta: parseFloat(String(row.delta || 0).replace(',', '.')),
+                    gamma: parseFloat(String(row.gamma || 0).replace(',', '.')),
+                    theta: parseFloat(String(row.theta || 0).replace(',', '.')),
+                    vega: parseFloat(String(row.vega || 0).replace(',', '.')),
+                }
+            }));
 
-        // Ajuste automático: strikes de BOVA11 no dump vêm como 15.30 (deveria ser 153.00)
-        if (ativoBase.includes('BOVA11') && strike < 100) {
-            strike = strike * 10;
+        } catch (error: any) {
+            console.error(`[CSV READER ERROR] Falha ao processar CSV: ${error.message}`);
+            return [];
         }
-
-        const greeks: Greeks = {
-            delta: parseNum(parts[8]),
-            gamma: parseNum(parts[9]),
-            theta: parseNum(parts[10]),
-            vega: parseNum(parts[11])
-        };
-
-        return {
-            ativo_subjacente: ativoBase,
-            option_ticker: optionTicker,
-            vencimento,
-            dias_uteis: diasUteis,
-            tipo,
-            strike,
-            premio,
-            vol_implicita: parseNum(parts[7]),
-            gregas_unitarias: greeks,
-            multiplicador_contrato: 100
-        } as OptionLeg;
-    }).filter((item): item is OptionLeg => item !== null);
+    }
 }

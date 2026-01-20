@@ -5,34 +5,29 @@
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "isolatedModules": true,
-    
-    /* Configurações de Emissão */
     "outDir": "./dist",
-    "rootDir": "./", 
+    "rootDir": "./",
     "noEmit": false,
-    
-    /* Rigor e Performance */
-    "strict": false,
-    "noImplicitAny": false,
+    "sourceMap": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "suppressImplicitAnyIndexErrors": true,
     "baseUrl": ".",
+    "strict": false,
     "paths": {
-      "*": ["node_modules/*", "src/*"]
+      "@/*": ["src/*"],
+      "~/*": ["api/*"]
     }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
     "api/**/*.ts",
-    "api/**/*.tsx",
-    "api/index.ts"
+    "api/**/*.tsx"
   ],
   "exclude": [
-    "node_modules", 
-    "dist", 
+    "node_modules",
+    "dist",
     "tests",
     "**/*.test.ts",
     "**/*.spec.ts"

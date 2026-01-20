@@ -1,6 +1,7 @@
 // src/services/OptionsDataProcessor.ts
 
-import { OptionLeg } from '../interfaces/Types'; 
+// Atualizado com .js para compatibilidade ESM na Vercel
+import { OptionLeg } from '../interfaces/Types.js'; 
 
 const CONTRACT_MULTIPLIER = 100;
 
@@ -28,7 +29,6 @@ export class OptionsDataProcessor {
             
             /* IMPORTANTE: Quando você buscar os dados do Banco, 
                precisamos passar pelo normalizeStrike. 
-               Exemplo de como deve ser o mapeamento:
             */
             
             const processedData = dataFromSource.map(option => ({
@@ -45,9 +45,9 @@ export class OptionsDataProcessor {
                 strike: this.normalizeStrike(o.ativo_subjacente, o.strike)
             })).filter(o => o.ativo_subjacente.toUpperCase() === ticker.toUpperCase());
 
-        } catch (error) {
-            console.warn("[DATA SERVICE] Falha ao processar dados reais, usando Mock.");
-            return MOCK_OPTIONS_DATA;
+        } catch (error: any) {
+            console.warn(`[DATA SERVICE] Falha ao processar dados reais para ${ticker}: ${error.message}`);
+            return MOCK_OPTIONS_DATA.filter(o => o.ativo_subjacente.toUpperCase() === ticker.toUpperCase());
         }
     }
 }
@@ -59,7 +59,7 @@ const MOCK_OPTIONS_DATA: OptionLeg[] = [
         vencimento: '2025-12-18', 
         dias_uteis: 15, 
         tipo: 'CALL', 
-        strike: 120.00, // No Mock já está certo, mas a função normalize garante
+        strike: 120.00, 
         multiplicador_contrato: CONTRACT_MULTIPLIER, 
         premio: 5.50, 
         vol_implicita: 0.25, 

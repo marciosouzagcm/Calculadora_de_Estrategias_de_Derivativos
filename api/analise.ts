@@ -1,28 +1,30 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import cors from 'cors';
 import dotenv from 'dotenv';
-// Atualizado com .js para compatibilidade com ESM/Vercel
+
+// IMPORTANTE: Adicionadas extensões .js para compatibilidade com ESM na Vercel
 import { DatabaseService, pool } from '../src/config/database.js';
 import { PayoffCalculator } from '../src/services/PayoffCalculator.js';
+// Interfaces não precisam de .js se forem apenas tipos, mas por segurança mantemos o padrão
 import { StrategyMetrics } from '../src/interfaces/Types.js';
 
 // Carrega variáveis de ambiente
 dotenv.config();
 
-// Configuração de taxas
+// Configuração de taxas (B3 + Corretagem estimada)
 const FEE_PER_LEG = 22.00;
 
-// Helper para formatar moeda
+// Helper para formatar moeda brasileira
 const fmtBRL = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 /**
- * Prepara a estratégia para o consumo do Frontend
+ * Prepara a estratégia para o consumo do Frontend (Dashboard)
  */
 function prepareStrategyForFrontend(metrics: StrategyMetrics, lot: number): any {
     const isExplosion = metrics.name.toLowerCase().includes('str');
     const numPernas = metrics.pernas.length;
     const feesOpen = numPernas * FEE_PER_LEG;
     
+    // Filtro para evitar valores infinitos do modelo matemático no gráfico
     const maxProfitNum = (typeof metrics.max_profit === 'number' && metrics.max_profit < 900000) ? metrics.max_profit : null;
     const maxLossNum = (typeof metrics.max_loss === 'number' && metrics.max_loss < 900000) ? metrics.max_loss : null;
 
@@ -44,10 +46,10 @@ function prepareStrategyForFrontend(metrics: StrategyMetrics, lot: number): any 
 }
 
 /**
- * Handler Principal da Vercel (Substitui o app.get)
+ * Handler Principal da Vercel
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // 1. Configuração manual de CORS (Vercel Functions não usam app.use(cors) nativamente)
+    // 1. Configuração de CORS para permitir chamadas do seu domínio Frontend
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -59,33 +61,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // 2. Garantir conexão com o Banco
-        // O pool de conexões do mysql2 gerencia isso automaticamente, 
-        // mas testamos para garantir que o TiDB está acessível.
+        // 2. Garantir conexão com o Banco TiDB Cloud
         await pool.query('SELECT 1');
 
-        // 3. Extrair Parâmetros
-        const ticker = (req.query.ticker as string || 'ABEV3').toUpperCase();
+        // 3. Extrair e validar parâmetros da URL
+        const ticker = (req.query.ticker as string || 'ABEV3').toUpperCase().trim();
         const inputLot = parseInt(req.query.lote as string || '1000');
 
-        // 4. Executar Lógica de Negócio
+        // 4. Buscar Dados de Mercado
         const currentPrice = await DatabaseService.getSpotPrice(ticker);
+        
         if (currentPrice === 0) {
-            return res.status(404).json({ status: "error", message: `Preço spot não encontrado para ${ticker}` });
+            return res.status(404).json({ 
+                status: "error", 
+                message: `Cotação não encontrada para ${ticker}. Verifique se o ativo está no banco.` 
+            });
         }
 
         const options = await DatabaseService.getOptionsByTicker(ticker);
         
-        // Instancia a calculadora e processa estratégias
+        if (!options || options.length === 0) {
+            return res.status(404).json({ 
+                status: "error", 
+                message: `Nenhuma opção encontrada para ${ticker} com vencimento futuro.` 
+            });
+        }
+
+        // 5. Executar o Scanner de Estratégias
+        // A PayoffCalculator utiliza a StrategyFactory internamente
         const calculator = new PayoffCalculator(options, FEE_PER_LEG, inputLot);
-        const results = calculator.findAndCalculateSpreads(currentPrice, 0.25);
+        const results = calculator.findAndCalculateSpreads(currentPrice, 0.25); // 0.25 = 25% de margem de busca
         
+        // 6. Formatação Final
         const estruturadas = results.map(s => prepareStrategyForFrontend(s, inputLot));
 
-        // 5. Retornar Resultado
         return res.status(200).json({ 
             status: "success", 
-            timestamp: new Date().toISOString(),
+            metadata: {
+                ticker,
+                spot: currentPrice,
+                lote: inputLot,
+                timestamp: new Date().toISOString()
+            },
             count: estruturadas.length,
             data: estruturadas 
         });
@@ -94,7 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('❌ [API ERROR]:', e.message);
         return res.status(500).json({ 
             status: "error", 
-            message: e.message 
+            message: "Erro interno no processamento da análise.",
+            details: e.message 
         });
     }
 }

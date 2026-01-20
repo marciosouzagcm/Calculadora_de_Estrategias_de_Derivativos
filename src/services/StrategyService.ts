@@ -1,6 +1,7 @@
-import { DatabaseService } from '../config/database';
-import { StrategyFactory } from '../factories/StrategyFactory';
-import { OptionLeg, StrategyMetrics } from '../interfaces/Types';
+// Atualizado com extensões .js para compatibilidade ESM na Vercel
+import { DatabaseService } from '../config/database.js';
+import { StrategyFactory } from '../factories/StrategyFactory.js';
+import { OptionLeg, StrategyMetrics } from '../interfaces/Types.js';
 
 /**
  * BOARDPRO V40.0 - Strategy Orchestrator
@@ -76,7 +77,7 @@ export class StrategyService {
                     });
                 }
             } catch (err) {
-                console.error(`[ENGINE_ERROR] Falha no modelo ${strategy.name}:`, err);
+                console.error(`❌ [ENGINE_ERROR] Falha no modelo ${strategy.name}:`, err);
             }
         }
 

@@ -1,15 +1,15 @@
-import { IStrategy } from '../interfaces/IStrategy';
-import { Greeks, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
-import { BlackScholes } from './BlackScholes';
+import { IStrategy } from '../interfaces/IStrategy.js';
+import { Greeks, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types.js';
+import { BlackScholes } from './BlackScholes.js';
 
-import { BearCallSpread } from '../strategies/BearCallSpread';
-import { BearPutSpread } from '../strategies/BearPutSpread';
-import { BullCallSpread } from '../strategies/BullCallSpread';
-import { BullPutSpread } from '../strategies/BullPutSpread';
-import { LongStraddle } from '../strategies/LongStraddle';
-import { LongStrangle } from '../strategies/LongStrangle';
-import { ShortStraddle } from '../strategies/ShortStraddle';
-import { ShortStrangle } from '../strategies/ShortStrangle';
+import { BearCallSpread } from '../strategies/BearCallSpread.js';
+import { BearPutSpread } from '../strategies/BearPutSpread.js';
+import { BullCallSpread } from '../strategies/BullCallSpread.js';
+import { BullPutSpread } from '../strategies/BullPutSpread.js';
+import { LongStraddle } from '../strategies/LongStraddle.js';
+import { LongStrangle } from '../strategies/LongStrangle.js';
+import { ShortStraddle } from '../strategies/ShortStraddle.js';
+import { ShortStrangle } from '../strategies/ShortStrangle.js';
 
 type OptionGroupMap = { [key: string]: OptionLeg[] }; 
 

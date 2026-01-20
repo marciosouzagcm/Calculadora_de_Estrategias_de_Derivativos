@@ -1,5 +1,5 @@
-import { IStrategy } from '../interfaces/IStrategy';
-import { OptionLeg, StrategyMetrics, NaturezaOperacao, Greeks } from '../interfaces/Types';
+import { IStrategy } from '../interfaces/IStrategy.js';
+import { OptionLeg, StrategyMetrics, NaturezaOperacao, Greeks } from '../interfaces/Types.js';
 
 export abstract class VolatilityBase implements IStrategy {
     abstract name: string;
