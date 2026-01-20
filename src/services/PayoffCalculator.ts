@@ -1,14 +1,7 @@
 import { IStrategy } from '../interfaces/IStrategy';
-import {
-    Greeks,
-    OptionLeg,
-    StrategyMetrics
-} from '../interfaces/Types';
+import { Greeks, OptionLeg, StrategyLeg, StrategyMetrics } from '../interfaces/Types';
+import { BlackScholes } from './BlackScholes';
 
-// Nota: Certifique-se de que este caminho está correto no seu ambiente local
-import { BlackScholes } from '../../frontend-app/src/services/BlackScholes';
-
-// Importações das estratégias
 import { BearCallSpread } from '../strategies/BearCallSpread';
 import { BearPutSpread } from '../strategies/BearPutSpread';
 import { BullCallSpread } from '../strategies/BullCallSpread';
@@ -34,14 +27,75 @@ export const SPREAD_MAP: { [key: number]: { name: string, strategy: IStrategy }[
 };
 
 export class PayoffCalculator {
-    private optionsData: OptionLeg[];
-    private feePerLeg: number; 
-    private lotSize: number;
+    constructor(
+        private optionsData: OptionLeg[], 
+        private feePerLeg: number, 
+        private lotSize: number
+    ) {}
 
-    constructor(optionsData: OptionLeg[], feePerLeg: number, lotSize: number) { 
-        this.optionsData = optionsData;
-        this.feePerLeg = feePerLeg;
-        this.lotSize = lotSize;
+    private normalizeMetrics(metrics: StrategyMetrics, currentAssetPrice: number): StrategyMetrics {
+        const totalFeesFinanceiro = metrics.pernas.length * this.feePerLeg * 2;
+        metrics.taxas_ciclo = totalFeesFinanceiro;
+
+        const profitBrutoUnitario = typeof metrics.max_profit === 'number' ? metrics.max_profit : 0;
+        const lossBrutoUnitario = typeof metrics.max_loss === 'number' ? Math.abs(metrics.max_loss) : 0;
+
+        metrics.max_profit = parseFloat((profitBrutoUnitario * this.lotSize - totalFeesFinanceiro).toFixed(2));
+        metrics.lucro_maximo = metrics.max_profit;
+        metrics.max_loss = parseFloat((lossBrutoUnitario * this.lotSize + totalFeesFinanceiro).toFixed(2));
+        metrics.risco_maximo = -metrics.max_loss; 
+
+        metrics.greeks = this.calculateNetGreeks(metrics, currentAssetPrice);
+
+        if (metrics.max_loss > 0) {
+            metrics.roi = metrics.max_profit / metrics.max_loss;
+            metrics.exibir_roi = `${(metrics.roi * 100).toFixed(2)}%`;
+        }
+
+        (metrics as any).riskRewardRatio = metrics.max_profit > 0 
+            ? parseFloat((metrics.max_loss / metrics.max_profit).toFixed(2)) 
+            : 99;
+
+        metrics.pernas = metrics.pernas.map((p: StrategyLeg) => {
+            if (p.derivative.strike > 500) p.derivative.strike /= 100;
+            if (p.derivative.premio > 50) p.derivative.premio /= 100;
+            return p;
+        });
+
+        return metrics;
+    }
+
+    private calculateNetGreeks(metrics: StrategyMetrics, currentAssetPrice: number): Greeks {
+        const SELIC = 0.1075;
+        return metrics.pernas.reduce((acc, leg) => {
+            const factor = (leg.direction === 'COMPRA' ? 1 : -1) * (leg.multiplier || 1);
+            const s = leg.derivative.strike;
+            const strikeSafe = s > 500 ? s / 100 : s;
+            
+            let unitarias: Greeks;
+
+            if (leg.derivative.gregas_unitarias && leg.derivative.gregas_unitarias.delta !== 0) {
+                unitarias = leg.derivative.gregas_unitarias;
+            } else {
+                const t = Math.max(leg.derivative.dias_uteis || 1, 1) / 252;
+                const v = leg.derivative.vol_implicita || 0.35;
+                const tipo = leg.derivative.tipo as 'CALL' | 'PUT';
+
+                unitarias = {
+                    delta: BlackScholes.calculateDelta(currentAssetPrice, strikeSafe, t, v, SELIC, tipo),
+                    gamma: BlackScholes.calculateGamma(currentAssetPrice, strikeSafe, t, v, SELIC),
+                    theta: BlackScholes.calculateTheta(currentAssetPrice, strikeSafe, t, v, SELIC, tipo),
+                    vega: BlackScholes.calculateVega(currentAssetPrice, strikeSafe, t, v, SELIC)
+                };
+            }
+
+            return {
+                delta: acc.delta + (unitarias.delta * factor),
+                gamma: acc.gamma + (unitarias.gamma * factor),
+                theta: acc.theta + (unitarias.theta * factor),
+                vega: acc.vega + (unitarias.vega * factor),
+            };
+        }, { delta: 0, gamma: 0, theta: 0, vega: 0 } as Greeks);
     }
 
     private findTwoLegCombinationsSameType(options: OptionLeg[], targetType: 'CALL' | 'PUT'): OptionLeg[][] {
@@ -56,7 +110,7 @@ export class PayoffCalculator {
         }, {} as OptionGroupMap);
 
         for (const key in groups) {
-            const group = groups[key].sort((a, b) => (a.strike || 0) - (b.strike || 0));
+            const group = groups[key].sort((a, b) => a.strike - b.strike);
             for (let i = 0; i < group.length; i++) {
                 for (let j = i + 1; j < group.length; j++) {
                     combinations.push([group[i], group[j]]);
@@ -75,13 +129,10 @@ export class PayoffCalculator {
         for (const callLeg of calls) {
             for (const putLeg of puts) {
                 if (callLeg.vencimento !== putLeg.vencimento) continue;
-
-                const strikeCall = callLeg.strike ?? 0;
-                const strikePut = putLeg.strike ?? 0;
-                if (strikeCall === 0 || strikePut === 0) continue;
-
-                const sameStrike = Math.abs(strikeCall - strikePut) < TOLERANCE;
-                if ((mustHaveSameStrike && sameStrike) || (!mustHaveSameStrike && !sameStrike)) {
+                const strikeCall = callLeg.strike > 500 ? callLeg.strike / 100 : callLeg.strike;
+                const strikePut = putLeg.strike > 500 ? putLeg.strike / 100 : putLeg.strike;
+                if ((mustHaveSameStrike && Math.abs(strikeCall - strikePut) < TOLERANCE) || 
+                    (!mustHaveSameStrike && Math.abs(strikeCall - strikePut) >= TOLERANCE)) {
                     combinations.push([callLeg, putLeg]);
                 }
             }
@@ -89,64 +140,7 @@ export class PayoffCalculator {
         return combinations;
     }
 
-    private calculateNetGreeks(metrics: StrategyMetrics, currentAssetPrice: number): Greeks {
-        const SELIC = 0.1075;
-        return metrics.pernas.reduce((acc, leg) => {
-            const totalFactor = (leg.direction === 'COMPRA' ? 1 : -1) * (leg.multiplier || 1);
-            const strikeSafe = leg.derivative.strike ?? 0;
-            const tipoLeg = leg.derivative.tipo;
-            
-            let unitarias: Greeks;
-            // Se o TiDB já trouxe as gregas calculadas, usamos elas. Senão, calculamos via BS.
-            if (leg.derivative.delta !== undefined && leg.derivative.delta !== 0) {
-                unitarias = {
-                    delta: Number(leg.derivative.delta),
-                    gamma: Number(leg.derivative.gamma),
-                    theta: Number(row.theta), // Nota: Verifique se 'row' aqui deve ser 'leg.derivative'
-                    vega: Number(leg.derivative.vega)
-                } as any;
-                // Correção: acessando via leg.derivative
-                unitarias = {
-                    delta: Number(leg.derivative.delta || 0),
-                    gamma: Number(leg.derivative.gamma || 0),
-                    theta: Number(leg.derivative.theta || 0),
-                    vega: Number(leg.derivative.vega || 0)
-                };
-            } else {
-                const tempoAnos = Math.max(leg.derivative.dias_uteis || 1, 1) / 252;
-                const volSafe = (leg.derivative.vol_implicita && leg.derivative.vol_implicita > 0) ? leg.derivative.vol_implicita : 0.35;
-                unitarias = {
-                    delta: BlackScholes.calculateDelta(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC, tipoLeg as any),
-                    gamma: BlackScholes.calculateGamma(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC),
-                    theta: BlackScholes.calculateTheta(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC, tipoLeg as any),
-                    vega: BlackScholes.calculateVega(currentAssetPrice, strikeSafe, tempoAnos, volSafe, SELIC)
-                };
-            }
-
-            return {
-                delta: (acc.delta || 0) + (unitarias.delta * totalFactor),
-                gamma: (acc.gamma || 0) + (unitarias.gamma * totalFactor),
-                theta: (acc.theta || 0) + (unitarias.theta * totalFactor),
-                vega: (acc.vega || 0) + (unitarias.vega * totalFactor),
-            };
-        }, { delta: 0, gamma: 0, theta: 0, vega: 0 } as Greeks);
-    }
-
-    private normalizeMetrics(metrics: StrategyMetrics, currentAssetPrice: number): StrategyMetrics {
-        const profit = typeof metrics.max_profit === 'number' ? metrics.max_profit : 0;
-        const loss = Math.abs(typeof metrics.max_loss === 'number' ? metrics.max_loss : 0);
-        
-        const totalFees = metrics.pernas.length * (this.feePerLeg / this.lotSize);
-        const netProfit = profit - totalFees;
-        const netRisk = loss + totalFees;
-
-        metrics.greeks = this.calculateNetGreeks(metrics, currentAssetPrice);
-        (metrics as any).riskRewardRatio = netProfit > 0 ? parseFloat((netRisk / netProfit).toFixed(2)) : 99;
-
-        return metrics;
-    }
-
-    public findAndCalculateSpreads(currentAssetPrice: number, maxRR: number = 0.5): StrategyMetrics[] {
+    public findAndCalculateSpreads(currentAssetPrice: number, maxRR: number = 3.0): StrategyMetrics[] {
         const strategiesToRun = SPREAD_MAP[0];
         let results: StrategyMetrics[] = [];
 
@@ -157,7 +151,6 @@ export class PayoffCalculator {
 
         for (const sObj of strategiesToRun) {
             let combos: OptionLeg[][] = [];
-            
             if (sObj.strategy instanceof BullCallSpread || sObj.strategy instanceof BearCallSpread) combos = sameCall;
             else if (sObj.strategy instanceof BullPutSpread || sObj.strategy instanceof BearPutSpread) combos = samePut;
             else if (sObj.strategy instanceof LongStraddle || sObj.strategy instanceof ShortStraddle) combos = sameStrike;
@@ -167,16 +160,15 @@ export class PayoffCalculator {
                 try {
                     const res = sObj.strategy.calculateMetrics(combo, currentAssetPrice, 0); 
                     if (res) {
-                        const normalized = this.normalizeMetrics(res, currentAssetPrice);
-                        if ((normalized as any).riskRewardRatio <= maxRR) {
-                            results.push(normalized);
+                        const resArray = Array.isArray(res) ? res : [res];
+                        for (const item of resArray) {
+                            const normalized = this.normalizeMetrics(item, currentAssetPrice);
+                            if ((normalized as any).riskRewardRatio <= maxRR) results.push(normalized);
                         }
                     }
-                } catch (e) {
-                    // Erros silenciosos para não travar o loop de milhares de combinações
-                }
+                } catch (e) {}
             }
         }
-        return results;
+        return results.sort((a, b) => (a as any).riskRewardRatio - (b as any).riskRewardRatio);
     }
 }

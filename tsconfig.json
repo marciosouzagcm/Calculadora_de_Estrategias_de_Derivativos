@@ -5,7 +5,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    
+    "isolatedModules": true, // Adicionado para resolver avisos do ts-jest e compatibilidade hibrida
+
     /* Configurações de Emissão (Essencial para Vercel) */
     "outDir": "./dist",
     "rootDir": "./src", 
@@ -18,7 +19,8 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "tests/**/*.ts" // Incluído para que o VS Code e o TS reconheçam os tipos nos seus testes
   ],
   "exclude": [
     "node_modules", 

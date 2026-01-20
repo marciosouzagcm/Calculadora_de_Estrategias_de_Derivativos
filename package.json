@@ -10,7 +10,7 @@
     "start-backend": "tsx src/server.ts",
     "dev": "tsx watch src/index.ts",
     "api:dev": "tsx watch src/server.ts",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "process-csv": "tsx src/processador_opcoes.ts",
     "process-and-copy": "npm run process-csv && node scripts/copyCsv.js",
     "clean": "rimraf dist"
