@@ -1,9 +1,10 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { DatabaseService, pool } from '../src/config/database';
-import { PayoffCalculator } from '../src/services/PayoffCalculator';
-import { StrategyMetrics } from '../src/interfaces/Types';
+// Atualizado com .js para compatibilidade com ESM/Vercel
+import { DatabaseService, pool } from '../src/config/database.js';
+import { PayoffCalculator } from '../src/services/PayoffCalculator.js';
+import { StrategyMetrics } from '../src/interfaces/Types.js';
 
 // Carrega variáveis de ambiente
 dotenv.config();
