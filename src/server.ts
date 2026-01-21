@@ -5,12 +5,11 @@ import { DataOrchestrator } from './services/DataOrchestrator.js';
 import { StrategyService } from './services/StrategyService.js';
 
 /** * CORREÇÃO CRÍTICA (NodeNext):
- * 1. O caminho sobe um nível (../) pois a pasta 'api' está na raiz.
- * 2. O uso da extensão '.js' é obrigatório para que o NodeNext resolva o módulo corretamente.
+ * Removemos o import de '../api/routes.js' pois ele foi deletado e unificado no api/index.ts.
+ * Importamos o app unificado para manter a consistência.
  */
-import optionsRouter from '../api/routes.js'; 
+import appUnificado from '../api/index.js'; 
 
-// Carrega variáveis de ambiente (.env)
 dotenv.config();
 
 const app = express();
@@ -25,12 +24,6 @@ app.use(cors({
 })); 
 
 app.use(express.json());
-
-/**
- * --- REGISTRO DE ROTAS ---
- */
-// Acopla as rotas de busca de opções (ex: GET /api/opcoes)
-app.use('/api', optionsRouter);
 
 /**
  * --- ENDPOINT DE SAÚDE (HEALTH CHECK) ---
@@ -99,12 +92,12 @@ const PORT: number = Number(process.env.PORT) || 10000;
 
 const startServer = async () => {
     try {
+        // Evita inicialização dupla se estiver rodando na Vercel
+        if (process.env.VERCEL === '1') return;
+
         console.log("⏳ [STARTUP] Inicializando serviços de dados...");
-        
-        // Inicializa a conexão com o TiDB Cloud
         await DataOrchestrator.init();
         
-        // Escuta em 0.0.0.0 para garantir acessibilidade em ambientes cloud
         app.listen(PORT, '0.0.0.0', () => {
             console.log("--------------------------------------------------");
             console.log(`🚀 BOARDPRO API RODANDO NA PORTA: ${PORT}`);
@@ -117,4 +110,9 @@ const startServer = async () => {
     }
 };
 
-startServer();
+// Executa apenas se não estiver em ambiente de teste ou Vercel
+if (process.env.NODE_ENV !== 'test') {
+    startServer();
+}
+
+export default app;
