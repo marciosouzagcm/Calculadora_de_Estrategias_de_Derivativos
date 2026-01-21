@@ -5,23 +5,14 @@ export abstract class VerticalSpreadBase implements IStrategy {
     abstract name: string;
     abstract isBull: boolean;
     abstract type: 'CALL' | 'PUT';
-
     public marketView: 'ALTA' | 'BAIXA' | 'NEUTRA' | 'VOLÁTIL' = 'ALTA';
 
-    constructor() {}
-
-    /**
-     * Motor de cálculo para todas as variações de travas verticais
-     */
     calculateMetrics(allOptions: OptionLeg[], spotPrice: number, feePerLeg: number): StrategyMetrics[] {
         this.marketView = this.isBull ? 'ALTA' : 'BAIXA';
         const results: StrategyMetrics[] = [];
 
-        // Filtra opções por tipo e garante que o strike existe e é numérico
         const filteredOptions = allOptions.filter(o => 
-            o.tipo === this.type && 
-            o.strike !== null && 
-            !isNaN(Number(o.strike))
+            o.tipo === this.type && o.strike !== null && !isNaN(Number(o.strike))
         );
 
         for (let i = 0; i < filteredOptions.length; i++) {
@@ -31,77 +22,66 @@ export abstract class VerticalSpreadBase implements IStrategy {
                 const optA = filteredOptions[i];
                 const optB = filteredOptions[j];
 
-                // CORREÇÃO DE DATA: Normaliza para garantir que a comparação funcione
-                const dateA = String(optA.vencimento).split('T')[0];
-                const dateB = String(optB.vencimento).split('T')[0];
-                if (dateA !== dateB) continue;
+                if (String(optA.vencimento).split('T')[0] !== String(optB.vencimento).split('T')[0]) continue;
 
                 let buyLeg: OptionLeg, sellLeg: OptionLeg;
 
-                // Lógica de Direção (Bull/Bear)
-                // Bull: Compra strike menor (Call) ou Vende strike menor (Put)
-                // Aqui definimos quem é a ponta de compra e venda para o cálculo
+                // Define a estrutura: Bull Spread ou Bear Spread
                 if (this.isBull) {
-                    if (optA.strike! < optB.strike!) {
-                        buyLeg = optA; sellLeg = optB;
-                    } else continue;
+                    if (optA.strike! < optB.strike!) { buyLeg = optA; sellLeg = optB; } else continue;
                 } else {
-                    if (optA.strike! > optB.strike!) {
-                        buyLeg = optA; sellLeg = optB;
-                    } else continue;
+                    if (optA.strike! > optB.strike!) { buyLeg = optA; sellLeg = optB; } else continue;
                 }
 
-                // Prêmios e Diferencial
-                const netPremium = sellLeg.premio - buyLeg.premio;
+                // CÁLCULO FINANCEIRO UNITÁRIO (Ajustado para Precisão B3)
+                // O custo da montagem (Debito é positivo para o bolso, Crédito é negativo)
+                const cost = buyLeg.premio - sellLeg.premio;
                 const strikeDiff = Math.abs(sellLeg.strike! - buyLeg.strike!);
-                const isCredit = netPremium > 0;
-
-                // Lucro e Perda Máxima
-                const maxProfit = isCredit ? netPremium : strikeDiff + netPremium;
-                const maxLoss = isCredit ? strikeDiff - netPremium : Math.abs(netPremium);
-
-                // Filtro de viabilidade (Evita distorções de book vazio)
-                if (maxProfit <= 0 || maxLoss <= 0 || maxProfit > strikeDiff) continue;
-
-                // Cálculo do Break-even
+                
+                let maxProfit = 0;
+                let maxLoss = 0;
                 let be = 0;
-                if (this.type === 'CALL') {
-                    be = isCredit ? sellLeg.strike! + netPremium : buyLeg.strike! + Math.abs(netPremium);
-                } else {
-                    be = isCredit ? sellLeg.strike! - netPremium : buyLeg.strike! - Math.abs(netPremium);
+
+                // Lógica de Travas de Débito (Call Bull / Put Bear)
+                if (cost > 0) {
+                    maxProfit = strikeDiff - cost;
+                    maxLoss = cost;
+                    be = this.type === 'CALL' ? buyLeg.strike! + cost : buyLeg.strike! - cost;
+                } 
+                // Lógica de Travas de Crédito (Call Bear / Put Bull)
+                else {
+                    const creditReceived = Math.abs(cost);
+                    maxProfit = creditReceived;
+                    maxLoss = strikeDiff - creditReceived;
+                    be = this.type === 'CALL' ? sellLeg.strike! + creditReceived : sellLeg.strike! - creditReceived;
                 }
+
+                // Filtro de viabilidade operacional
+                if (maxProfit <= 0.01 || maxLoss <= 0.01) continue;
 
                 results.push({
                     name: this.name,
                     asset: buyLeg.ativo_subjacente,
                     asset_price: spotPrice,
                     spread_type: 'VERTICAL',
-                    expiration: dateA,
+                    expiration: String(optA.vencimento).split('T')[0],
                     dias_uteis: buyLeg.dias_uteis || 0,
                     strike_description: `${buyLeg.strike!.toFixed(2)} / ${sellLeg.strike!.toFixed(2)}`,
-                    net_premium: Number(netPremium.toFixed(2)),
-                    initialCashFlow: Number(netPremium.toFixed(2)),
-                    natureza: isCredit ? 'CRÉDITO' : 'DÉBITO',
-                    max_profit: Number(maxProfit.toFixed(2)),
-                    max_loss: Number(-maxLoss.toFixed(2)),
-                    lucro_maximo: Number(maxProfit.toFixed(2)),
-                    risco_maximo: Number(maxLoss.toFixed(2)),
+                    
+                    // Valores unitários para o StrategyService formatar pelo Lote
+                    net_premium: -cost, 
+                    initialCashFlow: -cost,
+                    natureza: cost > 0 ? 'DÉBITO' : 'CRÉDITO',
+                    max_profit: maxProfit,
+                    max_loss: maxLoss,
+                    lucro_maximo: maxProfit,
+                    risco_maximo: maxLoss,
                     roi: maxProfit / maxLoss,
                     breakEvenPoints: [Number(be.toFixed(2))],
                     greeks: this.calculateNetGreeks(buyLeg, sellLeg),
                     pernas: [
-                        { 
-                            direction: 'COMPRA', 
-                            multiplier: 1, 
-                            derivative: buyLeg, 
-                            display: `C-${this.type[0]} K${buyLeg.strike}` 
-                        },
-                        { 
-                            direction: 'VENDA', 
-                            multiplier: 1, 
-                            derivative: sellLeg, 
-                            display: `V-${this.type[0]} K${sellLeg.strike}` 
-                        }
+                        { ...buyLeg, direction: 'COMPRA', qtd: 1000 },
+                        { ...sellLeg, direction: 'VENDA', qtd: 1000 }
                     ]
                 } as any);
             }
@@ -121,30 +101,9 @@ export abstract class VerticalSpreadBase implements IStrategy {
     }
 
     getLegCount(): number { return 2; }
-    generatePayoff(): any[] { return []; }
-    getDescription(): string { return this.name; }
 }
 
-export class BullCallSpread extends VerticalSpreadBase {
-    name = 'Trava de Alta (Call)';
-    isBull = true;
-    type = 'CALL' as const;
-}
-
-export class BearCallSpread extends VerticalSpreadBase {
-    name = 'Trava de Baixa (Call)';
-    isBull = false;
-    type = 'CALL' as const;
-}
-
-export class BullPutSpread extends VerticalSpreadBase {
-    name = 'Trava de Alta (Put)';
-    isBull = true;
-    type = 'PUT' as const;
-}
-
-export class BearPutSpread extends VerticalSpreadBase {
-    name = 'Trava de Baixa (Put)';
-    isBull = false;
-    type = 'PUT' as const;
-}
+export class BullCallSpread extends VerticalSpreadBase { name = 'Trava de Alta (Call)'; isBull = true; type = 'CALL' as const; }
+export class BearCallSpread extends VerticalSpreadBase { name = 'Trava de Baixa (Call)'; isBull = false; type = 'CALL' as const; }
+export class BullPutSpread extends VerticalSpreadBase { name = 'Trava de Alta (Put)'; isBull = true; type = 'PUT' as const; }
+export class BearPutSpread extends VerticalSpreadBase { name = 'Trava de Baixa (Put)'; isBull = false; type = 'PUT' as const; }

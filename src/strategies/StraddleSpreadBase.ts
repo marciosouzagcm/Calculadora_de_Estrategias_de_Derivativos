@@ -27,21 +27,18 @@ export abstract class VolatilityBase implements IStrategy {
             for (const call of calls) {
                 for (const put of puts) {
                     const strikeDiff = Math.abs(call.strike! - put.strike!);
-                    const avgStrike = (call.strike! + put.strike!) / 2;
-
-                    // --- Filtros de Estrutura ---
+                    
+                    // --- Validação de Estrutura ---
                     if (this.isStraddle) {
-                        // Straddle: Strikes quase idênticos
-                        if (strikeDiff > (avgStrike * 0.01)) continue;
+                        // Straddle: Strikes devem ser iguais ou muito próximos (ATM)
+                        if (strikeDiff > (call.strike! * 0.02)) continue; 
                     } else {
-                        // Strangle: Put deve ter strike menor que a Call
+                        // Strangle: Put deve ter strike menor que a Call (OTM)
                         if (put.strike! >= call.strike!) continue;
-                        // Opcional: Evitar strikes muito longe do spot
-                        if (Math.abs(avgStrike - spotPrice) / spotPrice > 0.20) continue;
                     }
 
                     const premiumTotal = call.premio + put.premio;
-                    if (premiumTotal < 0.05) continue;
+                    if (premiumTotal < 0.10) continue; // Filtra liquidez baixa
 
                     // --- Cálculo de Gregas ---
                     const getG = (l: OptionLeg) => l.gregas_unitarias || { delta: 0, gamma: 0, theta: 0, vega: 0 };
@@ -56,10 +53,19 @@ export abstract class VolatilityBase implements IStrategy {
                         vega: Number((mult * (gC.vega + gP.vega)).toFixed(4)),
                     };
 
-                    // --- Breakevens ---
-                    // No Strangle, os breakevens partem dos strikes individuais
-                    const beLow = (this.isStraddle ? avgStrike : put.strike!) - premiumTotal;
-                    const beHigh = (this.isStraddle ? avgStrike : call.strike!) + premiumTotal;
+                    // --- Breakevens de Mercado (Precisão B3) ---
+                    // No Straddle usamos o strike da Call como base. No Strangle, as extremidades.
+                    const lowerStrike = this.isStraddle ? call.strike! : put.strike!;
+                    const upperStrike = this.isStraddle ? call.strike! : call.strike!;
+                    
+                    const beLow = lowerStrike - premiumTotal;
+                    const beHigh = upperStrike + premiumTotal;
+
+                    // --- Gestão de Risco e ROI ---
+                    // Para Shorts, o risco é teoricamente ilimitado, mas usamos a margem (20% do spot) para cálculo de ROI
+                    const margemEstimada = spotPrice * 0.20; 
+                    const lucroMaximoUnitario = this.isLong ? 999999 : premiumTotal;
+                    const riscoMaximoUnitario = this.isLong ? premiumTotal : margemEstimada;
 
                     results.push({
                         name: this.name,
@@ -67,22 +73,24 @@ export abstract class VolatilityBase implements IStrategy {
                         asset_price: spotPrice,
                         expiration: date,
                         dias_uteis: call.dias_uteis || 0,
-                        strike_description: this.isStraddle ? `K: ${avgStrike.toFixed(2)}` : `P:${put.strike} | C:${call.strike}`,
-                        net_premium: Number((this.isLong ? -premiumTotal : premiumTotal).toFixed(2)),
-                        initialCashFlow: Number((this.isLong ? -premiumTotal : premiumTotal).toFixed(2)),
+                        strike_description: this.isStraddle ? `K: ${call.strike!.toFixed(2)}` : `P:${put.strike} | C:${call.strike}`,
+                        net_premium: this.isLong ? -premiumTotal : premiumTotal,
+                        initialCashFlow: this.isLong ? -premiumTotal : premiumTotal,
                         natureza: (this.isLong ? 'DÉBITO' : 'CRÉDITO') as NaturezaOperacao,
-                        max_profit: this.isLong ? Infinity : Number(premiumTotal.toFixed(2)),
-                        max_loss: this.isLong ? Number((-premiumTotal).toFixed(2)) : -Infinity,
-                        lucro_maximo: this.isLong ? Infinity : Number(premiumTotal.toFixed(2)),
-                        risco_maximo: this.isLong ? Number(premiumTotal.toFixed(2)) : Infinity,
-                        roi: this.isLong ? 0 : (premiumTotal / (spotPrice * 0.15)),
+
+                        // Campos que o StrategyService usará para multiplicar pelo Lote
+                        max_profit: this.isLong ? 'Ilimitado' : premiumTotal,
+                        max_loss: this.isLong ? premiumTotal : 'Ilimitado',
+                        lucro_maximo: this.isLong ? 'Ilimitado' : premiumTotal,
+                        risco_maximo: this.isLong ? premiumTotal : margemEstimada,
+
                         breakEvenPoints: [Number(beLow.toFixed(2)), Number(beHigh.toFixed(2))],
                         greeks: netGreeks,
                         pernas: [
-                            { direction: this.isLong ? 'COMPRA' : 'VENDA', multiplier: 1, derivative: call, display: `${this.isLong ? 'C' : 'V'}-CALL K${call.strike}` },
-                            { direction: this.isLong ? 'COMPRA' : 'VENDA', multiplier: 1, derivative: put, display: `${this.isLong ? 'C' : 'V'}-PUT K${put.strike}` }
+                            { ...call, direction: this.isLong ? 'COMPRA' : 'VENDA', qtd: 1000 },
+                            { ...put, direction: this.isLong ? 'COMPRA' : 'VENDA', qtd: 1000 }
                         ]
-                    } as StrategyMetrics);
+                    } as unknown as StrategyMetrics);
                 }
             }
         }
@@ -90,14 +98,9 @@ export abstract class VolatilityBase implements IStrategy {
     }
 
     getLegCount(): number { return 2; }
-    generatePayoff(): any[] { return []; }
-    getDescription(): string { 
-        if (this.isStraddle) return this.isLong ? 'Compra de Call e Put no mesmo strike.' : 'Venda de Call e Put no mesmo strike.';
-        return this.isLong ? 'Compra de Call e Put com strikes diferentes.' : 'Venda de Call e Put com strikes diferentes.';
-    }
 }
 
-// Implementações concretas
+// Implementações concretas permanecem as mesmas
 export class LongStraddle extends VolatilityBase { name = 'Long Straddle'; isLong = true; isStraddle = true; marketView = 'VOLÁTIL' as const; }
 export class ShortStraddle extends VolatilityBase { name = 'Short Straddle'; isLong = false; isStraddle = true; marketView = 'NEUTRA' as const; }
 export class LongStrangle extends VolatilityBase { name = 'Long Strangle'; isLong = true; isStraddle = false; marketView = 'VOLÁTIL' as const; }
