@@ -6,13 +6,13 @@
   "engines": {
     "node": "20.x"
   },
-  "main": "dist/src/server.js",
+  "main": "dist/api/index.js",
   "scripts": {
-    "build": "tsc && vite build",
-    "vercel-build": "tsc && vite build",
-    "start": "node dist/src/server.js",
-    "start-backend": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
+    "build": "vite build",
+    "vercel-build": "vite build",
+    "start": "node dist/api/index.js",
+    "start-backend": "tsx src/server.ts",
     "clean": "rimraf dist",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "process-csv": "tsx src/processador_opcoes.ts"
