@@ -6,12 +6,12 @@
   "engines": {
     "node": "20.x"
   },
-  "main": "dist/api/index.js",
+  "main": "api/index.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "vite build",
     "vercel-build": "vite build",
-    "start": "node dist/api/index.js",
+    "start": "tsx src/server.ts",
     "start-backend": "tsx src/server.ts",
     "clean": "rimraf dist",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
