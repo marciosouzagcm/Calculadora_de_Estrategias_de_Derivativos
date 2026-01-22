@@ -17,7 +17,7 @@ const strategyCard = (active: boolean): React.CSSProperties => ({
 });
 
 const App: React.FC = () => {
-  const [ticker, setTicker] = useState('WEGE3');
+  const [ticker, setTicker] = useState('RDOR3');
   const [precoSlot, setPrecoSlot] = useState(''); 
   const [lote, setLote] = useState(1000);
   const [riscoMaximoInput, setRiscoMaximoInput] = useState(0.70); 
@@ -39,52 +39,78 @@ const App: React.FC = () => {
     try {
       const dataStr = typeof val === 'string' ? val.split('T')[0] : val;
       const partes = dataStr.includes('-') ? dataStr.split('-') : dataStr.split('/');
-      return partes.length === 3 ? `${partes[2].slice(-2)}/${partes[1]}/${partes[0].slice(-2)}` : '---';
+      return partes.length === 3 ? `${partes[2].slice(-2)}/${partes[1]}/${partes[0].slice(-2)}` : val;
     } catch { return '---'; }
   };
 
+  // --- LÓGICA DE AUDITORIA DE RISCO ---
   const calcularMetricasCompletas = (est: StrategyMetrics | null) => {
-    if (!est) return null;
+    if (!est || !est.pernas) return null;
 
-    const nPernas = est.pernas?.length || 0;
+    const nPernas = est.pernas.length;
     const taxasMontagem = nPernas * taxaPorPerna;
-    const taxasDesmontagem = nPernas * taxaPorPerna;
-    const taxasTotais = taxasMontagem + taxasDesmontagem;
+    const taxasTotais = taxasMontagem * 2;
     
-    const fluxoMontagemUnit = est.pernas?.reduce((acc, p) => {
+    let fluxoCaixaUnit = 0;
+    let strikes: number[] = [];
+    let possuiVendaSeca = false;
+
+    est.pernas.forEach(p => {
       const prm = toNum(p.derivative?.premio || p.premio || 0);
-      return (p.direction || '').toUpperCase() === 'COMPRA' ? acc - prm : acc + prm;
-    }, 0) || 0;
+      const strike = toNum(p.strike || p.derivative?.strike);
+      if (strike > 0) strikes.push(strike);
+      
+      const isCompra = (p.direction || '').toUpperCase() === 'COMPRA';
+      fluxoCaixaUnit += isCompra ? -prm : prm;
+      
+      if (!isCompra) {
+        const temProtecao = est.pernas?.some(prot => 
+          (prot.direction || '').toUpperCase() === 'COMPRA' && 
+          (prot.derivative?.tipo || prot.tipo) === (p.derivative?.tipo || p.tipo)
+        );
+        if (!temProtecao) possuiVendaSeca = true;
+      }
+    });
 
-    const isCredito = fluxoMontagemUnit > 0;
-    const premioAbsoluto = Math.abs(fluxoMontagemUnit);
-    const custoTaxasUnit = taxasTotais / lote;
-
-    const targetBruto = isCredito ? premioAbsoluto - custoTaxasUnit : premioAbsoluto + custoTaxasUnit;
-    const targetFinal = Math.floor(targetBruto * 100) / 100;
-
-    const lucroBrutoAPI = toNum(est.max_profit || est.lucro_maximo);
-    const riscoBaseAPI = toNum(est.max_loss || est.risco_maximo);
-    const capitalEmRiscoTotal = (riscoBaseAPI <= 0 ? (riscoMaximoInput * lote) : riscoBaseAPI) + taxasMontagem;
+    const isCredito = fluxoCaixaUnit > 0;
+    const premioAbsoluto = Math.abs(fluxoCaixaUnit);
     
-    const resultadoLiquidoReal = lucroBrutoAPI - taxasTotais;
-    const roiReal = capitalEmRiscoTotal > 0 ? (resultadoLiquidoReal / capitalEmRiscoTotal) * 100 : 0;
-    const beBase = toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : est.be);
+    let riscoRealCalculado = 0;
 
+    // Cálculo específico para travas de 2 pontas
+    if (nPernas === 2 && strikes.length === 2 && !possuiVendaSeca) {
+      const diffStrikes = Math.abs(strikes[0] - strikes[1]);
+      riscoRealCalculado = isCredito ? (diffStrikes - premioAbsoluto) * lote : premioAbsoluto * lote;
+    } 
+    // Cálculo para vendas a seco (Margem B3 aproximada de 20% do ativo)
+    else if (possuiVendaSeca) {
+      const precoAtivo = toNum(precoSlot) || 40;
+      const margemB3Estimada = (precoAtivo * 0.20) * lote;
+      riscoRealCalculado = Math.max(margemB3Estimada, (riscoMaximoInput * lote));
+    }
+    else {
+      riscoRealCalculado = toNum(est.max_loss || est.risco_maximo) || (riscoMaximoInput * lote);
+    }
+
+    const capitalEmRiscoTotal = riscoRealCalculado + taxasMontagem;
+    const lucroBrutoAPI = toNum(est.max_profit || est.lucro_maximo || (isCredito ? premioAbsoluto * lote : 0));
+    const resultadoLiquidoReal = lucroBrutoAPI - taxasTotais;
+    
     return { 
       totalLiquido: resultadoLiquidoReal, 
       riscoReal: capitalEmRiscoTotal, 
-      roi: roiReal, 
-      ur: (capitalEmRiscoTotal / lote), 
-      target: targetFinal, 
+      roi: capitalEmRiscoTotal > 0 ? (resultadoLiquidoReal / capitalEmRiscoTotal) * 100 : 0, 
+      ur: capitalEmRiscoTotal / lote, 
+      target: Math.floor((isCredito ? premioAbsoluto - (taxasTotais/lote) : premioAbsoluto + (taxasTotais/lote)) * 100) / 100, 
       taxas: taxasMontagem, 
       isCredito, 
-      be: beBase 
+      be: toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : est.be) 
     };
   };
 
-  const selecionadaMetricas = useMemo(() => calcularMetricasCompletas(selecionada), [selecionada, taxaPorPerna, lote, riscoMaximoInput]);
+  const selecionadaMetricas = useMemo(() => calcularMetricasCompletas(selecionada), [selecionada, taxaPorPerna, lote, riscoMaximoInput, precoSlot]);
 
+  // --- FUNÇÃO DE BUSCA COM FILTRO DE SEGURANÇA ---
   const buscarEstrategias = async () => {
     setLoading(true);
     try {
@@ -93,28 +119,38 @@ const App: React.FC = () => {
       if (!precoSlot) setPrecoSlot(pRef);
       setLastUpdate(marketData.updatedAt.toLocaleTimeString());
       
+      const limiteRiscoTotal = riscoMaximoInput * lote; // Ex: 0.70 * 1000 = R$ 700,00
+
       const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : window.location.origin;
-      const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${riscoMaximoInput * lote}&slot=${pRef}`;
+      const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteRiscoTotal}&slot=${pRef}`;
       
       const resp = await fetch(url);
       const result = await resp.json();
+
       if (result.status === "success") {
         const filtradas = result.data.filter((est: any) => {
           const m = calcularMetricasCompletas(est);
-          return m && m.totalLiquido > 0 && m.ur <= (riscoMaximoInput * 1.5);
+          // CRITÉRIO DE FILTRO: 
+          // 1. Deve ter lucro líquido > 0
+          // 2. O Risco Real (Auditado) deve ser MENOR ou IGUAL ao limite do usuário
+          return m && m.totalLiquido > 0 && m.riscoReal <= limiteRiscoTotal;
         });
+
         setEstrategias(filtradas);
         if (filtradas.length > 0) setSelecionada(filtradas[0]);
         else setSelecionada(null);
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const exportarPDF = () => window.print();
 
   return (
     <div style={containerStyle}>
-      {/* Estilo para Impressão */}
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -122,6 +158,7 @@ const App: React.FC = () => {
           header, aside { display: none !important; }
           main { display: block !important; height: auto !important; }
           section { width: 100% !important; margin: 0 !important; }
+          .panel { border: 1px solid #ccc !important; }
         }
       `}</style>
 
@@ -141,7 +178,7 @@ const App: React.FC = () => {
           <div style={inputGroup}><label style={label}>LOTE</label><input type="number" value={lote} onChange={e => setLote(Number(e.target.value))} style={input} /></div>
           <div style={inputGroup}><label style={label}>RISCO UNIT.</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(Number(e.target.value))} style={{...input, color: '#f87171'}} /></div>
           <div style={inputGroup}><label style={label}>TAXA/PERNA</label><input type="number" value={taxaPorPerna} onChange={e => setTaxaPorPerna(Number(e.target.value))} style={{...input, color: '#fbbf24'}} /></div>
-          <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>{loading ? '...' : 'SCAN'}</button>
+          <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>{loading ? '...' : 'SCANNER'}</button>
         </div>
       </header>
 
@@ -154,8 +191,8 @@ const App: React.FC = () => {
               return (
                 <div key={idx} onClick={() => setSelecionada(est)} style={strategyCard(selecionada?.name === est.name)}>
                   <div style={{fontWeight:'800', fontSize:'11px', color: '#fff'}}>{est.name}</div>
-                  <div style={{color:'#4ade80', fontSize:'14px', fontWeight:'900', margin: '4px 0'}}>R$ {toNum(est.max_profit || est.lucro_maximo).toFixed(2)}</div>
-                  <div style={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}>✅ Risco Real: <span style={{color: '#f87171'}}>R$ {m?.riscoReal.toFixed(2)}</span></div>
+                  <div style={{color:'#4ade80', fontSize:'14px', fontWeight:'900', margin: '4px 0'}}>R$ {m?.totalLiquido.toFixed(2)}</div>
+                  <div style={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}>Risco Real: <span style={{color: '#f87171'}}>R$ {m?.riscoReal.toFixed(2)}</span></div>
                   <div style={{display: 'flex', gap: '5px'}}>
                     <div style={roiBadge}>ROI: {m?.roi.toFixed(1) || '0.0'}%</div>
                     <div style={riscoUnitBadge}>U.R: R$ {m?.ur.toFixed(2) || '0.00'}</div>
@@ -169,7 +206,7 @@ const App: React.FC = () => {
         <section style={workspace}>
           {selecionada && selecionadaMetricas ? (
             <div style={detailGrid}>
-              <div style={panel}>
+              <div style={panel} className="panel">
                 <div style={{...panelHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                   <span>COMPOSIÇÃO DETALHADA DO SETUP</span>
                   <button onClick={exportarPDF} style={btnPDF} className="no-print">EXPORTAR PDF</button>
@@ -184,10 +221,14 @@ const App: React.FC = () => {
                         <tr key={i} style={tr}>
                           <td style={{ color: (p.direction || '').toUpperCase() === 'COMPRA' ? '#4ade80' : '#f87171', padding: '10px', fontWeight: 'bold' }}>{p.direction}</td>
                           <td style={{ color: '#94a3b8' }}>{(p.derivative?.tipo || p.tipo || '').toUpperCase()}</td>
-                          <td style={{ color: '#fff', fontWeight: 'bold' }}>{p.ticker || p.option_ticker || '---'}</td>
-                          <td style={{ color: '#fff' }}>R$ {toNum(p.strike).toFixed(2)}</td>
-                          <td style={{ color: '#4ade80', fontWeight: 'bold' }}>R$ {toNum(p.premio).toFixed(2)}</td>
-                          <td style={{ color: '#fbbf24' }}>{formatarData(p.vencimento)}</td>
+                          <td style={{ color: '#fff', fontWeight: 'bold' }}>
+                            {p.derivative?.symbol || p.symbol || p.option_ticker || p.ticker || '---'}
+                          </td>
+                          <td style={{ color: '#fff' }}>R$ {toNum(p.strike || p.derivative?.strike).toFixed(2)}</td>
+                          <td style={{ color: '#4ade80', fontWeight: 'bold' }}>R$ {toNum(p.premio || p.derivative?.premio).toFixed(2)}</td>
+                          <td style={{ color: '#fbbf24' }}>
+                            {formatarData(p.vencimento || p.derivative?.vencimento || p.expiration || p.derivative?.expiration)}
+                          </td>
                           <td style={{ color: '#fff' }}>{lote}</td>
                         </tr>
                       ))}
@@ -201,7 +242,7 @@ const App: React.FC = () => {
                       <b style={{ color: '#4ade80' }}>R$ {selecionadaMetricas.totalLiquido.toFixed(2)}</b>
                     </div>
                     <div style={footerBlock}>
-                      <span style={label}>RISCO (CAPITAL)</span>
+                      <span style={label}>RISCO REAL (AUDITADO)</span>
                       <b style={{ color: '#f87171' }}>R$ {selecionadaMetricas.riscoReal.toFixed(2)}</b>
                     </div>
                     <div style={footerBlock}>
@@ -209,7 +250,7 @@ const App: React.FC = () => {
                       <b style={{ color: '#38bdf8' }}>R$ {selecionadaMetricas.target.toFixed(2)}</b>
                     </div>
                     <div style={footerBlock}>
-                      <span style={label}>U.R.</span>
+                      <span style={label}>U.R. ATUAL</span>
                       <b style={{ color: '#fbbf24' }}>R$ {selecionadaMetricas.ur.toFixed(2)}</b>
                     </div>
                   </div>
@@ -220,13 +261,14 @@ const App: React.FC = () => {
                 <div style={{flex:1}}><PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={selecionadaMetricas.taxas * 2} /></div>
               </div>
             </div>
-          ) : <div style={empty}>REALIZE O SCANNER PARA VER DETALHES...</div>}
+          ) : <div style={empty}>REALIZE O SCANNER PARA AUDITORIA...</div>}
         </section>
       </main>
     </div>
   );
 };
 
+// Estilos
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '15px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '18px', fontWeight: '900' };
