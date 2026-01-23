@@ -1,138 +1,142 @@
 import React from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { exportarPDF, formatCurrency, formatPercentage } from '../services/pdfService';
 import { PayoffChart } from './PayoffChart';
-import { FileDown, Eye, ShieldAlert, TrendingUp, Copyright } from 'lucide-react';
+import { FileDown, ShieldAlert, TrendingUp, Info } from 'lucide-react';
 
-export const exportarPDF = async (nomeEstrategia: string) => {
-  const input = document.getElementById('report-pdf-template');
-  if (!input) return;
+export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
+  if (!est || !metricas) return null;
 
-  const canvas = await html2canvas(input, { 
-    scale: 2, 
-    useCORS: true,
-    logging: false,
-    backgroundColor: '#ffffff'
-  });
+  // CÁLCULOS ESTRATÉGICOS (Baseados na Lâmina do Inter)
+  const riscoTotal = metricas.riscoReal;
+  const lucroTotal = metricas.totalLiquido;
   
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+  // % de Ganho sobre o capital que o investidor realmente "tirou do bolso" (Alocado)
+  const ganhoSobreAlocado = (lucroTotal / riscoTotal) * 100;
   
-  pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-  pdf.save(`Relatorio_${nomeEstrategia.replace(/\s+/g, '_')}.pdf`);
-};
+  // % de quanto o risco representa sobre o valor total da posição (Valor de Face)
+  const riscoSobreValorFace = (riscoTotal / (spot * lote)) * 100;
 
-export const ReportTemplate = ({ est, ticker, spot, lote }: any) => {
-  if (!est) return null;
+  // Identificação de Cenários (Lógica Inter)
+  const isPutSpread = est.name.toLowerCase().includes('put') || est.name.toLowerCase().includes('baixa');
 
   return (
-    <div className="bg-slate-100 p-10 border-t border-slate-300 mt-12">
-      {/* Barra de Controle Superior */}
-      <div className="max-w-4xl mx-auto mb-8 flex items-center justify-between bg-white p-5 rounded-xl shadow-md border border-slate-200">
-        <div className="flex items-center gap-4">
-          <div className="bg-amber-100 p-2 rounded-lg">
-            <Eye className="h-6 w-6 text-amber-600" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-800 text-sm">Review do Relatório Gerencial</h3>
-            <p className="text-xs text-slate-500 font-medium">Layout oficial para exportação em formato A4.</p>
-          </div>
+    <div className="bg-slate-100 p-8 mt-10 no-print border-t-2 border-slate-200">
+      {/* Botão de Comando Superior */}
+      <div className="max-w-[800px] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+        <div className="flex items-center gap-3">
+          <Info className="text-blue-600 h-5 w-5" />
+          <span className="text-sm font-bold text-slate-700">Preview da Lâmina Institucional A4</span>
         </div>
         <button 
           onClick={() => exportarPDF(est.name)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-blue-200 transition-all active:scale-95"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded font-black text-xs flex items-center gap-2 transition-all"
         >
-          <FileDown className="h-4 w-4" />
-          EXPORTAR PDF
+          <FileDown className="h-4 w-4" /> EXPORTAR PDF PROFISSIONAL
         </button>
       </div>
 
-      {/* ÁREA DO PDF (SIMULAÇÃO A4) */}
+      {/* ÁREA DE CAPTURA (O QUE VAI PARA O PDF) */}
       <div 
         id="report-pdf-template" 
-        className="max-w-[800px] mx-auto bg-white shadow-2xl p-16 text-slate-900 flex flex-col"
-        style={{ minHeight: '1120px' }}
+        className="max-w-[800px] mx-auto bg-white p-12 text-slate-900 shadow-2xl"
+        style={{ 
+          minHeight: '1120px', 
+          width: '800px',
+          backgroundColor: '#ffffff', // Força fundo branco na captura
+          color: '#0f172a'
+        }}
       >
-        {/* Cabeçalho */}
-        <div className="flex justify-between items-start border-b-4 border-slate-800 pb-10 mb-10">
+        {/* Cabeçalho de Banco */}
+        <div className="flex justify-between items-start border-b-4 border-blue-600 pb-6 mb-8">
           <div>
-            <div className="flex items-center gap-2 text-blue-700 mb-3">
-              <TrendingUp className="h-7 w-7" />
-              <span className="font-black tracking-widest text-2xl">TRADING BOARD PRO</span>
+            <div className="flex items-center gap-2 text-blue-700 font-black text-2xl tracking-tighter">
+              <TrendingUp /> BOARDPRO <span className="text-slate-400 font-light">INTELLIGENCE</span>
             </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight uppercase leading-none">Análise de<br/>Risco e Retorno</h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mesa de Produtos Estruturados</p>
           </div>
           <div className="text-right">
-            <p className="text-slate-400 text-xs font-bold uppercase mb-1">Ativo Analisado</p>
-            <div className="text-5xl font-black text-slate-900 tracking-tighter">{ticker}</div>
-            <p className="text-slate-500 font-mono text-xs mt-2 italic">{new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
+            <h1 className="text-4xl font-black tracking-tighter text-slate-900">{ticker}</h1>
+            <p className="text-[10px] font-bold text-slate-500 uppercase italic">Fixing: {new Date().toLocaleDateString('pt-BR')}</p>
           </div>
         </div>
 
-        {/* Resumo Financeiro */}
-        <div className="grid grid-cols-4 gap-6 mb-10">
-          <div className="bg-slate-50 p-4 rounded-lg border-l-4 border-slate-400">
-            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Estratégia</p>
-            <p className="text-sm font-bold text-slate-800">{est.name}</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-lg border-l-4 border-blue-400">
-            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Preço Base (Spot)</p>
-            <p className="text-sm font-bold text-slate-800">R$ {spot}</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-lg border-l-4 border-green-500">
-            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Lote Operacional</p>
-            <p className="text-sm font-bold text-slate-800">{lote} unid.</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-lg border-l-4 border-amber-500">
-            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Natureza</p>
-            <p className="text-sm font-bold text-slate-800">{est.net_premium >= 0 ? 'CRÉDITO' : 'DÉBITO'}</p>
-          </div>
+        {/* Descritivo da Estratégia */}
+        <div className="mb-8">
+          <h2 className="text-lg font-black text-slate-800 uppercase mb-2">{est.name}</h2>
+          <p className="text-xs text-slate-600 leading-relaxed text-justify">
+            Esta operação estruturada visa otimizar a relação risco-retorno do investidor, permitindo participar do movimento do ativo objeto 
+            através do mercado de opções. O risco máximo é limitado ao desembolso inicial (prêmio pago + taxas), garantindo previsibilidade de perda.
+          </p>
         </div>
 
-        {/* Gráfico de Payoff */}
-        <div className="mb-12">
-          <h3 className="text-xs font-black mb-4 uppercase text-slate-800 tracking-widest flex items-center gap-2">
-            <div className="h-1 w-6 bg-blue-600"></div> Curva de Payoff no Vencimento
-          </h3>
-          <div className="h-[320px] w-full p-4 border border-slate-100 rounded-xl bg-slate-50/30">
-            <PayoffChart strategy={est} lote={lote} taxasIdaVolta={0} />
+        {/* PERFORMANCE ESPERADA (O CORAÇÃO DA LÂMINA INTER) */}
+        <div className="grid grid-cols-2 gap-6 mb-10">
+          {/* Cenário Contrário */}
+          <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase mb-3">Se a ação {isPutSpread ? 'subir' : 'cair'}...</h3>
+            <p className="text-xs font-bold text-slate-800 leading-tight">
+              Resultados negativos limitados a <span className="text-red-600">-{riscoSobreValorFace.toFixed(2)}%</span> do valor de face da operação. 
+              Corresponde a 100% do capital alocado na montagem.
+            </p>
           </div>
-        </div>
 
-        {/* CAIXA DE AVISO LEGAL DESTAQUE */}
-        <div className="mb-10 bg-amber-50 border border-amber-200 p-6 rounded-xl flex gap-4">
-          <ShieldAlert className="h-10 w-10 text-amber-600 shrink-0" />
-          <div>
-            <h4 className="text-amber-800 font-black text-xs uppercase mb-1 tracking-tight">AVISO LEGAL IMPORTANTE</h4>
-            <p className="text-[10px] text-amber-900 leading-relaxed font-medium">
-              Este relatório é uma **SIMULAÇÃO MATEMÁTICA** baseada em dados históricos e atuais de mercado.
-              O conteúdo aqui apresentado **NÃO** constitui recomendação de compra ou venda de ativos.
-              Investimentos em opções envolvem **ALTO RISCO** de perda de capital.
-              A rentabilidade passada não é garantia de rentabilidade futura.
-              Verifique sempre com seu assessor financeiro antes de executar operações.
+          {/* Cenário Favorável */}
+          <div className="bg-blue-50 p-6 rounded-md border border-blue-100">
+            <h3 className="text-[10px] font-black text-blue-400 uppercase mb-3">Se a ação {isPutSpread ? 'cair' : 'subir'}...</h3>
+            <p className="text-xs font-bold text-slate-800 leading-tight">
+              Ganho máximo de <span className="text-blue-700">{formatPercentage(ganhoSobreAlocado)}</span> sobre o capital alocado.
+              Ponto de equilíbrio (Breakeven) em <span className="text-blue-700">{formatCurrency(metricas.be)}</span>.
             </p>
           </div>
         </div>
 
-        
+        {/* Gráfico de Payoff - OTIMIZADO PARA PDF */}
+        <div className="mb-10" style={{ pageBreakInside: 'avoid' }}>
+          <div className="flex justify-between items-end mb-4">
+             <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Cenários da Operação no Vencimento</h3>
+             <span className="text-[9px] text-slate-400 font-bold italic text-right">Eixo X: Preço do Ativo | Eixo Y: Resultado Financeiro (R$)</span>
+          </div>
+          <div className="h-[300px] w-full border border-slate-100 rounded-lg p-4 bg-white">
+            {/* Certifique-se que o PayoffChart detecte o fundo branco e ajuste as cores das fontes para preto */}
+            <PayoffChart 
+              strategy={est} 
+              lote={lote} 
+              taxasIdaVolta={metricas.taxas * 2}
+              isLightMode={true} // Sugestão: adicione esta prop no seu PayoffChart para forçar cores claras
+            />
+          </div>
+        </div>
 
-        {/* Rodapé e Direitos */}
-        <div className="mt-auto pt-8 border-t border-slate-100">
-          <div className="grid grid-cols-2 gap-8 mb-6 text-[9px] text-slate-400 leading-tight uppercase font-semibold">
-            <p>
-              RISCO DE OPÇÕES: As opções podem expirar sem valor, resultando na perda total do prêmio investido.
-              Operações estruturadas requerem conhecimento avançado e gerenciamento de risco adequado.
-            </p>
-            <p className="text-right">
-              Dados processados via Trading Board Pro Engine v4.1<br/>
-              Simulação gerada para fins educacionais e de conferência técnica.
+        {/* Quadro Técnico */}
+        <div className="grid grid-cols-3 gap-0 border border-slate-200 rounded-lg overflow-hidden mb-10">
+          <div className="p-4 border-r border-slate-200 bg-slate-50">
+            <p className="text-[9px] font-bold text-slate-400 uppercase">Capital Alocado</p>
+            <p className="text-sm font-black text-slate-800">{formatCurrency(metricas.riscoReal)}</p>
+          </div>
+          <div className="p-4 border-r border-slate-200 bg-slate-50">
+            <p className="text-[9px] font-bold text-slate-400 uppercase">Lucro Líquido Máx.</p>
+            <p className="text-sm font-black text-blue-700">{formatCurrency(metricas.totalLiquido)}</p>
+          </div>
+          <div className="p-4 bg-slate-50">
+            <p className="text-[9px] font-bold text-slate-400 uppercase">Eficiência (R/R)</p>
+            <p className="text-sm font-black text-slate-800">1 : {(lucroTotal/riscoTotal).toFixed(2)}</p>
+          </div>
+        </div>
+
+        {/* Disclaimer Consolidado */}
+        <div className="mt-auto pt-6 border-t border-slate-100">
+          <div className="flex gap-4 mb-6">
+            <ShieldAlert className="h-8 w-8 text-slate-400 shrink-0" />
+            <p className="text-[8px] text-slate-500 text-justify leading-tight">
+              <strong>DISCLAIMER:</strong> Este material foi preparado pela BoardPRO Intelligence e tem caráter meramente informativo. Não constitui recomendação de compra ou venda. 
+              O investimento em opções é uma modalidade de risco variável onde a perda pode ser total. O encerramento antecipado pode gerar resultados substancialmente 
+              diferentes dos projetados para o vencimento. As informações e estimativas foram obtidas de fontes consideradas confiáveis, mas não há garantia de precisão 
+              ou integridade. O investidor deve verificar sua adequação ao perfil de risco (Suitability) antes de operar.
             </p>
           </div>
-          <div className="flex justify-center items-center gap-1 text-[10px] text-slate-500 font-bold tracking-widest">
-            <Copyright className="h-3 w-3" />
-            <span>2026 TRADING BOARD PRO - TODOS OS DIREITOS RESERVADOS</span>
+          <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+            <span>Classificação: RESTRITA</span>
+            <span>© 2026 BoardPRO | Versão Auditada 2026.1</span>
           </div>
         </div>
       </div>

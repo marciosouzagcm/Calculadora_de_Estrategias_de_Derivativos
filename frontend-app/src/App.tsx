@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
+import { ReportTemplate } from './components/ReportTemplate';
 
 const marketService = new MarketDataService();
 
@@ -43,21 +44,31 @@ const App: React.FC = () => {
     } catch { return '---'; }
   };
 
-  // --- LÓGICA DE AUDITORIA DE RISCO ---
+  // --- LÓGICA DE AUDITORIA DE RISCO E SANIDADE DE DADOS ---
   const calcularMetricasCompletas = (est: StrategyMetrics | null) => {
     if (!est || !est.pernas) return null;
 
     const nPernas = est.pernas.length;
     const taxasMontagem = nPernas * taxaPorPerna;
     const taxasTotais = taxasMontagem * 2;
+    const pRefAtivo = toNum(precoSlot);
     
     let fluxoCaixaUnit = 0;
     let strikes: number[] = [];
     let possuiVendaSeca = false;
+    let dataDistorcido = false;
 
+    // Auditoria de cada perna
     est.pernas.forEach(p => {
-      const prm = toNum(p.derivative?.premio || p.premio || 0);
+      let prm = toNum(p.derivative?.premio || p.premio || 0);
       const strike = toNum(p.strike || p.derivative?.strike);
+      
+      // Validação de Sanidade: Prêmio não pode ser maior que o preço da ação (Exceto deep ITM calls, mas tratamos como erro de liquidez aqui)
+      if (prm >= pRefAtivo && pRefAtivo > 0) {
+        dataDistorcido = true;
+        prm = 0.01; // Neutraliza prêmio absurdo para não poluir o cálculo
+      }
+
       if (strike > 0) strikes.push(strike);
       
       const isCompra = (p.direction || '').toUpperCase() === 'COMPRA';
@@ -77,15 +88,12 @@ const App: React.FC = () => {
     
     let riscoRealCalculado = 0;
 
-    // Cálculo específico para travas de 2 pontas
     if (nPernas === 2 && strikes.length === 2 && !possuiVendaSeca) {
       const diffStrikes = Math.abs(strikes[0] - strikes[1]);
       riscoRealCalculado = isCredito ? (diffStrikes - premioAbsoluto) * lote : premioAbsoluto * lote;
     } 
-    // Cálculo para vendas a seco (Margem B3 aproximada de 20% do ativo)
     else if (possuiVendaSeca) {
-      const precoAtivo = toNum(precoSlot) || 40;
-      const margemB3Estimada = (precoAtivo * 0.20) * lote;
+      const margemB3Estimada = (pRefAtivo * 0.20) * lote;
       riscoRealCalculado = Math.max(margemB3Estimada, (riscoMaximoInput * lote));
     }
     else {
@@ -93,24 +101,26 @@ const App: React.FC = () => {
     }
 
     const capitalEmRiscoTotal = riscoRealCalculado + taxasMontagem;
-    const lucroBrutoAPI = toNum(est.max_profit || est.lucro_maximo || (isCredito ? premioAbsoluto * lote : 0));
+    const lucroBrutoAPI = dataDistorcido ? 0 : toNum(est.max_profit || est.lucro_maximo || (isCredito ? premioAbsoluto * lote : 0));
     const resultadoLiquidoReal = lucroBrutoAPI - taxasTotais;
     
+    const roiCalculado = capitalEmRiscoTotal > 0 ? (resultadoLiquidoReal / capitalEmRiscoTotal) * 100 : 0;
+
     return { 
       totalLiquido: resultadoLiquidoReal, 
       riscoReal: capitalEmRiscoTotal, 
-      roi: capitalEmRiscoTotal > 0 ? (resultadoLiquidoReal / capitalEmRiscoTotal) * 100 : 0, 
+      roi: roiCalculado, 
       ur: capitalEmRiscoTotal / lote, 
       target: Math.floor((isCredito ? premioAbsoluto - (taxasTotais/lote) : premioAbsoluto + (taxasTotais/lote)) * 100) / 100, 
       taxas: taxasMontagem, 
       isCredito, 
-      be: toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : est.be) 
+      be: toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : est.be),
+      isDistorcido: dataDistorcido || roiCalculado > 1000 // Flag para ROI acima de 1000% em travas
     };
   };
 
   const selecionadaMetricas = useMemo(() => calcularMetricasCompletas(selecionada), [selecionada, taxaPorPerna, lote, riscoMaximoInput, precoSlot]);
 
-  // --- FUNÇÃO DE BUSCA COM FILTRO DE SEGURANÇA ---
   const buscarEstrategias = async () => {
     setLoading(true);
     try {
@@ -119,7 +129,7 @@ const App: React.FC = () => {
       if (!precoSlot) setPrecoSlot(pRef);
       setLastUpdate(marketData.updatedAt.toLocaleTimeString());
       
-      const limiteRiscoTotal = riscoMaximoInput * lote; // Ex: 0.70 * 1000 = R$ 700,00
+      const limiteRiscoTotal = riscoMaximoInput * lote;
 
       const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : window.location.origin;
       const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteRiscoTotal}&slot=${pRef}`;
@@ -130,10 +140,8 @@ const App: React.FC = () => {
       if (result.status === "success") {
         const filtradas = result.data.filter((est: any) => {
           const m = calcularMetricasCompletas(est);
-          // CRITÉRIO DE FILTRO: 
-          // 1. Deve ter lucro líquido > 0
-          // 2. O Risco Real (Auditado) deve ser MENOR ou IGUAL ao limite do usuário
-          return m && m.totalLiquido > 0 && m.riscoReal <= limiteRiscoTotal;
+          // Só mostra estratégias com dados íntegros e lucro positivo
+          return m && m.totalLiquido > 0 && m.riscoReal <= limiteRiscoTotal && !m.isDistorcido;
         });
 
         setEstrategias(filtradas);
@@ -147,18 +155,13 @@ const App: React.FC = () => {
     }
   };
 
-  const exportarPDF = () => window.print();
-
   return (
     <div style={containerStyle}>
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          body { background: white !important; color: black !important; }
-          header, aside { display: none !important; }
-          main { display: block !important; height: auto !important; }
-          section { width: 100% !important; margin: 0 !important; }
-          .panel { border: 1px solid #ccc !important; }
+          #report-pdf-template { display: block !important; }
+          body { background: white !important; }
         }
       `}</style>
 
@@ -182,8 +185,8 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main style={mainLayout}>
-        <aside style={sidebar} className="no-print">
+      <main style={mainLayout} className="no-print">
+        <aside style={sidebar}>
           <div style={sidebarTitle}>OPORTUNIDADES FILTRADAS ({estrategias.length})</div>
           <div style={listScroll}>
             {estrategias.map((est, idx) => {
@@ -209,7 +212,6 @@ const App: React.FC = () => {
               <div style={panel} className="panel">
                 <div style={{...panelHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                   <span>COMPOSIÇÃO DETALHADA DO SETUP</span>
-                  <button onClick={exportarPDF} style={btnPDF} className="no-print">EXPORTAR PDF</button>
                 </div>
                 <div style={{flex: 1, overflow: 'auto'}}>
                   <table style={table}>
@@ -256,7 +258,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div style={panel} className="no-print">
+              <div style={panel}>
                 <div style={panelHeader}>CURVA DE PAYOFF (VENCIMENTO)</div>
                 <div style={{flex:1}}><PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={selecionadaMetricas.taxas * 2} /></div>
               </div>
@@ -264,11 +266,20 @@ const App: React.FC = () => {
           ) : <div style={empty}>REALIZE O SCANNER PARA AUDITORIA...</div>}
         </section>
       </main>
+
+      {selecionada && selecionadaMetricas && (
+        <ReportTemplate 
+          est={selecionada} 
+          metricas={selecionadaMetricas} 
+          ticker={ticker} 
+          spot={toNum(precoSlot)} 
+          lote={lote} 
+        />
+      )}
     </div>
   );
 };
 
-// Estilos
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '15px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '18px', fontWeight: '900' };
@@ -280,7 +291,6 @@ const inputGroup: React.CSSProperties = { display: 'flex', flexDirection: 'colum
 const label: React.CSSProperties = { fontSize: '9px', color: '#64748b', fontWeight: '800' };
 const input: React.CSSProperties = { backgroundColor: '#020617', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '4px', width: '85px', fontSize: '12px' };
 const btnScan: React.CSSProperties = { backgroundColor: '#0ea5e9', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '4px', fontWeight: '900', cursor: 'pointer', fontSize: '11px', height: '35px', minWidth: '60px' };
-const btnPDF: React.CSSProperties = { backgroundColor: '#334155', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer' };
 const mainLayout: React.CSSProperties = { display: 'flex', gap: '15px', height: 'calc(100vh - 200px)' };
 const sidebar: React.CSSProperties = { width: '250px', backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b', display:'flex', flexDirection:'column' };
 const sidebarTitle: React.CSSProperties = { padding: '12px', fontSize: '10px', fontWeight: 'bold', color:'#64748b', borderBottom:'1px solid #1e293b' };

@@ -1,31 +1,33 @@
-# ⚡ BoardPRO V40.0 | Institutional Options Intelligence
+# ⚡ BoardPRO V2026.1 | Institutional Options Intelligence
 
 ![Status](https://img.shields.io/badge/Status-Production--Ready-green?style=for-the-badge)
-![Engine](https://img.shields.io/badge/Engine-Black--Scholes--Proprietary-blue?style=for-the-badge)
-![Deploy](https://img.shields.io/badge/Deploy-Vercel-black?style=for-the-badge)
+![Engine](https://img.shields.io/badge/Engine-Risk--Audited--V2-blue?style=for-the-badge)
+![Audit](https://img.shields.io/badge/Audit-Real--Time--Margin-red?style=for-the-badge)
 
-> **"A volatilidade não é um risco a ser evitado, mas uma variável a ser precificada. No BoardPRO, nós calculamos a probabilidade de vitória."**
+> **"A diferença entre um trader e um profissional não é a busca pelo lucro, mas o controle implacável do risco real."**
 
-## 💎 O Salto Tecnológico: Versão 40.0
-O **BoardPRO** evoluiu de uma calculadora estática para um **Ecossistema de Inteligência Quantitativa**. Com a nova arquitetura Serverless em Node.js e TypeScript, o motor processa estratégias complexas em milissegundos, entregando assimetrias de lucro que o varejo não consegue enxergar.
+## 💎 O Salto Tecnológico: Versão 2026.1 (Audited Edition)
+O **BoardPRO** consolidou sua arquitetura de defesa. Na versão 2026.1, introduzimos o **Protocolo de Auditoria de Risco Real**, uma camada de inteligência que desmascara lucros ilusórios e garante que cada operação selecionada caiba no capital disponível (LIMIT) do usuário.
 
-### 🧠 Diferenciais Estratégicos
-* **Núcleo Estocástico Proprietário:** Implementação pura de Black-Scholes-Merton sem dependências externas.
-* **Base 252 Real-Time:** Cálculo de Gregas (Delta, Gamma, Theta, Vega, Rho) ajustado pelo calendário de feriados da B3.
-* **Filtro Vigilante:** Algoritmo de score (A+ a F) que descarta automaticamente operações com ROI ilusório ou risco de margem excessivo.
-* **Arquitetura Cloud-Native:** Backend unificado via Vercel Functions para escalabilidade total.
+
+
+### 🧠 Diferenciais Estratégicos & Auditoria
+* **Engine de Risco Auditado:** Cálculo dinâmico de capital em risco. Diferencia travas de crédito/débito de vendas a seco, estimando margem B3 (20% do ativo) em tempo real.
+* **Filtro Vigilante (V2):** Algoritmo de descarte automático que remove estratégias cujo **Risco Real Auditado** excede o teto financeiro configurado (LIMIT), protegendo o trader de chamadas de margem inesperadas.
+* **Interactive Payoff v2.0:** Gráficos compostos de alta precisão com marcação dinâmica de Strikes, Breakevens e zonas de sombra (Green/Red Gradient) para visualização imediata da zona de lucro.
+* **Deep Seek Ticker Engine:** Busca inteligente de séries e símbolos em múltiplos níveis de aninhamento de API, garantindo estabilidade nos dados de entrada.
 
 ## 🛠️ Stack Tecnológica
-* **Frontend:** React 18, Vite, Tailwind CSS, Lucide Icons.
+* **Frontend:** React 18, Vite, Recharts (Payoff Visual), TypeScript.
 * **Backend:** Node.js, Express, TypeScript (Vercel Edge).
-* **Database:** TiDB Cloud (MySQL Serverless) & Firebase.
-* **Cálculo:** Engine Black-Scholes Customizada (Base 252).
+* **Data Intelligence:** MarketDataService unificado com auditoria pré-renderização.
+* **Cálculo:** Algoritmos de ROI Líquido e Target (0x0) com desconto real de taxas.
 
 ## 🚀 Business Model & SaaS
 O BoardPRO foi desenhado para ser escalado como uma plataforma de serviços:
-1.  **Plano Trader:** Acesso ao scanner e ferramentas de análise individual.
-2.  **Plano Institutional:** Relatórios White-Label em PDF para escritórios de assessoria (AAIs).
-3.  **API Enterprise:** Integração do motor de cálculo para fundos e assets.
+1.  **Plano Trader:** Scanner com filtro de auditoria pessoal e LIMIT configurável.
+2.  **Plano Institutional:** Relatórios White-Label em PDF para escritórios de assessoria (AAIs), agora com selo de auditoria de risco.
+3.  **API Enterprise:** Integração do motor de cálculo auditado para fundos e assets.
 
 ---
 © 2026 BoardPRO | Mantido por Marcio Souza.
