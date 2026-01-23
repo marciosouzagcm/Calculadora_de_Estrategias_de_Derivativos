@@ -17,7 +17,7 @@ interface PayoffProps {
     strategy: StrategyMetrics;
     lote: number;
     taxasIdaVolta: number;
-    isLightMode?: boolean; // Nova prop para detectar se está no PDF
+    isLightMode?: boolean;
 }
 
 export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false }: PayoffProps) => {
@@ -29,7 +29,6 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
         return parseFloat(clean) || 0;
     };
 
-    // Definição de cores baseada no modo (Tela vs PDF)
     const colors = {
         grid: isLightMode ? '#e2e8f0' : '#1e293b',
         text: isLightMode ? '#475569' : '#94a3b8',
@@ -56,7 +55,7 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
         
         const minRange = minS * 0.90; 
         const maxRange = maxS * 1.10;
-        const steps = 80; 
+        const steps = 60; // Reduzido levemente para estabilidade de renderização
         const stepSize = (maxRange - minRange) / steps;
 
         const data = [];
@@ -103,8 +102,10 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
     if (chartData.length === 0) return null;
 
     return (
-        <div style={{ width: '100%', height: '100%', minHeight: '300px' }}>
-            <ResponsiveContainer width="100%" height="100%">
+        /* SOLUÇÃO: Definimos uma altura fixa (300px) para o container pai. 
+           Isso garante que o ResponsiveContainer consiga calcular o tamanho no PDF. */
+        <div style={{ width: '100%', height: '300px', position: 'relative' }}>
+            <ResponsiveContainer width="99%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
                     <defs>
                         <linearGradient id="pnlGreen" x1="0" y1="0" x2="0" y2="1">
@@ -146,18 +147,18 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
                             color: isLightMode ? '#000' : '#fff'
                         }}
                         labelStyle={{ color: '#0ea5e9', fontWeight: 'bold', marginBottom: '4px' }}
-                        labelFormatter={(v) => `Preço no Vencimento: R$ ${v}`}
+                        labelFormatter={(v) => `Preço: R$ ${v}`}
                         formatter={(value: number) => [
                             <span style={{ color: value >= 0 ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
                                 R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>, 
-                            'Resultado Estimado'
+                            'Resultado'
                         ]}
                     />
 
-                    <Area type="monotone" dataKey="lucroPositivo" fill="url(#pnlGreen)" stroke="none" isAnimationActive={false} connectNulls />
-                    <Area type="monotone" dataKey="lucroNegativo" fill="url(#pnlRed)" stroke="none" isAnimationActive={false} connectNulls />
-                    
+                    {/* IMPORTANTE: isAnimationActive={false} desativa transições que quebram o PDF */}
+                    <Area type="monotone" dataKey="lucroPositivo" fill="url(#pnlGreen)" stroke="none" isAnimationActive={false} />
+                    <Area type="monotone" dataKey="lucroNegativo" fill="url(#pnlRed)" stroke="none" isAnimationActive={false} />
                     <Area type="monotone" dataKey="lucro" stroke="#0ea5e9" strokeWidth={3} fill="none" isAnimationActive={false} />
 
                     <ReferenceLine x={spotPrice} stroke="#0ea5e9" strokeDasharray="3 3">

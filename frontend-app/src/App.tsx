@@ -3,6 +3,7 @@ import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
 import { ReportTemplate } from './components/ReportTemplate';
+import { FileDown } from 'lucide-react';
 
 const marketService = new MarketDataService();
 
@@ -18,7 +19,7 @@ const strategyCard = (active: boolean): React.CSSProperties => ({
 });
 
 const App: React.FC = () => {
-  const [ticker, setTicker] = useState('RDOR3');
+  const [ticker, setTicker] = useState('VALE3');
   const [precoSlot, setPrecoSlot] = useState(''); 
   const [lote, setLote] = useState(1000);
   const [riscoMaximoInput, setRiscoMaximoInput] = useState(0.70); 
@@ -44,6 +45,15 @@ const App: React.FC = () => {
     } catch { return '---'; }
   };
 
+  const handleExportPDF = () => {
+    const hiddenBtn = document.getElementById('btn-export-pdf-real');
+    if (hiddenBtn) {
+      hiddenBtn.click();
+    } else {
+      alert("Selecione uma estratégia para exportar o relatório.");
+    }
+  };
+
   // --- LÓGICA DE AUDITORIA DE RISCO E SANIDADE DE DADOS ---
   const calcularMetricasCompletas = (est: StrategyMetrics | null) => {
     if (!est || !est.pernas) return null;
@@ -58,15 +68,13 @@ const App: React.FC = () => {
     let possuiVendaSeca = false;
     let dataDistorcido = false;
 
-    // Auditoria de cada perna
     est.pernas.forEach(p => {
       let prm = toNum(p.derivative?.premio || p.premio || 0);
       const strike = toNum(p.strike || p.derivative?.strike);
       
-      // Validação de Sanidade: Prêmio não pode ser maior que o preço da ação (Exceto deep ITM calls, mas tratamos como erro de liquidez aqui)
       if (prm >= pRefAtivo && pRefAtivo > 0) {
         dataDistorcido = true;
-        prm = 0.01; // Neutraliza prêmio absurdo para não poluir o cálculo
+        prm = 0.01; 
       }
 
       if (strike > 0) strikes.push(strike);
@@ -105,17 +113,18 @@ const App: React.FC = () => {
     const resultadoLiquidoReal = lucroBrutoAPI - taxasTotais;
     
     const roiCalculado = capitalEmRiscoTotal > 0 ? (resultadoLiquidoReal / capitalEmRiscoTotal) * 100 : 0;
+    const urCalculado = capitalEmRiscoTotal / lote;
 
     return { 
       totalLiquido: resultadoLiquidoReal, 
       riscoReal: capitalEmRiscoTotal, 
       roi: roiCalculado, 
-      ur: capitalEmRiscoTotal / lote, 
+      ur: urCalculado, 
       target: Math.floor((isCredito ? premioAbsoluto - (taxasTotais/lote) : premioAbsoluto + (taxasTotais/lote)) * 100) / 100, 
       taxas: taxasMontagem, 
       isCredito, 
       be: toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : est.be),
-      isDistorcido: dataDistorcido || roiCalculado > 1000 // Flag para ROI acima de 1000% em travas
+      isDistorcido: dataDistorcido || roiCalculado > 1500 || resultadoLiquidoReal <= 0
     };
   };
 
@@ -129,10 +138,10 @@ const App: React.FC = () => {
       if (!precoSlot) setPrecoSlot(pRef);
       setLastUpdate(marketData.updatedAt.toLocaleTimeString());
       
-      const limiteRiscoTotal = riscoMaximoInput * lote;
+      const limiteUR = toNum(riscoMaximoInput);
 
       const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : window.location.origin;
-      const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteRiscoTotal}&slot=${pRef}`;
+      const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteUR * lote}&slot=${pRef}`;
       
       const resp = await fetch(url);
       const result = await resp.json();
@@ -140,8 +149,12 @@ const App: React.FC = () => {
       if (result.status === "success") {
         const filtradas = result.data.filter((est: any) => {
           const m = calcularMetricasCompletas(est);
-          // Só mostra estratégias com dados íntegros e lucro positivo
-          return m && m.totalLiquido > 0 && m.riscoReal <= limiteRiscoTotal && !m.isDistorcido;
+          // AJUSTE CRÍTICO: Filtro rigoroso pelo Risco Unitário (U.R.)
+          // O U.R. calculado (m.ur) deve ser menor ou igual ao limite (limiteUR)
+          return m && 
+                 m.totalLiquido > 0 && 
+                 m.ur <= (limiteUR + 0.001) && // Adição de pequena margem de erro de ponto flutuante
+                 !m.isDistorcido;
         });
 
         setEstrategias(filtradas);
@@ -163,15 +176,41 @@ const App: React.FC = () => {
           #report-pdf-template { display: block !important; }
           body { background: white !important; }
         }
+        .btn-export-top {
+          background-color: #22c55e;
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 4px;
+          font-weight: 900;
+          cursor: pointer;
+          font-size: 11px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.2s;
+        }
+        .btn-export-top:hover { background-color: #16a34a; }
+        .btn-export-top:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; }
       `}</style>
 
       <header style={headerStyle} className="no-print">
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '15px', flexWrap: 'wrap'}}>
           <h1 style={logoStyle}>TRADING BOARD PRO <span style={{color:'#0ea5e9'}}>V2026.1</span></h1>
-          <div style={badgeContainer}>
-            <span style={liveBadge}>● LIVE: {lastUpdate || '--:--'}</span>
-            <span style={priceBadge}>{ticker}: R$ {precoSlot || '---'}</span>
-            <span style={{...priceBadge, borderColor:'#f87171'}}>LIMIT: R$ {(riscoMaximoInput * lote).toFixed(2)}</span>
+          
+          <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
+            <button 
+              onClick={handleExportPDF} 
+              className="btn-export-top"
+              disabled={!selecionada}
+            >
+              <FileDown size={16} /> EXPORTAR PDF
+            </button>
+            <div style={badgeContainer}>
+              <span style={liveBadge}>● LIVE: {lastUpdate || '--:--'}</span>
+              <span style={priceBadge}>{ticker}: R$ {precoSlot || '---'}</span>
+              <span style={{...priceBadge, borderColor:'#f87171'}}>LIMIT: R$ {toNum(riscoMaximoInput).toFixed(2)}</span>
+            </div>
           </div>
         </div>
 
@@ -179,7 +218,7 @@ const App: React.FC = () => {
           <div style={inputGroup}><label style={label}>ATIVO</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} style={input} /></div>
           <div style={inputGroup}><label style={label}>PREÇO REF</label><input type="number" step="0.01" value={precoSlot} onChange={e => setPrecoSlot(e.target.value)} style={input} /></div>
           <div style={inputGroup}><label style={label}>LOTE</label><input type="number" value={lote} onChange={e => setLote(Number(e.target.value))} style={input} /></div>
-          <div style={inputGroup}><label style={label}>RISCO UNIT.</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(Number(e.target.value))} style={{...input, color: '#f87171'}} /></div>
+          <div style={inputGroup}><label style={label}>RISCO UNIT.</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(toNum(e.target.value))} style={{...input, color: '#f87171'}} /></div>
           <div style={inputGroup}><label style={label}>TAXA/PERNA</label><input type="number" value={taxaPorPerna} onChange={e => setTaxaPorPerna(Number(e.target.value))} style={{...input, color: '#fbbf24'}} /></div>
           <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>{loading ? '...' : 'SCANNER'}</button>
         </div>
@@ -210,9 +249,7 @@ const App: React.FC = () => {
           {selecionada && selecionadaMetricas ? (
             <div style={detailGrid}>
               <div style={panel} className="panel">
-                <div style={{...panelHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <span>COMPOSIÇÃO DETALHADA DO SETUP</span>
-                </div>
+                <div style={panelHeader}>COMPOSIÇÃO DETALHADA DO SETUP</div>
                 <div style={{flex: 1, overflow: 'auto'}}>
                   <table style={table}>
                     <thead>
@@ -223,14 +260,10 @@ const App: React.FC = () => {
                         <tr key={i} style={tr}>
                           <td style={{ color: (p.direction || '').toUpperCase() === 'COMPRA' ? '#4ade80' : '#f87171', padding: '10px', fontWeight: 'bold' }}>{p.direction}</td>
                           <td style={{ color: '#94a3b8' }}>{(p.derivative?.tipo || p.tipo || '').toUpperCase()}</td>
-                          <td style={{ color: '#fff', fontWeight: 'bold' }}>
-                            {p.derivative?.symbol || p.symbol || p.option_ticker || p.ticker || '---'}
-                          </td>
+                          <td style={{ color: '#fff', fontWeight: 'bold' }}>{p.derivative?.symbol || p.symbol || p.option_ticker || '---'}</td>
                           <td style={{ color: '#fff' }}>R$ {toNum(p.strike || p.derivative?.strike).toFixed(2)}</td>
                           <td style={{ color: '#4ade80', fontWeight: 'bold' }}>R$ {toNum(p.premio || p.derivative?.premio).toFixed(2)}</td>
-                          <td style={{ color: '#fbbf24' }}>
-                            {formatarData(p.vencimento || p.derivative?.vencimento || p.expiration || p.derivative?.expiration)}
-                          </td>
+                          <td style={{ color: '#fbbf24' }}>{formatarData(p.vencimento || p.derivative?.vencimento || p.expiration)}</td>
                           <td style={{ color: '#fff' }}>{lote}</td>
                         </tr>
                       ))}
@@ -239,28 +272,23 @@ const App: React.FC = () => {
                 </div>
                 <div style={statusFooter}>
                   <div style={{ display: 'flex', gap: '22px', flexWrap: 'wrap' }}>
-                    <div style={footerBlock}>
-                      <span style={label}>LUCRO LÍQUIDO</span>
-                      <b style={{ color: '#4ade80' }}>R$ {selecionadaMetricas.totalLiquido.toFixed(2)}</b>
-                    </div>
-                    <div style={footerBlock}>
-                      <span style={label}>RISCO REAL (AUDITADO)</span>
-                      <b style={{ color: '#f87171' }}>R$ {selecionadaMetricas.riscoReal.toFixed(2)}</b>
-                    </div>
-                    <div style={footerBlock}>
-                      <span style={label}>TARGET (0x0)</span>
-                      <b style={{ color: '#38bdf8' }}>R$ {selecionadaMetricas.target.toFixed(2)}</b>
-                    </div>
-                    <div style={footerBlock}>
-                      <span style={label}>U.R. ATUAL</span>
-                      <b style={{ color: '#fbbf24' }}>R$ {selecionadaMetricas.ur.toFixed(2)}</b>
-                    </div>
+                    <div style={footerBlock}><span style={label}>LUCRO LÍQUIDO</span><b style={{ color: '#4ade80' }}>R$ {selecionadaMetricas.totalLiquido.toFixed(2)}</b></div>
+                    <div style={footerBlock}><span style={label}>RISCO REAL (AUDITADO)</span><b style={{ color: '#f87171' }}>R$ {selecionadaMetricas.riscoReal.toFixed(2)}</b></div>
+                    <div style={footerBlock}><span style={label}>TARGET (0x0)</span><b style={{ color: '#38bdf8' }}>R$ {selecionadaMetricas.target.toFixed(2)}</b></div>
+                    <div style={footerBlock}><span style={label}>U.R. ATUAL</span><b style={{ color: '#fbbf24' }}>R$ {selecionadaMetricas.ur.toFixed(2)}</b></div>
                   </div>
                 </div>
               </div>
               <div style={panel}>
                 <div style={panelHeader}>CURVA DE PAYOFF (VENCIMENTO)</div>
-                <div style={{flex:1}}><PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={selecionadaMetricas.taxas * 2} /></div>
+                <div style={{flex:1}}>
+                  <PayoffChart 
+                    strategy={selecionada} 
+                    lote={lote} 
+                    taxasIdaVolta={selecionadaMetricas.taxas * 2} 
+                    isLightMode={false}
+                  />
+                </div>
               </div>
             </div>
           ) : <div style={empty}>REALIZE O SCANNER PARA AUDITORIA...</div>}
@@ -280,6 +308,7 @@ const App: React.FC = () => {
   );
 };
 
+// ... Estilos ...
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '15px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '18px', fontWeight: '900' };
