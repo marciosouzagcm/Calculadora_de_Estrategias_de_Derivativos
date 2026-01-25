@@ -4,7 +4,7 @@ import { OptionLeg, StrategyMetrics } from '../interfaces/Types.js';
 
 /**
  * BOARDPRO V41.7 - Strategy Orchestrator
- * FIX: Remoção de sinais, Target unitário real, B.E. ancorado e estabilidade.
+ * FIX: Type casting para estabilidade do Scanner, Remoção de sinais, Target unitário real.
  */
 export class StrategyService {
     private static readonly FEE_PER_LEG = 22.00; 
@@ -21,15 +21,21 @@ export class StrategyService {
 
         if (!rawOptions || rawOptions.length === 0) return [];
 
+        // FIX: Usando 'any' no map para evitar erro de propriedade inexistente no build da Vercel
         const options: OptionLeg[] = rawOptions.map((opt: any) => {
-            const cleanAtivo = opt.ativo_subjacente.replace(/^\d+/, '');
-            let correctedStrike = parseFloat(opt.strike);
-            if (cleanAtivo.includes('BOVA') && correctedStrike < 80) correctedStrike *= 10;
+            const cleanAtivo = (opt.ativo_subjacente || '').replace(/^\d+/, '');
+            let correctedStrike = parseFloat(opt.strike || 0);
+            
+            // Ajuste específico para BOVA11 se o strike vier fracionado incorretamente
+            if (cleanAtivo.includes('BOVA') && correctedStrike < 80 && correctedStrike > 0) {
+                correctedStrike *= 10;
+            }
 
             return {
                 ...opt,
                 ativo_subjacente: cleanAtivo,
                 strike: correctedStrike,
+                tipo: opt.tipo || (opt.symbol && opt.symbol.charAt(4).match(/[A-L]/) ? 'CALL' : 'PUT'),
                 premio: parseFloat(opt.premio || opt.premioPct || 0),
                 vencimento: typeof opt.vencimento === 'string' ? opt.vencimento.split('T')[0] : opt.vencimento,
                 gregas_unitarias: {
@@ -38,7 +44,7 @@ export class StrategyService {
                     theta: parseFloat(opt.theta || 0),
                     vega: parseFloat(opt.vega || 0)
                 }
-            };
+            } as OptionLeg;
         });
 
         const allStrategies = StrategyFactory.getAllStrategies();
@@ -69,17 +75,16 @@ export class StrategyService {
         const unitPremium = Math.abs(s.net_premium || 0);
         const targetZeroZero = unitPremium + feePerUnit;
 
-        // 2. FINANCEIRO TOTAL (Sem sinal negativo na exibição)
+        // 2. FINANCEIRO TOTAL
         const isUnlimited = s.max_profit === 'Ilimitado' || s.max_profit === Infinity;
         const netProfit = isUnlimited ? Infinity : (Number(s.max_profit) * lot) - feesTotal;
         const netRisk = (Math.abs(Number(s.max_loss)) * lot) + feesTotal;
 
-        // 3. BREAK-EVEN (B.E.) FORÇADO - Resolve o problema do 0.00
+        // 3. BREAK-EVEN (B.E.) ANCORADO
         let finalBE = s.breakEvenPoints || [];
         if (finalBE.length === 0 || finalBE.every(v => v === 0)) {
-            const pivotStrike = s.pernas[0]?.strike || spotPrice;
-            const isBull = s.name.includes('Bull') || s.pernas[0]?.tipo === 'CALL';
-            // Se for Alta: Strike + Custo Operacional | Se for Baixa: Strike - Custo Operacional
+            const pivotStrike = (s.pernas[0] as any)?.strike || spotPrice;
+            const isBull = s.name.includes('Bull') || (s.pernas[0] as any)?.tipo === 'CALL';
             finalBE = [isBull ? pivotStrike + targetZeroZero : pivotStrike - targetZeroZero];
         }
 
@@ -87,13 +92,11 @@ export class StrategyService {
             ...s,
             roi: netRisk > 0 ? (Number(netProfit) / netRisk) : 0,
             
-            // REMOÇÃO DO TRAÇO: Forçamos o valor absoluto na string formatada
             exibir_lucro: isUnlimited ? 'ILIMITADO' : 
                 `R$ ${Math.abs(Number(netProfit)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                 
             exibir_risco: `R$ ${Math.abs(netRisk).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             
-            // TARGET: Valor unitário ajustado para pagar as taxas
             net_premium: Number(targetZeroZero.toFixed(4)), 
             
             max_profit: netProfit,
