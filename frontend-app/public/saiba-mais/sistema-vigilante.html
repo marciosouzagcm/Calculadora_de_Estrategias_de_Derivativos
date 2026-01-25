@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Vigilante V2 - BoardPRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #0d1117; color: #c9d1d9; line-height: 1.6; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #161b22; padding: 40px; border-radius: 12px; border: 1px solid #30363d; }
+        h1 { font-family: 'Montserrat', sans-serif; color: #58a6ff; border-bottom: 2px solid #58a6ff; padding-bottom: 10px; }
+        .highlight { color: #22c55e; font-weight: bold; }
+        .warning-box { background: rgba(240, 135, 0, 0.1); border-left: 4px solid #f08700; padding: 15px; margin: 20px 0; }
+        code { background: #21262d; padding: 2px 5px; border-radius: 4px; color: #ff7b72; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Sistema Vigilante V2</h1>
+        <p>O <strong>Vigilante V2</strong> é a camada de segurança do BoardPRO que audita cada cálculo antes de apresentá-lo ao usuário. No mercado de opções, dados irreais podem levar a decisões catastróficas.</p>
+        
+        <div class="warning-box">
+            <strong>Missão:</strong> Eliminar o "lixo" estatístico proveniente de distorções de book e baixa liquidez.
+        </div>
+
+        <h3>O que ele monitora?</h3>
+        <ul>
+            <li><span class="highlight">Distorção de Spread:</span> Alerta se o <em>Bid/Ask</em> estiver excessivamente largo, o que inviabiliza o cálculo da Volatilidade Implícita.</li>
+            <li><span class="highlight">Arbitragem Negativa:</span> Detecta quando os preços de mercado violam os limites teóricos (ex: Put mais barata que o valor intrínseco).</li>
+            <li><span class="highlight">Filtro de Liquidez:</span> Identifica opções sem negócios recentes que poderiam "sujar" o gráfico de payoff.</li>
+        </ul>
+
+        <h3>Como funciona?</h3>
+        <p>Cada vez que o Scanner roda, o Vigilante aplica um teste de estresse nos inputs do modelo Black-Scholes. Se os dados não passam no crivo, o sistema exibe um aviso ou oculta a estratégia para proteger seu capital.</p>
+        
+        <button onclick="window.close()" style="margin-top: 30px; background: #30363d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Fechar Manual</button>
+    </div>
+</body>
+</html>
