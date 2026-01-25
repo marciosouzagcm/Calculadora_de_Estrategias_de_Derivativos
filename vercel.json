@@ -12,6 +12,10 @@
       "destination": "/saiba-mais/$1"
     },
     {
+      "source": "/features.html",
+      "destination": "/features.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
