@@ -1,9 +1,10 @@
 import React from 'react';
 import { exportarPDF, formatCurrency, formatPercentage } from '../services/pdfService';
 import { PayoffChart } from './PayoffChart';
-import { ShieldAlert, TrendingUp } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
-export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
+// Aceita logoUrl como prop vinda do App.tsx
+export const ReportTemplate = ({ est, metricas, ticker, spot, lote, logoUrl }: any) => {
   if (!est || !metricas) return null;
 
   const riscoTotal = metricas.riscoReal;
@@ -21,7 +22,7 @@ export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
         onClick={() => exportarPDF(est.name)} 
       />
 
-      {/* CONTAINER DE RENDERIZAÇÃO OFF-SCREEN (INVISÍVEL AO USUÁRIO) */}
+      {/* CONTAINER DE RENDERIZAÇÃO OFF-SCREEN */}
       <div style={{ position: 'absolute', left: '-9999px', top: '0', zIndex: -1 }}>
         <div 
           id="report-pdf-template" 
@@ -34,7 +35,7 @@ export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
             fontFamily: 'Arial, sans-serif'
           }}
         >
-          {/* CSS INTERNO PARA FORÇAR CONTRASTE MÁXIMO NO PDF */}
+          {/* CSS INTERNO PARA PDF */}
           <style>{`
             #report-pdf-template * {
               color: #000000 !important;
@@ -42,7 +43,7 @@ export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
             }
             #report-pdf-template .text-blue-700, 
             #report-pdf-template .text-blue-600 {
-              color: #1d4ed8 !important; /* Azul escuro para leitura */
+              color: #1d4ed8 !important;
             }
             #report-pdf-template .text-red-600 {
               color: #dc2626 !important;
@@ -53,15 +54,24 @@ export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
             #report-pdf-template b, #report-pdf-template strong {
               font-weight: 800 !important;
             }
+            .report-header-logo {
+              height: 50px;
+              width: auto;
+              object-fit: contain;
+            }
           `}</style>
 
-          {/* Cabeçalho de Banco */}
-          <div className="flex justify-between items-start border-b-4 border-blue-600 pb-6 mb-8" style={{ borderBottomColor: '#1d4ed8' }}>
-            <div>
-              <div className="flex items-center gap-2 text-blue-700 font-black text-2xl tracking-tighter">
-                <TrendingUp /> BOARDPRO <span className="text-slate-400 font-light">INTELLIGENCE</span>
+          {/* Cabeçalho Institucional com Logo.png */}
+          <div className="flex justify-between items-center border-b-4 border-blue-600 pb-6 mb-8" style={{ borderBottomColor: '#1d4ed8' }}>
+            <div className="flex items-center gap-4">
+              {/* Inserção da Logo aqui */}
+              {logoUrl && <img src={logoUrl} alt="Logo" className="report-header-logo" />}
+              <div>
+                <div className="text-blue-700 font-black text-2xl tracking-tighter uppercase">
+                  BOARDPRO <span className="text-slate-400 font-light">INTELLIGENCE</span>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mesa de Produtos Estruturados</p>
               </div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mesa de Produtos Estruturados</p>
             </div>
             <div className="text-right">
               <h1 className="text-4xl font-black tracking-tighter text-slate-900" style={{ color: '#000000' }}>{ticker}</h1>
@@ -69,12 +79,12 @@ export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
             </div>
           </div>
 
-          {/* Descritivo */}
+          {/* Descritivo Automático */}
           <div className="mb-8">
             <h2 className="text-lg font-black text-slate-800 uppercase mb-2">{est.name}</h2>
             <p className="text-xs text-slate-600 leading-relaxed text-justify" style={{ color: '#334155' }}>
-              Esta operação estruturada visa otimizar a relação risco-retorno do investidor, permitindo participar do movimento do ativo objeto 
-              através do mercado de opções. O risco máximo é limitado ao desembolso inicial (prêmio pago + taxas), garantindo previsibilidade de perda.
+              {est.officialDescription || `Esta operação estruturada visa otimizar a relação risco-retorno do investidor, permitindo participar do movimento do ativo objeto 
+              através do mercado de opções. O risco máximo é limitado ao desembolso inicial (prêmio pago + taxas), garantindo previsibilidade de perda.`}
             </p>
           </div>
 
@@ -97,7 +107,7 @@ export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
             </div>
           </div>
 
-          {/* Gráfico de Payoff Otimizado para Luz */}
+          {/* Gráfico de Payoff (Modo Claro para Impressão) */}
           <div className="mb-10">
             <h3 className="text-[10px] font-black text-slate-800 uppercase mb-4 tracking-widest">Cenários da Operação no Vencimento</h3>
             <div className="h-[300px] w-full border border-slate-100 rounded-lg p-4 bg-white">
@@ -122,11 +132,11 @@ export const ReportTemplate = ({ est, metricas, ticker, spot, lote }: any) => {
             </div>
             <div className="p-4 bg-slate-50 text-center">
               <p className="text-[9px] font-bold text-slate-400 uppercase">Eficiência (R/R)</p>
-              <p className="text-sm font-black text-slate-800">1 : {(lucroTotal/riscoTotal).toFixed(2)}</p>
+              <p className="text-sm font-black text-slate-800">1 : {(lucroTotal / riscoTotal).toFixed(2)}</p>
             </div>
           </div>
 
-          {/* Rodapé e Disclaimer Legal */}
+          {/* Rodapé e Disclaimer */}
           <div className="mt-auto pt-6 border-t border-slate-100">
             <div className="flex gap-4 mb-6">
               <ShieldAlert className="h-8 w-8 text-slate-400 shrink-0" />

@@ -3,9 +3,12 @@ import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
 import { ReportTemplate } from './components/ReportTemplate';
-import { FileDown } from 'lucide-react';
+import { FileDown, ExternalLink } from 'lucide-react';
 
 const marketService = new MarketDataService();
+
+// Caminho da imagem na pasta public da Vercel
+const LOGO_SRC = "/Logo.png";
 
 const strategyCard = (active: boolean): React.CSSProperties => ({
   padding: '12px',
@@ -45,19 +48,28 @@ const App: React.FC = () => {
     } catch { return '---'; }
   };
 
-  const handleExportPDF = () => {
-    const hiddenBtn = document.getElementById('btn-export-pdf-real');
-    if (hiddenBtn) {
-      hiddenBtn.click();
-    } else {
-      alert("Selecione uma estratégia para exportar o relatório.");
-    }
+  const getManualDescription = (name: string) => {
+    const n = name.toUpperCase();
+    if (n.includes('BULL CALL')) return "Trava de Alta com Call: Compra-se uma Call em strike baixo e vende-se em strike alto. Lucra-se com a valorização moderada do ativo.";
+    if (n.includes('BULL PUT')) return "Trava de Alta com Put: Estratégia de crédito. Vende-se uma Put próxima ao dinheiro com proteção inferior para colher prêmio e tempo.";
+    if (n.includes('BEAR CALL')) return "Trava de Baixa com Call: Operação de crédito que se beneficia da queda ou lateralização do preço do ativo subjacente.";
+    if (n.includes('BEAR PUT')) return "Trava de Baixa com Put: Compra-se proteção (Put) e financia-se parte do custo com a venda de uma Put de strike inferior.";
+    if (n.includes('STRANGLE')) return "Strangle: Estratégia de volatilidade que utiliza strikes diferentes fora do dinheiro para criar uma zona de conforto.";
+    if (n.includes('STRADDLE')) return "Straddle: Operação simultânea no mesmo strike para capturar grandes movimentos ou baixa volatilidade extrema.";
+    return "Análise técnica institucional processada pelo motor de cálculo BoardPRO.";
   };
 
-  // --- LÓGICA DE AUDITORIA DE RISCO E SANIDADE DE DADOS ---
+  // Função de exportação otimizada para acionar o componente de relatório
+  const handleExportPDF = () => {
+    if (!selecionada) {
+      alert("Selecione uma estratégia para exportar o relatório.");
+      return;
+    }
+    window.print();
+  };
+
   const calcularMetricasCompletas = (est: StrategyMetrics | null) => {
     if (!est || !est.pernas) return null;
-
     const nPernas = est.pernas.length;
     const taxasMontagem = nPernas * taxaPorPerna;
     const taxasTotais = taxasMontagem * 2;
@@ -71,17 +83,10 @@ const App: React.FC = () => {
     est.pernas.forEach(p => {
       let prm = toNum(p.derivative?.premio || p.premio || 0);
       const strike = toNum(p.strike || p.derivative?.strike);
-      
-      if (prm >= pRefAtivo && pRefAtivo > 0) {
-        dataDistorcido = true;
-        prm = 0.01; 
-      }
-
+      if (prm >= pRefAtivo && pRefAtivo > 0) { dataDistorcido = true; prm = 0.01; }
       if (strike > 0) strikes.push(strike);
-      
       const isCompra = (p.direction || '').toUpperCase() === 'COMPRA';
       fluxoCaixaUnit += isCompra ? -prm : prm;
-      
       if (!isCompra) {
         const temProtecao = est.pernas?.some(prot => 
           (prot.direction || '').toUpperCase() === 'COMPRA' && 
@@ -93,33 +98,27 @@ const App: React.FC = () => {
 
     const isCredito = fluxoCaixaUnit > 0;
     const premioAbsoluto = Math.abs(fluxoCaixaUnit);
-    
     let riscoRealCalculado = 0;
 
     if (nPernas === 2 && strikes.length === 2 && !possuiVendaSeca) {
       const diffStrikes = Math.abs(strikes[0] - strikes[1]);
       riscoRealCalculado = isCredito ? (diffStrikes - premioAbsoluto) * lote : premioAbsoluto * lote;
-    } 
-    else if (possuiVendaSeca) {
-      const margemB3Estimada = (pRefAtivo * 0.20) * lote;
-      riscoRealCalculado = Math.max(margemB3Estimada, (riscoMaximoInput * lote));
-    }
-    else {
+    } else if (possuiVendaSeca) {
+      riscoRealCalculado = Math.max((pRefAtivo * 0.20) * lote, (riscoMaximoInput * lote));
+    } else {
       riscoRealCalculado = toNum(est.max_loss || est.risco_maximo) || (riscoMaximoInput * lote);
     }
 
     const capitalEmRiscoTotal = riscoRealCalculado + taxasMontagem;
     const lucroBrutoAPI = dataDistorcido ? 0 : toNum(est.max_profit || est.lucro_maximo || (isCredito ? premioAbsoluto * lote : 0));
     const resultadoLiquidoReal = lucroBrutoAPI - taxasTotais;
-    
     const roiCalculado = capitalEmRiscoTotal > 0 ? (resultadoLiquidoReal / capitalEmRiscoTotal) * 100 : 0;
-    const urCalculado = capitalEmRiscoTotal / lote;
-
+    
     return { 
       totalLiquido: resultadoLiquidoReal, 
       riscoReal: capitalEmRiscoTotal, 
       roi: roiCalculado, 
-      ur: urCalculado, 
+      ur: capitalEmRiscoTotal / lote, 
       target: Math.floor((isCredito ? premioAbsoluto - (taxasTotais/lote) : premioAbsoluto + (taxasTotais/lote)) * 100) / 100, 
       taxas: taxasMontagem, 
       isCredito, 
@@ -137,35 +136,21 @@ const App: React.FC = () => {
       const pRef = precoSlot || marketData.price.toFixed(2);
       if (!precoSlot) setPrecoSlot(pRef);
       setLastUpdate(marketData.updatedAt.toLocaleTimeString());
-      
       const limiteUR = toNum(riscoMaximoInput);
-
       const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : window.location.origin;
       const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteUR * lote}&slot=${pRef}`;
-      
       const resp = await fetch(url);
       const result = await resp.json();
-
       if (result.status === "success") {
         const filtradas = result.data.filter((est: any) => {
           const m = calcularMetricasCompletas(est);
-          // AJUSTE CRÍTICO: Filtro rigoroso pelo Risco Unitário (U.R.)
-          // O U.R. calculado (m.ur) deve ser menor ou igual ao limite (limiteUR)
-          return m && 
-                 m.totalLiquido > 0 && 
-                 m.ur <= (limiteUR + 0.001) && // Adição de pequena margem de erro de ponto flutuante
-                 !m.isDistorcido;
+          return m && m.totalLiquido > 0 && m.ur <= (limiteUR + 0.001) && !m.isDistorcido;
         });
-
         setEstrategias(filtradas);
         if (filtradas.length > 0) setSelecionada(filtradas[0]);
         else setSelecionada(null);
       }
-    } catch (err) { 
-      console.error(err); 
-    } finally { 
-      setLoading(false); 
-    }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   return (
@@ -173,37 +158,42 @@ const App: React.FC = () => {
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          #report-pdf-template { display: block !important; }
+          #report-pdf-template { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
           body { background: white !important; }
         }
+        .app-logo {
+          height: 38px; width: auto; margin-right: 15px;
+          filter: drop-shadow(0 0 5px rgba(14, 165, 233, 0.4));
+        }
         .btn-export-top {
-          background-color: #22c55e;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          font-weight: 900;
-          cursor: pointer;
-          font-size: 11px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          transition: all 0.2s;
+          background-color: #22c55e; color: white; border: none; padding: 8px 16px;
+          border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px;
+          display: flex; align-items: center; gap: 8px; transition: all 0.2s;
         }
         .btn-export-top:hover { background-color: #16a34a; }
         .btn-export-top:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; }
+        
+        .doc-link {
+          display: flex; align-items: center; gap: 4px; color: #0ea5e9; 
+          font-size: 10px; text-decoration: none; font-weight: bold; margin-top: 5px;
+        }
+        .doc-link:hover { text-decoration: underline; }
       `}</style>
 
       <header style={headerStyle} className="no-print">
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '15px', flexWrap: 'wrap'}}>
-          <h1 style={logoStyle}>TRADING BOARD PRO <span style={{color:'#0ea5e9'}}>V2026.1</span></h1>
+          <div style={{display: 'flex', alignItems: 'center'}}>
+            <img src={LOGO_SRC} alt="BoardPRO" className="app-logo" />
+            <div>
+              <h1 style={logoStyle}>TRADING BOARD PRO <span style={{color:'#0ea5e9'}}>V2026.1</span></h1>
+              <a href="/docs/black-scholes-merton.html" target="_blank" className="doc-link">
+                <ExternalLink size={10} /> MANUAL MOTOR BSM 252
+              </a>
+            </div>
+          </div>
           
           <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-            <button 
-              onClick={handleExportPDF} 
-              className="btn-export-top"
-              disabled={!selecionada}
-            >
+            <button onClick={handleExportPDF} className="btn-export-top" disabled={!selecionada}>
               <FileDown size={16} /> EXPORTAR PDF
             </button>
             <div style={badgeContainer}>
@@ -295,20 +285,27 @@ const App: React.FC = () => {
         </section>
       </main>
 
+      {/* Componente de Relatório Oculto na Web, visível apenas na impressão */}
       {selecionada && selecionadaMetricas && (
-        <ReportTemplate 
-          est={selecionada} 
-          metricas={selecionadaMetricas} 
-          ticker={ticker} 
-          spot={toNum(precoSlot)} 
-          lote={lote} 
-        />
+        <div id="report-pdf-template" style={{ display: 'none' }}>
+          <ReportTemplate 
+            est={{
+              ...selecionada,
+              officialDescription: getManualDescription(selecionada.name)
+            }} 
+            metricas={selecionadaMetricas} 
+            ticker={ticker} 
+            spot={toNum(precoSlot)} 
+            lote={lote} 
+            logoUrl={LOGO_SRC}
+          />
+        </div>
       )}
     </div>
   );
 };
 
-// ... Estilos ...
+// Estilos
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '15px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '18px', fontWeight: '900' };

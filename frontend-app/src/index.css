@@ -3,15 +3,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Remova as definições de :root e .dark por enquanto se não estiver usando Shadcn/UI puro */
-
+/* Configurações Globais da Interface */
 body {
   margin: 0;
   padding: 0;
-  background-color: #0f172a; /* Garante que o fundo seja o azul escuro do Trading Board */
+  background-color: #0f172a; /* Azul escuro profundo do Trading Board */
+  color: #f1f5f9;
   overflow-x: hidden;
+  font-family: sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* REGRAS ESPECÍFICAS PARA O RELATÓRIO PDF */
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Garante que o PDF ocupe a folha toda sem bordas do navegador */
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  /* Esconde tudo que não é o template do relatório (botões, inputs, etc) */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Força a visibilidade de elementos que devem aparecer no PDF */
+  #report-pdf-template {
+    display: block !important;
+    position: static !important;
+    left: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* UTILITÁRIO PARA NÚMEROS FINANCEIROS */
+/* Ideal para alinhar Strikes e Prêmios em tabelas */
+.font-financial {
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: -0.5px;
+  font-weight: bold;
+}
+
+/* Classes auxiliares para o tema Trading Board */
+.panel-glass {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid #334155;
 }
