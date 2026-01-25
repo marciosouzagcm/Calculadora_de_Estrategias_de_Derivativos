@@ -5,9 +5,30 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📊</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BoardPRO - Calculadora de Estratégias de Derivativos</title>
+
+    <script>
+      (function() {
+        try {
+          // Previne erros de sandbox quando o site é carregado dentro do editor da GoDaddy
+          if (window.self !== window.top) {
+            console.log("BoardPRO: Compatibilidade de Iframe ativada.");
+            // Desativa tentativas de registro de Service Worker que causam erro de MIME type
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(regs => {
+                for(let reg of regs) reg.unregister();
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("BoardPRO: Erro de segurança ignorado.");
+        }
+      })();
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* Estilos para a seção de funcionalidades abaixo do App */
+        /* Estilos permanecem idênticos ao seu original */
         #boardpro-features {
             font-family: 'Roboto', sans-serif;
             background-color: #0d1117;
@@ -16,10 +37,7 @@
             text-align: center;
             border-top: 1px solid #30363d;
         }
-        .container-docs {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .container-docs { max-width: 1200px; margin: 0 auto; }
         #boardpro-features h2 {
             font-family: 'Montserrat', sans-serif;
             font-size: 2.5em;
@@ -109,6 +127,5 @@
     </section>
 
     <script type="module" src="/src/main.tsx"></script>
-    
   </body>
 </html>
