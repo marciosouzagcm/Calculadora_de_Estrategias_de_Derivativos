@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoardPRO - Scanner Inteligente</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .section-detail {
+            padding: 60px 20px;
+            background: #0d1117;
+        }
+        .header-detail {
+            border-left: 4px solid #58a6ff;
+            padding-left: 20px;
+            margin-bottom: 40px;
+        }
+        .header-detail h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.5em;
+            color: #58a6ff;
+            margin: 0;
+        }
+        .header-detail span {
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.9em;
+        }
+        .content-block {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            font-family: 'Montserrat', sans-serif;
+            color: #22c55e;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 10px;
+        }
+        .scanner-logic {
+            background: #0d1117;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 3px solid #e3b341;
+            margin: 20px 0;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            margin-bottom: 15px;
+            padding-left: 25px;
+            position: relative;
+        }
+        .feature-list li::before {
+            content: "⚡";
+            position: absolute;
+            left: 0;
+            color: #58a6ff;
+        }
+        .highlight {
+            color: #e3b341;
+            font-weight: bold;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-top: 20px;
+            color: #58a6ff;
+            text-decoration: none;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 1em;
+            padding: 0;
+        }
+        .back-btn:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <section class="section-detail">
+            <div class="header-detail">
+                <span>Algoritmo de Busca</span>
+                <h1>Scanner Inteligente</h1>
+            </div>
+
+            <div class="content-block">
+                <h2>Como o Scanner Funciona?</h2>
+                <p>
+                    O Scanner do <b>BoardPRO</b> não é apenas um filtro comum. Ele processa milhares de combinações de strikes e vencimentos em tempo real para identificar oportunidades onde o prêmio da opção está descascado em relação ao risco estatístico.
+                </p>
+                <div class="scanner-logic">
+                    <strong>Filtro de Liquidez:</strong> O algoritmo descarta automaticamente opções com <i>spread</i> entre compra e venda muito alto, garantindo que você consiga entrar e sair da operação com facilidade.
+                </div>
+            </div>
+
+            <div class="content-block">
+                <h2>Principais Filtros de Busca</h2>
+                <ul class="feature-list">
+                    <li><strong>Distorção de Volatilidade:</strong> Encontre opções com Volatilidade Implícita (IV) significativamente abaixo ou acima da média histórica.</li>
+                    <li><strong>Relação Risco/Retorno:</strong> Filtre estratégias de "Trava" ou "Borboleta" pelo retorno máximo potencial em relação ao capital garantido.</li>
+                    <li><strong>Filtro por Gregas:</strong> Busque operações por exposição específica de Delta (ex: Delta Estrutural 30) ou Theta positivo.</li>
+                    <li><strong>Vencimentos B3:</strong> Mapeamento completo de todas as séries vigentes na B3, incluindo opções semanais.</li>
+                </ul>
+            </div>
+
+            <div class="content-block">
+                <h2>Vantagem do Trader Quantitativo</h2>
+                <p>
+                    O uso do Scanner permite que o investidor saia do "achismo" e tome decisões baseadas em <span class="highlight">Edge Estatístico</span>. Em vez de procurar ativo por ativo, o BoardPRO apresenta as melhores montagens de acordo com o seu perfil de risco configurado.
+                </p>
+            </div>
+
+            <button onclick="window.close()" class="back-btn">← Fechar manual e voltar</button>
+        </section>
+    </div>
+
+</body>
+</html>
