@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Short Straddle | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #10b981; }
+        .accent-gold { color: #d4af37; }
+        .status-low-vol { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid #10b981; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-low-vol px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Expectativa: Volatilidade Baixa (Lateral)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">SHORT STRADDLE</h1>
+                    <p class="text-slate-400 italic">Nomenclatura Técnica: Top Straddle ou Straddle Write.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-006 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-compress text-emerald-500"></i> 1. Definição Estrutural
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    Estratégia de crédito puro que consiste na venda simultânea de uma Call e uma Put com o mesmo preço de exercício (ATM) e vencimento. O objetivo é extrair prêmio em cenários de baixa volatilidade, onde se acredita que o mercado permanecerá estável ou se consolidando em torno de um preço específico.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-emerald-400 mb-1">Ponta A (Venda de Call)</strong>
+                        Venda de Call At-the-Money (ATM) no strike (A).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-emerald-400 mb-1">Ponta B (Venda de Put)</strong>
+                        Venda de Put At-the-Money (ATM) no strike (A).
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-amber-500 italic font-semibold">⚠️ Atenção: Esta estratégia requer chamada de margem agressiva devido ao risco de perda ilimitada.</p>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-microchip text-emerald-500"></i> 2. Dinâmica de P&L e Equilíbrio
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Breakevens</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Crédito Líquido Recebido</span>
+                            <span class="math-text">Prêmio Call (A) + Prêmio Put (A)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Superior</span>
+                            <span class="math-text">Strike (A) + Crédito Líquido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Inferior</span>
+                            <span class="math-text">Strike (A) - Crédito Líquido</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Limites Operacionais</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo (Limitado)</span>
+                            <span class="math-text">Total do Crédito Inicial Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco Máximo</span>
+                            <span class="text-red-500 font-bold uppercase">Potencialmente Ilimitado</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-landmark text-emerald-500"></i> 3. Gestão de Risco e Exemplo
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-emerald-900/20 border border-emerald-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Estudo de Caso (Ibovespa):</strong> Montagem no strike de 54.000 pontos com recebimento de 4.800 pontos (R$ 192.000,00 para 40 contratos). O lucro máximo ocorre se o índice expirar exatamente nos 54.000 pontos.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Intervalo de Lucro</span>
+                        <span class="text-lg font-bold text-emerald-400">49.200 a 58.800 pontos</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Vantagem Operacional</span>
+                        <span class="text-lg font-bold text-sky-400">Tempo (Theta) Positivo</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex flex-col items-center gap-4">
+            <button onclick="window.close()" class="px-10 py-4 bg-emerald-700 hover:bg-emerald-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-vault"></i> Validar Venda de Volatilidade
+            </button>
+            <p class="text-[10px] text-slate-600 uppercase tracking-widest">
+                Modelo baseado em ativos com multiplicador R$ 1,00 por ponto (B3).
+            </p>
+        </footer>
+    </main>
+
+</body>
+</html>

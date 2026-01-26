@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Bear Diagonal Spread | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #f87171; }
+        .accent-gold { color: #d4af37; }
+        .status-diagonal-bear { background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid #ef4444; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-diagonal-bear px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Dimensão: Diagonal / Viés Baixista</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">BEAR DIAGONAL SPREAD</h1>
+                    <p class="text-slate-400 italic">Hedge Dinâmico: Proteção de longo prazo financiada por vendas de curto prazo.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-018 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-arrow-down-wide-short text-red-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    O Bear Diagonal Spread envolve a compra de uma Put de longo prazo com strike superior (mais ITM) e a venda de uma Put de curto prazo com strike inferior (mais OTM). A estratégia busca lucrar com uma queda moderada do ativo até o strike da Put vendida, enquanto se beneficia do decaimento temporal (Theta) mais rápido da opção curta.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-red-500/30">
+                        <strong class="block text-red-400 mb-1">Ponta A (Longa / LEAPS)</strong>
+                        Compra de Put ITM com vencimento distante (T2) e Strike Superior (K2).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-sky-500/30">
+                        <strong class="block text-sky-400 mb-1">Ponta B (Curta / Front)</strong>
+                        Venda de Put OTM com vencimento próximo (T1) e Strike Inferior (K1).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-red-500"></i> 2. Modelagem de P&L e Gregas
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Custo Líquido</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Débito de Montagem</span>
+                            <span class="math-text">Prêmio Put (K2, T2) - Prêmio Put (K1, T1)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Diferencial de Theta (θ)</span>
+                            <span class="text-green-400 font-bold">Positivo (Erosão acelerada da ponta B)</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Gregas Resultantes</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Delta (Δ)</span>
+                            <span class="text-red-400 font-bold">Negativo (Beneficia-se da queda)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Vega (ν)</span>
+                            <span class="text-sky-400 font-bold">Positivo (Beneficia-se de picos de Vol.)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-shield-virus text-red-500"></i> 3. Gestão de Risco e Cenários
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-red-900/20 border border-red-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Vantagem Operacional:</strong> Esta é uma estratégia de "Hedge Ativo". Se o mercado ficar parado ou cair levemente, a Put curta (K1) paga parte da proteção de longo prazo (K2). Se o mercado desabar agressivamente (Crash), a valorização da Put ITM longa compensa largamente a curta, protegendo o capital.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Risco Máximo</span>
+                        <span class="text-sm font-bold text-red-400">Limitado ao Débito Pago</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Atratividade</span>
+                        <span class="text-sm font-bold text-sky-400">Alta Probabilidade em Mercados de Baixa</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-red-700 hover:bg-red-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-microchip"></i> Validar Estrutura Diagonal de Baixa
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

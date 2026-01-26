@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Long Call Spread | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #38bdf8; }
+        .accent-gold { color: #d4af37; }
+        .status-bull { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid #22c55e; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-bull px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Direção: Bullish</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">LONG CALL SPREAD</h1>
+                    <p class="text-slate-400 italic">Também conhecida como Bull Call Spread ou Call Debit Spread.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-001 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-sky-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4">Estratégia executada para capitalizar em cenários de alta do ativo subjacente com volatilidade neutra. Consiste na combinação de:</p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-sky-400 mb-1">Ponta A (Compradora)</strong>
+                        Compra de Call ATM (At-the-Money) em preço de exercício (A).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-orange-400 mb-1">Ponta B (Vendedora)</strong>
+                        Venda de Call OTM (Out-of-the-Money) em preço de exercício superior (B).
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-slate-400 italic">Nota: Ambas as opções possuem o mesmo vencimento e ativo-objeto. A estratégia não requer chamada de margem.</p>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-sky-500"></i> 2. Modelagem Quantitativa
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Métricas de Custo e Ponto de Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Débito Líquido (Custo)</span>
+                            <span class="math-text">Prêmio Compra (A) - Prêmio Venda (B)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ponto de Equilíbrio (PE/Breakeven)</span>
+                            <span class="math-text">Strike (A) + Débito Líquido Pago</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Métricas de Performance</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Retorno Máximo</span>
+                            <span class="math-text">(Strike B - Strike A) - Débito Pago</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">ROI Máximo</span>
+                            <span class="math-text">(Retorno Máx / Risco Máx) x 100</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-sky-500"></i> 3. Gestão de Risco e RRR
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-6">O gerenciamento de risco é definido pela proporção entre o capital exposto e o ganho potencial.</p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="border-l-2 border-green-500 pl-4">
+                        <h4 class="font-bold text-sm uppercase mb-2">RRR (Reward Risk Ratio)</h4>
+                        <p class="text-2xl font-mono">3,00 : 1</p>
+                        <p class="text-xs text-slate-500 mt-1">Indica que se lucra US$ 3,00 para cada US$ 1,00 arriscado (Exemplo Bitcoin).</p>
+                    </div>
+                    <div class="border-l-2 border-red-500 pl-4">
+                        <h4 class="font-bold text-sm uppercase mb-2">RRR (Risk Reward Ratio)</h4>
+                        <p class="text-2xl font-mono">0,33 : 1</p>
+                        <p class="text-xs text-slate-500 mt-1">Indica que se arrisca US$ 0,33 para cada US$ 1,00 de lucro potencial.</p>
+                    </div>
+                </div>
+                <div class="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded text-sm">
+                    <strong>Risco Máximo:</strong> Suportado se o ativo, no exercício, estiver abaixo do preço de exercício (A). O prejuízo é limitado ao débito líquido pago.
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-sky-600 hover:bg-sky-500 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-file-circle-check"></i> Validar e Fechar Manual
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

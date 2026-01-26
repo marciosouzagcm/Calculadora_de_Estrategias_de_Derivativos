@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Long Strangle | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #a855f7; }
+        .accent-gold { color: #d4af37; }
+        .status-high-vol { background: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid #a855f7; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-high-vol px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Expectativa: Volatilidade Explosiva</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">LONG STRANGLE</h1>
+                    <p class="text-slate-400 italic">Estratégia de compra de volatilidade com custo reduzido em relação ao Straddle.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-008 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-bolt-lightning text-purple-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    Estratégia de débito que envolve a compra simultânea de uma Put Out-of-the-Money (OTM) e uma Call OTM, com strikes diferentes (A < B) e mesma data de vencimento. É a escolha técnica para capturar movimentos direcionais violentos (rompimentos) com um custo inicial menor do que o Straddle, exigindo, porém, um deslocamento maior do preço para atingir o breakeven.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-purple-400 mb-1">Ponta A (Compra de Put)</strong>
+                        Compra de Put OTM no preço de exercício inferior (A).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-purple-400 mb-1">Ponta B (Compra de Call)</strong>
+                        Compra de Call OTM no preço de exercício superior (B).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-purple-500"></i> 2. Modelagem Financeira
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Custos e Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Débito Líquido (Custo Máximo)</span>
+                            <span class="math-text">Prêmio Put (A) + Prêmio Call (B)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Superior</span>
+                            <span class="math-text">Strike (B) + Débito Líquido Pago</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Inferior</span>
+                            <span class="math-text">Strike (A) - Débito Líquido Pago</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Resultados Potenciais</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo</span>
+                            <span class="text-green-400 font-bold uppercase">Ilimitado (Alta ou Queda Livre)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Perda Máxima (Limitada)</span>
+                            <span class="math-text">Total do Débito Líquido Pago</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-purple-500"></i> 3. Análise de Cenário Institucional
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-purple-900/20 border border-purple-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Exemplo Prático (Ibovespa):</strong> Montagem com compra de Put (54.000 pts) e Call (58.000 pts) com custo de 2.250 pontos (R$ 90.000,00 para 40 contratos). A estratégia exige que o índice saia da zona de "morte" (54.000 a 58.000) para começar a reduzir o prejuízo do prêmio pago.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Zona de Perda Máxima</span>
+                        <span class="text-sm font-bold text-red-400">54.000 - 58.000 pts</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Breakevens Operacionais</span>
+                        <span class="text-sm font-bold text-sky-400"> < 51.750 ou > 60.250 pts</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-purple-700 hover:bg-purple-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-wind"></i> Validar Exposição à Volatilidade
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

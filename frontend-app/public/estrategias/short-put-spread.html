@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Short Put Spread | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #38bdf8; }
+        .accent-gold { color: #d4af37; }
+        .status-bull { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid #22c55e; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-bull px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Direção: Bullish</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">SHORT PUT SPREAD</h1>
+                    <p class="text-slate-400 italic">Nomenclatura Técnica: Bull Put Spread ou Put Credit Spread.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-003 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-arrows-to-line text-sky-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    Estratégia de crédito realizada para tirar proveito de altas no preço do ativo subjacente ou estabilidade (volatilidade neutra). É comumente utilizada por empresas importadoras para assegurar taxas de câmbio ou por investidores que buscam rentabilizar a carteira através da venda de tempo (Theta).
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-green-400 mb-1">Ponta A (Vendedora)</strong>
+                        Venda de Put ATM/OTM em preço de exercício superior (B).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-red-400 mb-1">Ponta B (Compradora)</strong>
+                        Compra de Put OTM em preço de exercício inferior (A) para limitar o risco máximo.
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-slate-500 italic">Nota: Requer margem de garantia reduzida junto à B3 devido à trava de proteção comprada.</p>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-sky-500"></i> 2. Modelagem Financeira
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo de Caixa e Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Crédito Líquido Recebido</span>
+                            <span class="math-text">Prêmio Venda (B) - Prêmio Compra (A)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ponto de Equilíbrio (PE)</span>
+                            <span class="math-text">Strike (B) - Crédito Líquido Recebido</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Performance de Exaustão</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo (Limitado)</span>
+                            <span class="math-text">Total do Crédito Líquido Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco Máximo (Limitado)</span>
+                            <span class="math-text">(Strike B - Strike A) - Crédito Recebido</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-chart-pie text-sky-500"></i> 3. Gestão de Risco Institucional
+            </h2>
+            <div class="data-card p-6">
+                <div class="grid md:grid-cols-3 gap-6 text-center mb-8">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">ROI Máximo</span>
+                        <span class="text-xl font-bold text-green-400">163,16%</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">RRR (Reward Risk)</span>
+                        <span class="text-xl font-bold text-sky-400">1,63 : 1</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">RRR (Risk Reward)</span>
+                        <span class="text-xl font-bold text-red-400">0,61 : 1</span>
+                    </div>
+                </div>
+                <div class="p-4 bg-sky-900/20 border border-sky-800 rounded-lg text-sm text-slate-300">
+                    <strong>Análise de Cenário (Dólar Futuro):</strong> No exercício, se o Dólar estiver acima de R$ 1.857,60 (PE), a operação atinge o lucro máximo. O risco máximo é suportado caso o ativo caia abaixo de R$ 1.850,00.
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-sky-600 hover:bg-sky-500 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-lock"></i> Finalizar Documentação Técnica
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

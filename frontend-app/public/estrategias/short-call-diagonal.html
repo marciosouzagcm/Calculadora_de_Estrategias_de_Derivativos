@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Short Call Diagonal | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #fb7185; }
+        .accent-gold { color: #d4af37; }
+        .status-short-diag { background: rgba(251, 113, 133, 0.1); color: #fb7185; border: 1px solid #fb7185; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-short-diag px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Configuração: Crédito / Urso (Bearish)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">SHORT CALL DIAGONAL</h1>
+                    <p class="text-slate-400 italic">Venda diagonal de volatilidade e tempo para rentabilização de viés baixista.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-021 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-arrow-trend-down text-rose-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    A Short Call Diagonal é uma estratégia de crédito que envolve a venda de uma Call de curto prazo (T1) com strike inferior (mais ITM/ATM) e a compra de uma Call de longo prazo (T2) com strike superior (mais OTM). O objetivo é que a Call curta sofra decaimento temporal acelerado e expire sem valor, enquanto a Call longa protege a carteira contra movimentos de alta inesperados.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-rose-500/30">
+                        <strong class="block text-rose-400 mb-1">Ponta A (Curta / Front)</strong>
+                        Venda de Call (K1) com vencimento próximo (T1).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-sky-400 mb-1">Ponta B (Longa / Back)</strong>
+                        Compra de Call (K2) com vencimento distante (T2), onde K2 > K1.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-rose-500"></i> 2. Modelagem de P&L
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo de Caixa</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Recebimento Líquido (Crédito)</span>
+                            <span class="math-text">Prêmio Call (K1, T1) - Prêmio Call (K2, T2)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Theta (θ) Líquido</span>
+                            <span class="text-green-400 font-bold">Positivo (Ganha com a inércia do preço)</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Zonas de Risco</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco Máximo</span>
+                            <span class="math-text">(Strike K2 - Strike K1) - Crédito Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Vega (ν)</span>
+                            <span class="text-rose-400 font-bold">Negativo (Prejudicado por alta da Vol.)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-rose-500"></i> 3. Gestão de Risco
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-rose-900/20 border border-rose-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Análise de Cenário:</strong> Se o ativo cair ou ficar parado, o crédito recebido é lucro integral. Se o ativo subir agressivamente, a perda é travada pela diferença entre os strikes, descontando o crédito inicial. É uma "Trava de Baixa" com o benefício extra da rolagem temporal.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Principal Risco</span>
+                        <span class="text-sm font-bold text-red-400">Alta Exponencial (Gamma Risk)</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Uso Recomendado</span>
+                        <span class="text-sm font-bold text-sky-400">Mercados Lateral-Baixistas</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-rose-700 hover:bg-rose-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-microchip"></i> Processar Short Call Diagonal
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

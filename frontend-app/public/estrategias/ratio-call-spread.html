@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Ratio Call Spread | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #f59e0b; }
+        .accent-gold { color: #d4af37; }
+        .status-ratio { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid #f59e0b; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-ratio px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Configuração: Exposição Variável (Ratio)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">RATIO CALL SPREAD</h1>
+                    <p class="text-slate-400 italic">Estratégia de proporção assimétrica para otimização de prêmios.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-013 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-scale-unbalanced text-amber-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    O Ratio Spread envolve a compra de uma quantidade de opções (geralmente ITM ou ATM) e a venda de uma quantidade maior de opções (OTM) de mesma série e vencimento. A proporção mais comum é a de 2:1 ou 3:2. Esta estrutura visa capturar a desvalorização do valor extrínseco das opções vendidas para financiar a compra da perna principal.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-sky-400 mb-1">Ponta A (Comprada)</strong>
+                        Compra de "X" Calls em strike inferior (K1).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-amber-500/30">
+                        <strong class="block text-amber-400 mb-1">Ponta B (Vendida)</strong>
+                        Venda de "Y" Calls em strike superior (K2), onde Y > X.
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-red-400 italic font-semibold">⚠️ Risco: Devido à maior quantidade de pontas vendidas, a estratégia possui risco ilimitado na alta se o ativo ultrapassar severamente o strike B.</p>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-amber-500"></i> 2. Modelagem Financeira
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Breakevens</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Custo Líquido / Crédito</span>
+                            <span class="math-text">(Y * Prêmio B) - (X * Prêmio A)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Superior (Ponto Crítico)</span>
+                            <span class="math-text">Strike B + [(Strike B - Strike A) / (Y/X - 1)]</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Perfil de Resultado</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo</span>
+                            <span class="math-text">Ocorre exatamente no Strike B</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco na Alta</span>
+                            <span class="text-red-500 font-bold uppercase">Ilimitado (Exposição Delta)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> 3. Sensibilidade Operacional
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-amber-900/20 border border-amber-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Cenário Típico:</strong> Montagem de 1.000 Calls compradas (ATM) e 2.000 Calls vendidas (OTM). Se o papel sobe moderadamente até o strike OTM, o lucro é potencializado pelo diferencial de strikes. Entretanto, uma "explosão" de alta gera prejuízo crescente devido às 1.000 opções descobertas.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Principal Atributo</span>
+                        <span class="text-sm font-bold text-sky-400">Montagem com Custo Zero ou Crédito</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Gestão de Margem</span>
+                        <span class="text-sm font-bold text-red-400">Exige Garantia B3 (CBLC)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-amber-700 hover:bg-amber-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-gears"></i> Processar Proporção de Risco
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

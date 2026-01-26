@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Bull Diagonal Spread | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #60a5fa; }
+        .accent-gold { color: #d4af37; }
+        .status-diagonal { background: rgba(96, 165, 250, 0.1); color: #60a5fa; border: 1px solid #60a5fa; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-diagonal px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Dimensão: Diagonal (Preço + Tempo)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">BULL DIAGONAL SPREAD</h1>
+                    <p class="text-slate-400 italic">Otimização de Delta e Theta: A sintonia fina entre valor intrínseco e extrínseco.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-017 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-blue-400"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    O Bull Diagonal Spread é uma estratégia de débito que envolve a compra de uma Call de longo prazo com strike inferior (mais ITM) e a venda de uma Call de curto prazo com strike superior (mais OTM). Ela funciona como uma trava de alta onde as pernas "não se encontram" no mesmo vencimento, permitindo que o investidor financie uma posição de longo prazo com a erosão acelerada do tempo de uma opção curta.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-blue-500/30">
+                        <strong class="block text-blue-400 mb-1">Ponta A (Longa / LEAPS)</strong>
+                        Compra de Call ITM com vencimento distante (T2) e Strike Inferior (K1).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-red-500/30">
+                        <strong class="block text-red-400 mb-1">Ponta B (Curta / Front)</strong>
+                        Venda de Call OTM com vencimento próximo (T1) e Strike Superior (K2).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-blue-400"></i> 2. Modelagem de P&L
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Custo Líquido</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Débito Inicial</span>
+                            <span class="math-text">Prêmio Call (K1, T2) - Prêmio Call (K2, T1)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Vantagem de Custo</span>
+                            <span class="text-green-400 font-bold">Reduz o ponto de equilíbrio do ativo longo</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Gregas Resultantes</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Delta (Δ)</span>
+                            <span class="text-blue-400 font-bold">Positivo (Beneficia-se da alta)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Theta (θ) Líquido</span>
+                            <span class="text-blue-400 font-bold">Positivo (Ganha com a passagem do tempo)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-microchip text-blue-400"></i> 3. Análise de Cenário
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-blue-900/20 border border-blue-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Tática de Rolagem:</strong> Se no vencimento T1 o ativo estiver abaixo de K2, a opção vendida expira pó. O investidor pode então vender uma nova Call para o mês seguinte (T2), reduzindo continuamente o custo da Call comprada até que esta se torne "grátis" ou extremamente lucrativa.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Perfil de Risco</span>
+                        <span class="text-sm font-bold text-red-400">Limitado ao Débito Pago</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Diferencial</span>
+                        <span class="text-sm font-bold text-sky-400">Combina Direção com Renda Mensal</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-blue-700 hover:bg-blue-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-code-branch"></i> Processar Arquitetura Diagonal
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

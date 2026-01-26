@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Short Butterfly (Call) | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #f472b6; }
+        .accent-gold { color: #d4af37; }
+        .status-short-butterfly { background: rgba(244, 114, 182, 0.1); color: #f472b6; border: 1px solid #f472b6; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-short-butterfly px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Expectativa: Alta Volatilidade (Rompimento)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">SHORT BUTTERFLY (CALL)</h1>
+                    <p class="text-slate-400 italic">Borboleta Vendida: Lucro na expansão do preço para fora do corpo da estrutura.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-010 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-expand text-pink-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    A Short Butterfly é uma estratégia de crédito (recebimento líquido) que inverte a lógica da borboleta tradicional. O investidor "vende o corpo" e "compra as asas", apostando que o ativo subjacente terá um movimento forte o suficiente para sair da zona de preços central. É uma alternativa ao Straddle com risco máximo rigorosamente limitado.
+                </p>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-pink-400 mb-1">Asa Esquerda (A)</strong>
+                        Venda de 1 Call ITM (Strike Inferior).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 border border-pink-500/30 shadow-lg shadow-pink-500/10 rounded-lg">
+                        <strong class="block text-pink-400 mb-1">Corpo (B)</strong>
+                        Compra de 2 Calls ATM (Strike Central).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-pink-400 mb-1">Asa Direita (C)</strong>
+                        Venda de 1 Call OTM (Strike Superior).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-pink-500"></i> 2. Modelagem Financeira
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Pontos de Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Crédito Líquido Recebido</span>
+                            <span class="math-text">(2 x Prêmio B) - Prêmio A - Prêmio C</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Inferior</span>
+                            <span class="math-text">Strike A + Crédito Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Superior</span>
+                            <span class="math-text">Strike C - Crédito Recebido</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Limites de Resultado</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo (Limitado)</span>
+                            <span class="math-text">Total do Crédito Líquido Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Perda Máxima (No Strike B)</span>
+                            <span class="math-text">(Strike B - Strike A) - Crédito Recebido</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-pink-500"></i> 3. Análise de Cenário Institucional
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-pink-900/20 border border-pink-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Exemplo Real (VALE5 @ R$ 42,40):</strong> Montagem com recebimento inicial de R$ 0,55. O lucro máximo é garantido se a Vale subir acima de R$ 43,45 ou cair abaixo de R$ 40,55. O risco máximo de R$ 1,45 ocorre se o ativo parar exatamente nos R$ 42,00.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Vantagem Operacional</span>
+                        <span class="text-lg font-bold text-pink-400">Risco 100% Definido</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Theta (Tempo)</span>
+                        <span class="text-lg font-bold text-red-400">Negativo no Corpo</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-pink-700 hover:bg-pink-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-microchip"></i> Validar Borboleta de Volatilidade
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

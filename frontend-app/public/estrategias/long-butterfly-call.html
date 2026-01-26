@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Long Butterfly (Call) | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #38bdf8; }
+        .accent-gold { color: #d4af37; }
+        .status-butterfly { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid #38bdf8; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-butterfly px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Expectativa: Neutra (Baixa Volatilidade)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">LONG BUTTERFLY (CALL)</h1>
+                    <p class="text-slate-400 italic">Trava de Borboleta Comprada: A convergência de duas travas de spread.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-009 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-vector-square text-sky-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    A Long Butterfly é uma estratégia de débito que combina uma trava de alta e uma trava de baixa com Calls, utilizando três preços de exercício diferentes. O objetivo é capturar lucro máximo quando o ativo subjacente expira exatamente no strike central, onde o risco é limitado e o custo de montagem é extremamente baixo em relação ao potencial de ganho.
+                </p>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-sky-400 mb-1">Asa Esquerda (A)</strong>
+                        Compra de 1 Call ITM (Strike Inferior).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-sky-500/30 shadow-lg shadow-sky-500/10">
+                        <strong class="block text-green-400 mb-1">Corpo (B)</strong>
+                        Venda de 2 Calls ATM (Strike Central).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-sky-400 mb-1">Asa Direita (C)</strong>
+                        Compra de 1 Call OTM (Strike Superior).
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-slate-500 italic">Nota: Os intervalos entre os strikes (B-A) e (C-B) devem ser obrigatoriamente iguais.</p>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-sky-500"></i> 2. Modelagem Financeira
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Pontos de Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Custo Líquido (Débito)</span>
+                            <span class="math-text">Prêmio A + Prêmio C - (2 x Prêmio B)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Inferior</span>
+                            <span class="math-text">Strike A + Débito Líquido Pago</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Superior</span>
+                            <span class="math-text">Strike C - Débito Líquido Pago</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Resultados Potenciais</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo (No Strike B)</span>
+                            <span class="math-text">(Strike B - Strike A) - Débito Pago</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco Máximo (Limitado)</span>
+                            <span class="math-text">Total do Débito Líquido Pago</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-chart-area text-sky-500"></i> 3. Análise de Cenário Institucional
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-sky-900/20 border border-sky-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Exemplo Real (VALE5 @ R$ 42,40):</strong> Montagem com Strikes 40, 42 e 44. Custo total de R$ 0,55 por borboleta. O lucro máximo de R$ 1,45 ocorre se a Vale expirar exatamente em R$ 42,00.
+                </div>
+                <div class="grid md:grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">ROI Máximo</span>
+                        <span class="text-lg font-bold text-green-400">263,64%</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">RRR (Reward Risk)</span>
+                        <span class="text-lg font-bold text-sky-400">2,63 : 1</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Zona de Lucro</span>
+                        <span class="text-sm font-bold text-amber-400">R$ 40,55 a R$ 43,45</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-sky-700 hover:bg-sky-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-microchip"></i> Validar Estrutura de Borboleta
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

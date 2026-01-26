@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Short Strangle | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #fbbf24; }
+        .accent-gold { color: #d4af37; }
+        .status-neutral-low { background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid #fbbf24; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-neutral-low px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Expectativa: Neutra e Volatilidade Baixa (Low)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">SHORT STRANGLE</h1>
+                    <p class="text-slate-400 italic">Uma variação do Short Straddle com maior amplitude de lucro.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-007 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-arrows-left-right text-amber-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    A estratégia consiste na venda simultânea de uma Put Out-of-the-Money (OTM) e uma Call OTM, com preços de exercício diferentes e mesma data de vencimento. É utilizada quando se espera que o mercado entre em um período de consolidação ou paralisia dentro de uma faixa de preços definida (região AB).
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-amber-400 mb-1">Ponta A (Venda de Put)</strong>
+                        Venda de Put OTM no preço de exercício inferior (A).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-amber-400 mb-1">Ponta B (Venda de Call)</strong>
+                        Venda de Call OTM no preço de exercício superior (B).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-amber-500"></i> 2. Modelagem Financeira
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo de Caixa e Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Crédito Líquido Recebido</span>
+                            <span class="math-text">Prêmio Put (A) + Prêmio Call (B)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Superior</span>
+                            <span class="math-text">Maior Exercício (B) + Crédito Líquido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">PE Inferior</span>
+                            <span class="math-text">Menor Exercício (A) - Crédito Líquido</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Expectativa de Resultado</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo (Limitado)</span>
+                            <span class="math-text">Crédito Líquido Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco Máximo</span>
+                            <span class="text-red-500 font-bold uppercase tracking-tighter">Ilimitado nas duas direções</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-chart-area text-amber-500"></i> 3. Gestão de Risco Aplicada
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-amber-900/20 border border-amber-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Exemplo Prático (Ibovespa):</strong> Montagem com venda de Put (54.000 pts) e Call (58.000 pts). Recebimento total de 3.250 pontos (R$ 130.000,00 para 40 contratos). O lucro máximo é mantido se o índice expirar entre 54.000 e 58.000 pontos.
+                </div>
+                <div class="grid md:grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Zona de Lucro Máximo</span>
+                        <span class="text-sm font-bold text-amber-400">54.000 - 58.000 pts</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">PE Inferior</span>
+                        <span class="text-sm font-bold text-red-400">50.750 pts</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">PE Superior</span>
+                        <span class="text-sm font-bold text-red-400">61.250 pts</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex flex-col items-center gap-4">
+            <button onclick="window.close()" class="px-10 py-4 bg-amber-600 hover:bg-amber-500 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-shield-virus"></i> Monitorar Faixa de Oscilação
+            </button>
+            <p class="text-[10px] text-slate-600 uppercase tracking-widest text-center">
+                A estratégia exige margem de garantia e monitoramento de Delta e Vega.
+            </p>
+        </footer>
+    </main>
+
+</body>
+</html>

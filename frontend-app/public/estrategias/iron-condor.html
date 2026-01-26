@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Iron Condor | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #10b981; }
+        .accent-gold { color: #d4af37; }
+        .status-income { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid #10b981; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-income px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Estratégia: Geração de Renda (Theta Positivo)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">IRON CONDOR</h1>
+                    <p class="text-slate-400 italic">A combinação técnica de um Bull Put Spread e um Bear Call Spread.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-011 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-bridge text-emerald-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    O Iron Condor é uma estratégia de crédito com risco limitado que busca lucrar com a baixa volatilidade do ativo subjacente. Ao contrário do Short Strangle, o Iron Condor utiliza "asas" compradas para travar o risco máximo em ambas as extremidades, tornando-se uma operação altamente eficiente em termos de margem de garantia.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-emerald-500/30">
+                        <strong class="block text-emerald-400 mb-1">Lado da Put (Bull Put Spread)</strong>
+                        Venda de Put OTM (B) e Compra de Put mais OTM (A).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-emerald-500/30">
+                        <strong class="block text-emerald-400 mb-1">Lado da Call (Bear Call Spread)</strong>
+                        Venda de Call OTM (C) e Compra de Call mais OTM (D).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-emerald-500"></i> 2. Modelagem Financeira
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Crédito Líquido Total</span>
+                            <span class="math-text">(Crédito Puts) + (Crédito Calls)</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ponto de Equilíbrio Superior</span>
+                            <span class="math-text">Strike C + Crédito Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ponto de Equilíbrio Inferior</span>
+                            <span class="math-text">Strike B - Crédito Recebido</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Limites Operacionais</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo</span>
+                            <span class="math-text">Total do Crédito Líquido Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco Máximo</span>
+                            <span class="math-text">(Largura das Asas) - Crédito Recebido</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-shield-heart text-emerald-500"></i> 3. Gestão de Risco e Theta
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-emerald-900/20 border border-emerald-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Estudo de Caso (Ibovespa):</strong> Montagem com venda de Put (52k) e Call (60k). Proteções compradas em 50k e 62k. Crédito recebido de 1.250 pontos (R$ 50.000,00 p/ 40 contratos). O lucro máximo ocorre se o índice expirar entre 52.000 e 60.000 pontos.
+                </div>
+                <div class="grid md:grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">ROI Máximo</span>
+                        <span class="text-lg font-bold text-green-400">166,67%</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Theta (Tempo)</span>
+                        <span class="text-lg font-bold text-sky-400">Altamente Positivo</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Risco</span>
+                        <span class="text-lg font-bold text-red-400">Totalmente Travado</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-emerald-700 hover:bg-emerald-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-file-shield"></i> Finalizar Ciclo de Estratégias
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

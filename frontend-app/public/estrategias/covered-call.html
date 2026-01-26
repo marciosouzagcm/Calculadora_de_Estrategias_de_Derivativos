@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Covered Call | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #10b981; }
+        .accent-gold { color: #d4af37; }
+        .status-yield { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-yield px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Categoria: Geração de Renda (Yield Enhancement)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">COVERED CALL (LANÇAMENTO COBERTO)</h1>
+                    <p class="text-slate-400 italic">Estratégia Buy-Write para monetização de custódia e hedge parcial.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-024 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-hand-holding-dollar text-emerald-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    A estratégia consiste em manter uma posição comprada no ativo objeto (Long Stock) e vender uma quantidade equivalente de opções de compra (Calls) para o mesmo vencimento. O prêmio recebido pela venda da Call serve como um amortecedor contra quedas leves e como uma forma de "aluguel" remunerado sobre o patrimônio custodiado.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-emerald-400 mb-1">Ponta A (Ativo)</strong>
+                        Posição Long (Compra de 100 ações ou ativos).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-emerald-500/30">
+                        <strong class="block text-emerald-400 mb-1">Ponta B (Opção)</strong>
+                        Venda de 1 Call (geralmente OTM) para cada 100 ativos.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-emerald-500"></i> 2. Modelagem de P&L
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Métricas de Retorno</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Preço Médio Ajustado (Net Basis)</span>
+                            <span class="math-text">Preço de Compra - Prêmio Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Retorno Estático (If-not-called)</span>
+                            <span class="math-text">Prêmio / Preço de Compra Ativo</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Limites Operacionais</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo</span>
+                            <span class="math-text">(Strike - Preço Médio) + Prêmio</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco na Queda</span>
+                            <span class="text-red-400 font-bold uppercase">Substancial (Abaixo do Net Basis)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-vault text-emerald-500"></i> 3. Visão Estratégica
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-emerald-900/20 border border-emerald-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Tática de Exit:</strong> Se o ativo ultrapassar o strike, o investidor é exercido e vende a posição com o lucro pré-definido. Se o ativo ficar abaixo do strike, o investidor retém o prêmio e o ativo, podendo repetir a operação (rolagem) para o próximo mês.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Theta (θ)</span>
+                        <span class="text-sm font-bold text-emerald-400">Positivo (O tempo trabalha a favor)</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Vega (ν)</span>
+                        <span class="text-sm font-bold text-red-400">Negativo (Expõe à queda da Vol.)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-emerald-700 hover:bg-emerald-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-microchip"></i> Executar Lançamento Coberto
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

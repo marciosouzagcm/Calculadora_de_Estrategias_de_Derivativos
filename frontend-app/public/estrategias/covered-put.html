@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Covered Put | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #fb7185; }
+        .accent-gold { color: #d4af37; }
+        .status-short { background: rgba(251, 113, 133, 0.1); color: #fb7185; border: 1px solid #fb7185; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-short px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Categoria: Monetização de Short (Bearish Yield)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">COVERED PUT (VENDA COBERTA DE PUT)</h1>
+                    <p class="text-slate-400 italic">Estratégia para otimização de posições vendidas via coleta de valor tempo.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-025 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-arrow-down-short-wide text-rose-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    A estratégia consiste em manter uma posição vendida no ativo objeto (Short Stock) e, simultaneamente, vender uma Put (geralmente OTM) com o mesmo vencimento. O prêmio recebido pela venda da Put atua como uma proteção limitada contra altas do ativo e aumenta o lucro caso o papel permaneça estável ou caia moderadamente.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                        <strong class="block text-rose-400 mb-1">Ponta A (Ativo)</strong>
+                        Posição Short (Venda a descoberto do ativo).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-rose-500/30">
+                        <strong class="block text-rose-400 mb-1">Ponta B (Opção)</strong>
+                        Venda de 1 Put para cada 100 ativos vendidos.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-rose-500"></i> 2. Modelagem de P&L
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Métricas de Fluxo</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Preço de Recompra Ajustado</span>
+                            <span class="math-text">Preço de Venda do Ativo + Prêmio Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Rendimento Estático</span>
+                            <span class="math-text">Prêmio / Margem requerida para o Short</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Resultados e Limites</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo</span>
+                            <span class="math-text">(Preço Venda - Strike) + Prêmio</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco na Alta</span>
+                            <span class="text-red-400 font-bold uppercase">Ilimitado (Exposição Short Stock)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-shield-virus text-rose-500"></i> 3. Gestão de Risco
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-rose-900/20 border border-rose-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Ponto Crítico:</strong> O lucro é maximizado se o ativo cair até o strike da Put. Se o papel cair abaixo do strike, o investidor é "exercido", sendo obrigado a comprar o papel pelo strike para cobrir sua posição vendida, perdendo a chance de lucrar mais com a queda adicional.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Theta (θ)</span>
+                        <span class="text-sm font-bold text-green-400">Positivo (Ganha com a inércia)</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Principal Risco</span>
+                        <span class="text-sm font-bold text-red-400">Short Squeeze (Alta Violenta)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-rose-700 hover:bg-rose-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-microchip"></i> Executar Venda Coberta de Put
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>

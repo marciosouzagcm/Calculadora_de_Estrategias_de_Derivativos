@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Técnico - Short Iron Condor | BoardPRO Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .data-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .math-text { font-family: 'Fira Code', monospace; color: #fbbf24; }
+        .accent-gold { color: #d4af37; }
+        .status-neutral { background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid #fbbf24; }
+    </style>
+</head>
+<body class="p-8">
+
+    <main class="max-w-5xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="status-neutral px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Configuração: Crédito / Market Neutral</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">SHORT IRON CONDOR</h1>
+                    <p class="text-slate-400 italic">Otimização de prêmios via venda de volatilidade com risco totalmente definido.</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-mono font-bold">
+                    CÓDIGO: STRAT-026 <br> VERSÃO: 2026.1
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-arrows-to-dot text-amber-500"></i> 1. Arquitetura da Operação
+            </h2>
+            <div class="data-card p-6">
+                <p class="mb-4 text-justify text-slate-300">
+                    O Short Iron Condor é composto por duas travas de crédito: uma **Bear Call Spread** (acima do preço atual) e uma **Bull Put Spread** (abaixo do preço atual). O investidor vende as opções mais próximas ao preço (ATM/OTM) para coletar prêmio e compra as opções mais distantes para limitar o risco máximo.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-red-500/30">
+                        <strong class="block text-red-400 mb-1">Lado da Call (Teto)</strong>
+                        Venda de Call (K3) + Compra de Call (K4).
+                    </div>
+                    <div class="p-4 bg-slate-900/50 rounded-lg border border-emerald-500/30">
+                        <strong class="block text-emerald-400 mb-1">Lado da Put (Piso)</strong>
+                        Venda de Put (K2) + Compra de Put (K1).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-amber-500"></i> 2. Modelagem de P&L
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Fluxo e Lucro</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Ganho Máximo (Crédito)</span>
+                            <span class="math-text">Prêmios Recebidos - Prêmios Pagos</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Zona de Lucro Máximo</span>
+                            <span class="math-text">Entre Strike K2 e Strike K3</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="data-card p-6">
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Risco e Equilíbrio</h3>
+                    <ul class="space-y-4">
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Risco Máximo</span>
+                            <span class="math-text">(Largura das Asas) - Crédito Recebido</span>
+                        </li>
+                        <li>
+                            <span class="block text-xs uppercase text-slate-500">Theta (θ)</span>
+                            <span class="text-green-400 font-bold uppercase">Positivo (O tempo é o melhor aliado)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-gauge-simple-high text-amber-500"></i> 3. Sensibilidade Operacional
+            </h2>
+            <div class="data-card p-6">
+                <div class="p-4 bg-amber-900/20 border border-amber-800 rounded-lg text-sm text-slate-300 mb-6">
+                    <strong>Vantagem Estratégica:</strong> Diferente da Borboleta, o Iron Condor possui uma zona de lucro "plana" e mais larga, o que aumenta significativamente a probabilidade de sucesso (POP). É a estratégia ideal para períodos de baixa volatilidade implícita ou quando se espera uma consolidação de preços.
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 text-center">
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Vega (ν)</span>
+                        <span class="text-sm font-bold text-red-400">Negativo (Perde com picos de Vol.)</span>
+                    </div>
+                    <div class="p-4 bg-slate-900 rounded-lg">
+                        <span class="block text-xs text-slate-500 uppercase">Eficiência</span>
+                        <span class="text-sm font-bold text-sky-400">Baixa Exigência de Margem</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 flex justify-center">
+            <button onclick="window.close()" class="px-10 py-4 bg-amber-700 hover:bg-amber-600 rounded-full font-bold transition-all shadow-2xl flex items-center gap-3">
+                <i class="fa-solid fa-microchip"></i> Processar Iron Condor de Crédito
+            </button>
+        </footer>
+    </main>
+
+</body>
+</html>
