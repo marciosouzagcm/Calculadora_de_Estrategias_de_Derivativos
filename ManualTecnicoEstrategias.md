@@ -1,1 +1,93 @@
-📘 Manual Técnico de Estratégias: BoardPRO Intelligence1. IntroduçãoEste documento detalha as estratégias de derivativos implementadas no motor de análise da Trading Board Pro V2026.1. Ele serve como base teórica para a geração de relatórios institucionais, fornecendo definições, perfis de risco, visões de mercado e terminologia técnica.2. Estratégias de Direção (Travas / Spreads)2.1 Bull Call SpreadNome Técnico: BullCallSpreadNomenclatura Comercial: Trava de Alta com Call / Spread de Débito com Call.Configuração: Compra de uma Call (ATM/ITM) e venda simultânea de uma Call (OTM) com strike superior.Visão de Mercado: Altista (Alta moderada). O investidor espera que o ativo suba até o strike da opção vendida.Natureza Financeira: Débito (Saída de caixa inicial).Perfil de Risco: * Risco Máximo: Limitado ao prêmio pago + taxas.Lucro Máximo: Diferença entre os strikes menos o custo da operação.Descritivo para Relatório: Esta operação visa capturar a valorização do ativo objeto dentro de um intervalo específico. Ao vender uma Call em um strike superior, o investidor financia parte da compra da opção principal, reduzindo o custo da montagem e definindo um risco máximo controlado.2.2 Bear Call SpreadNome Técnico: BearCallSpreadNomenclatura Comercial: Trava de Baixa com Call / Spread de Crédito com Call.Configuração: Venda de uma Call em strike inferior e compra de uma Call em strike superior (asa de proteção).Visão de Mercado: Baixista ou Neutro-Baixista.Natureza Financeira: Crédito (Entrada de caixa inicial).Perfil de Risco: * Risco Máximo: (Diferença entre strikes - crédito recebido) x Lote.Lucro Máximo: Limitado ao crédito líquido recebido na montagem.Descritivo para Relatório: Estratégia de geração de renda que se beneficia da queda ou lateralização do preço do ativo. O investidor retém o prêmio recebido se o ativo expirar abaixo do strike da opção vendida no vencimento.2.3 Bull Put SpreadNome Técnico: BullPutSpreadNomenclatura Comercial: Trava de Alta com Put / Spread de Crédito com Put.Configuração: Venda de uma Put (mais próxima do dinheiro) e compra de uma Put (mais longe do dinheiro) como proteção.Visão de Mercado: Altista ou Lateral (Neutro-Alta).Natureza Financeira: Crédito.Perfil de Risco: * Risco Máximo: Diferença entre strikes menos o crédito recebido.Lucro Máximo: Crédito líquido total.Descritivo para Relatório: Operação focada em rentabilizar o capital através da passagem do tempo (Theta). É ideal para cenários onde o investidor acredita que o ativo não cairá abaixo de determinado patamar de suporte.2.4 Bear Put SpreadNome Técnico: BearPutSpreadNomenclatura Comercial: Trava de Baixa com Put / Spread de Débito com Put.Configuração: Compra de uma Put (ATM/ITM) e venda de uma Put (OTM) de strike inferior.Visão de Mercado: Baixista moderada.Natureza Financeira: Débito.Perfil de Risco: * Risco Máximo: Valor total pago na montagem.Lucro Máximo: Diferença entre strikes menos o débito pago.Descritivo para Relatório: Estratégia defensiva que visa lucrar com a desvalorização do ativo subjacente. A venda da Put inferior serve para baratear a proteção comprada, limitando o custo total da operação.3. Estratégias de Volatilidade (Straddle & Strangle)3.1 Straddle (Long / Short)Nome Técnico: LongStraddle / ShortStraddleConfiguração: Operação simultânea com 1 Call e 1 Put no exato mesmo strike e vencimento.Variação Long (Comprado): * Visão: Explosão de volatilidade (independente da direção).Risco: Limitado ao prêmio total pago.Variação Short (Vendido): * Visão: Mercado estático/neutro.Risco: Ilimitado (Exige margem de garantia robusta).Descritivo para Relatório (Short): Operação de alta complexidade que visa coletar o prêmio máximo através da neutralidade de preço. O resultado é otimizado se o ativo objeto mantiver estabilidade absoluta até o vencimento.3.2 Strangle (Long / Short)Nome Técnico: LongStrangle / ShortStrangleConfiguração: Compra ou Venda de 1 Call e 1 Put em strikes diferentes (geralmente ambos OTM).Diferencial Profissional: O Strangle cria uma "zona de lucro" ou "zona de silêncio" entre os strikes, sendo mais flexível que o Straddle.Descritivo para Relatório (Short): Estratégia voltada para mercados laterais. Ao vender volatilidade fora do dinheiro, o investidor estabelece um intervalo de preços (range) onde, se o ativo permanecer dentro dele, o lucro será o prêmio total recebido.4. Resumo de Métricas e Performance (Tabela Comparativa)EstratégiaTipo de OpçãoDireção StrikesP&L MáximoRisco MáximoNaturezaBull CallCALLK1 < K2LimitadoLimitado (Débito)DébitoBear CallCALLK1 < K2Limitado (Crédito)Limitado (Asa)CréditoBull PutPUTK1 > K2Limitado (Crédito)Limitado (Asa)CréditoBear PutPUTK1 > K2LimitadoLimitado (Débito)DébitoLong StraddleCALL + PUTK1 = K1IlimitadoLimitado (Débito)DébitoShort StrangleCALL + PUTK_Put < K_CallLimitado (Crédito)IlimitadoCrédito5. Glossário e Terminologia do Projeto5.1 Financeiro e FluxoNet Premium (Prêmio Líquido): A soma algébrica dos prêmios das opções. Valores positivos indicam crédito (entrada), valores negativos indicam débito (saída).Cash Flow Líquido (Fluxo de Caixa Auditado): Valor financeiro real que entra ou sai da conta do investidor, já deduzidas as taxas de corretagem e emolumentos calculados no scanner.Capital Alocado: O montante total que o investidor precisa ter disponível (seja para pagar o débito ou para cobrir o risco da trava).5.2 Indicadores de RiscoBEP (Breakeven Point): Os pontos de equilíbrio no gráfico de Payoff. É o preço exato que o ativo deve atingir para que o resultado financeiro seja zero (lucro = custo).U.R. (Unitary Risk / Risco Unitário): Risco total da operação dividido pelo lote. É o indicador crítico utilizado pelos filtros da BoardPRO para validar a sanidade do setup.ROI (Return on Investment): O percentual de lucro líquido em relação ao capital em risco total.5.3 Estados da OpçãoITM (In the Money): Opção "dentro do dinheiro".ATM (At the Money): Opção "no dinheiro" (strike próximo ao preço atual).OTM (Out of the Money): Opção "fora do dinheiro" (sem valor intrínseco).6. Governança e DisclaimerEste documento é de uso restrito da BoardPRO Intelligence. As projeções aqui descritas são baseadas em modelos matemáticos (Black-Scholes / Binomial) e resultados passados não garantem retornos futuros. O mercado de opções envolve riscos significativos, incluindo a perda total do capital investido.Classificação: RESTRITA Versão: 2026.1Última Atualização: 23/01/2026
+# 📘 Manual Técnico de Engenharia Financeira: BoardPRO Intelligence
+**Versão:** 2026.1  
+**Classificação:** Institucional / Restrito  
+**Motor de Cálculo:** BSM-252 High-Frequency Engine  
+**Última Atualização:** 26/01/2026
+
+---
+
+## 1. Introdução e Arquitetura do Sistema
+Este manual detalha a modelagem matemática e as diretrizes operacionais das 23 estratégias de derivativos integradas ao ecossistema **BoardPRO**. Diferente de materiais educativos comuns, este documento foca na **Dinâmica das Gregas**, na **Gestão de Margem** e no **Decaimento Temporal (Theta)**, servindo como especificação técnica para o scanner de oportunidades e para a geração de relatórios de risco.
+
+---
+
+## 2. Estratégias de Direção e Spread (Vertical Spreads)
+
+### 2.1 Bull Call Spread (Trava de Alta com Call)
+* **Nome Técnico:** `LongCallVerticalSpread`
+* **Modelagem:** Compra de Call $C(K_1)$ e Venda de Call $C(K_2)$, onde $K_1 < K_2$.
+* **Dinâmica das Gregas:**
+    * **Delta:** Positivo (Máximo quando o preço do ativo está entre os strikes).
+    * **Theta:** Evolui de negativo para positivo à medida que o ativo ultrapassa o $K_2$.
+    * **Vega:** Longo (se beneficia de alta na IV), mas mitigado pela ponta vendida.
+* **Visão Quantitativa:** Otimiza a relação Risco/Retorno ao limitar o custo de carregamento. O lucro é maximizado quando o ativo objeto atinge o *Strike* da ponta vendida no vencimento, capturando a convergência do valor extrínseco.
+* **Risco de Cauda:** Exposição máxima limitada ao prêmio líquido pago (Net Debit).
+
+### 2.2 Bear Call Spread (Trava de Baixa com Call / Credit Spread)
+* **Nome Técnico:** `ShortCallVerticalSpread`
+* **Modelagem:** Venda de Call $C(K_1)$ e Compra de Call $C(K_2)$ (Asa de Proteção), onde $K_1 < K_2$.
+* **Visão de Risco Institucional:** Estratégia de **Venda de Volatilidade**.
+* **Gestão de Delta:** Delta Negativo. A estratégia lucra com a erosão do valor tempo das opções vendidas.
+* **Análise de Margem:** Exige garantia reduzida devido à trava de proteção, ideal para gestão de capital eficiente (Portfolio Margin).
+* **Uso Recomendado:** Cenários de resistência técnica e volatilidade implícita (IV) em níveis de sobrecompra (Mean Reversion).
+
+### 2.3 Bull Put Spread (Trava de Alta com Put)
+* **Nome Técnico:** `ShortPutVerticalSpread`
+* **Arquitetura:** Venda de Put $P(K_1)$ e Compra de Put $P(K_2)$, onde $K_1 > K_2$.
+* **Fator de Lucratividade:** **Theta Positivo**. É uma operação "vendedora de tempo".
+* **Perfil de Fluxo:** Crédito Imediato (Net Credit).
+* **Visão de Mercado:** Altista a Neutro. Excelente para zonas de suporte macroeconômico. Se o ativo permanecer acima de $K_1$, o investidor retém 100% do prêmio, explorando o *Skew* de volatilidade das Puts.
+
+### 2.4 Bear Put Spread (Trava de Baixa com Put)
+* **Nome Técnico:** `LongPutVerticalSpread`
+* **Modelagem:** Compra de Put $P(K_1)$ e Venda de Put $P(K_2)$, onde $K_1 > K_2$.
+* **Objetivo:** Hedge direcional com custo financiado.
+* **Comportamento de Gamma:** Aumenta conforme o preço cai em direção ao $K_1$, acelerando os ganhos em movimentos de *Sell-off*.
+* **Análise de Custo:** O prêmio recebido pela venda da Put $K_2$ reduz o *Breakeven* da operação, tornando a proteção mais barata que a compra a seco (Long Put).
+
+---
+
+## 3. Estratégias de Volatilidade e Neutralidade (Market Neutral)
+
+### 3.1 Iron Condor (Vendido)
+* **Nome Técnico:** `ShortIronCondor`
+* **Configuração:** Combinação de um *Bear Call Spread* OTM e um *Bull Put Spread* OTM.
+* **Tese de Investimento:** **Double Credit Generation**. O investidor aposta que o ativo expirará dentro de um intervalo (Range) definido.
+* **Análise de Gregas:**
+    * **Delta:** Próximo a zero (Delta Neutral).
+    * **Theta:** Positivo (O melhor cenário é a passagem do tempo sem movimento).
+    * **Vega:** Negativo (Lucra com a queda da volatilidade implícita após eventos de estresse).
+* **Controle de Risco:** O risco é estritamente limitado à largura das "asas" menos o crédito total recebido.
+
+### 3.2 Butterfly (Borboleta de Call)
+* **Nome Técnico:** `LongCallButterfly`
+* **Configuração:** Compra 1 Call $K_1$, Vende 2 Calls $K_2$ (ATM) e Compra 1 Call $K_3$.
+* **Precisão Cirúrgica:** Estratégia de baixo custo e alta convexidade. O lucro máximo ocorre se o ativo expirar exatamente no $K_2$.
+* **Perfil de Risco:** Relação Risco/Retorno frequentemente superior a 1:5. Indicada para momentos de consolidação extrema ou "Pinning" de vencimento.
+
+---
+
+## 4. Estratégias Temporais e de Arbitragem
+
+### 4.1 Calendar Spread (Trava de Calendário / Horizontal)
+* **Modelagem:** Venda de opção de curto prazo e compra de opção de longo prazo no mesmo strike.
+* **Exploração de Theta:** Lucra com a diferença de decaimento temporal entre as séries. Opções curtas perdem valor mais rápido que as longas.
+* **Risco de Vega:** Altamente sensível a mudanças na curva de volatilidade futura.
+
+---
+
+## 5. Glossário de Métricas Quantitativas (Padrão BoardPRO)
+
+| Métrica | Definição Técnica | Aplicação no Scanner |
+| :--- | :--- | :--- |
+| **Probability of Profit (PoP)** | Probabilidade estatística de a operação resultar em lucro > $0. | Filtro de seleção de setups de alta probabilidade. |
+| **Expected Value (EV)** | Média ponderada de todos os resultados possíveis baseada em simulações de Monte Carlo. | Define o valor teórico justo da estratégia. |
+| **Gamma Risk** | Sensibilidade do Delta a movimentos bruscos do ativo objeto. | Alerta para riscos de "explosão" de posição perto do vencimento. |
+| **Buying Power Reduction** | Impacto real na margem de garantia exigida pela B3/Corretora. | Gestão de liquidez do portfólio. |
+
+---
+
+## 6. Governança e Modelagem de Estresse
+As estratégias aqui detalhadas são monitoradas pelo **Vigilante V2**, que executa testes de estresse automatizados (Shock Tests) de +/- 10% no ativo objeto e +/- 5% na Volatilidade Implícita para prever o comportamento da carteira em cenários de *Black Swan*.
+
+**Aviso Legal:** O uso deste manual pressupõe conhecimento avançado de derivativos. A BoardPRO Intelligence não se responsabiliza por decisões tomadas com base em interpretações errôneas da modelagem matemática aqui exposta.

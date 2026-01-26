@@ -9,8 +9,9 @@
     <style>
         body { background-color: #0f172a; color: #e2e8f0; }
         .gradient-border { border-left: 4px solid; border-image: linear-gradient(to bottom, #0ea5e9, #d4af37) 1; }
-        .card { background: #1e293b; border: 1px solid #334155; transition: transform 0.2s; }
-        .card:hover { transform: scale(1.02); border-color: #38bdf8; }
+        .card { background: #1e293b; border: 1px solid #334155; transition: all 0.2s; cursor: pointer; position: relative; overflow: hidden; }
+        .card:hover { transform: translateY(-5px); border-color: #38bdf8; background: #2d3748; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); }
+        .card:active { transform: scale(0.98); }
         .accent-gold { color: #d4af37; }
         .accent-blue { color: #38bdf8; }
         .file-id { font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #64748b; }
@@ -34,7 +35,7 @@
         
         <header class="mb-12 text-center">
             <h1 class="text-4xl font-extrabold mb-4 accent-gold uppercase tracking-tight">📘 Manual Técnico de Estratégias</h1>
-            <p class="text-slate-400 max-w-2xl mx-auto text-lg">Catálogo Completo de Modelos Matemáticos e Arquivos de Configuração.</p>
+            <p class="text-slate-400 max-w-2xl mx-auto text-lg">Selecione uma estratégia para visualizar a modelagem matemática e arquitetura.</p>
             <div class="mt-6 flex justify-center gap-4 text-sm italic text-slate-500">
                 <span><i class="fa-regular fa-calendar-check mr-1"></i> 26/01/2026</span>
                 <span><i class="fa-solid fa-microchip mr-1"></i> Total: 23 Modelos</span>
@@ -167,7 +168,7 @@
 
         <footer class="mt-20 pt-10 border-t border-slate-800 text-center">
             <p class="text-[11px] text-slate-500 leading-relaxed uppercase">
-                Uso restrito da BoardPRO Intelligence. Documentação atualizada com todos os 23 arquivos de sistema detectados no servidor em 26/01/2026.
+                Uso restrito da BoardPRO Intelligence. Documentação atualizada em 26/01/2026.
             </p>
             <div class="mt-8 text-[10px] text-slate-600">
                 © 2026 TradingPro Brasil | Powered by BoardPRO Engine
@@ -175,6 +176,20 @@
         </footer>
 
     </main>
+
+    <script>
+        document.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('click', () => {
+                const fileElement = card.querySelector('.file-id');
+                if (fileElement) {
+                    const fileName = fileElement.textContent.trim();
+                    // Como este arquivo está em /public/estrategias/
+                    // e as estratégias também estão lá, usamos o caminho relativo './'
+                    window.location.href = './' + fileName;
+                }
+            });
+        });
+    </script>
 
 </body>
 </html>

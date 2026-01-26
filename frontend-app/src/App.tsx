@@ -59,7 +59,6 @@ const App: React.FC = () => {
     return "Análise técnica institucional processada pelo motor de cálculo BoardPRO.";
   };
 
-  // Função de exportação otimizada para acionar o componente de relatório
   const handleExportPDF = () => {
     if (!selecionada) {
       alert("Selecione uma estratégia para exportar o relatório.");
@@ -238,7 +237,7 @@ const App: React.FC = () => {
         <section style={workspace}>
           {selecionada && selecionadaMetricas ? (
             <div style={detailGrid}>
-              <div style={panel} className="panel">
+              <div style={panel}>
                 <div style={panelHeader}>COMPOSIÇÃO DETALHADA DO SETUP</div>
                 <div style={{flex: 1, overflow: 'auto'}}>
                   <table style={table}>
@@ -281,11 +280,10 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
-          ) : <div style={empty}>REALIZE O SCANNER PARA AUDITORIA...</div>}
+          ) : <div style={empty}>REALIZE O SCANNER PARA AUDITORIA DE PREÇOS E RISCO.</div>}
         </section>
       </main>
 
-      {/* Componente de Relatório Oculto na Web, visível apenas na impressão */}
       {selecionada && selecionadaMetricas && (
         <div id="report-pdf-template" style={{ display: 'none' }}>
           <ReportTemplate 
@@ -317,7 +315,7 @@ const inputGroup: React.CSSProperties = { display: 'flex', flexDirection: 'colum
 const label: React.CSSProperties = { fontSize: '9px', color: '#64748b', fontWeight: '800' };
 const input: React.CSSProperties = { backgroundColor: '#020617', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '4px', width: '85px', fontSize: '12px' };
 const btnScan: React.CSSProperties = { backgroundColor: '#0ea5e9', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '4px', fontWeight: '900', cursor: 'pointer', fontSize: '11px', height: '35px', minWidth: '60px' };
-const mainLayout: React.CSSProperties = { display: 'flex', gap: '15px', height: 'calc(100vh - 200px)' };
+const mainLayout: React.CSSProperties = { display: 'flex', gap: '15px', height: 'calc(100vh - 180px)' };
 const sidebar: React.CSSProperties = { width: '250px', backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b', display:'flex', flexDirection:'column' };
 const sidebarTitle: React.CSSProperties = { padding: '12px', fontSize: '10px', fontWeight: 'bold', color:'#64748b', borderBottom:'1px solid #1e293b' };
 const listScroll: React.CSSProperties = { overflowY: 'auto', flex: 1 };
@@ -330,7 +328,7 @@ const th: React.CSSProperties = { textAlign: 'left', padding: '10px', color: '#4
 const tr: React.CSSProperties = { borderBottom: '1px solid #1e293b' };
 const statusFooter: React.CSSProperties = { padding:'12px 15px', backgroundColor:'#020617', borderTop:'1px solid #1e293b' };
 const footerBlock: React.CSSProperties = { display: 'flex', flexDirection: 'column' };
-const empty: React.CSSProperties = { flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'#334155' };
+const empty: React.CSSProperties = { flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'#1e293b', fontWeight:'bold', fontSize:'14px', letterSpacing:'2px' };
 const roiBadge: React.CSSProperties = { backgroundColor: '#0ea5e9', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight:'bold' };
 const riscoUnitBadge: React.CSSProperties = { backgroundColor: '#fbbf24', color: '#000', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: '800' };
 

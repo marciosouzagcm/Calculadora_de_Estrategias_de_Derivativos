@@ -9,10 +9,8 @@
     <script>
       (function() {
         try {
-          // Previne erros de sandbox quando o site é carregado dentro do editor da GoDaddy
           if (window.self !== window.top) {
             console.log("BoardPRO: Compatibilidade de Iframe ativada.");
-            // Desativa tentativas de registro de Service Worker que causam erro de MIME type
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(regs => {
                 for(let reg of regs) reg.unregister();
@@ -28,7 +26,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Estilos permanecem idênticos ao seu original */
         #boardpro-features {
             font-family: 'Roboto', sans-serif;
             background-color: #0d1117;
@@ -106,21 +103,21 @@
                     <span class="icon">🧮</span>
                     <h3>Motor BSM 252</h3>
                     <p class="description">Precificação institucional adaptada para dias úteis (Base 252) conforme padrão B3 para máxima precisão.</p>
-                    <button onclick="window.open('/saiba-mais/black-scholes-merton.html', '_blank')">Saiba Mais</button>
+                    <button onclick="window.open('./saiba-mais/black-scholes-merton.html', '_blank')">Saiba Mais</button>
                 </div>
 
                 <div class="feature-item">
                     <span class="icon">🛡️</span>
                     <h3>Vigilante V2</h3>
                     <p class="description">Auditoria ativa de risco com monitoramento de Gregas e margem para setups profissionais.</p>
-                    <button onclick="window.open('/saiba-mais/sistema-vigilante.html', '_blank')">Saiba Mais</button>
+                    <button onclick="window.open('./saiba-mais/sistema-vigilante.html', '_blank')">Saiba Mais</button>
                 </div>
 
                 <div class="feature-item">
                     <span class="icon">📊</span>
                     <h3>23 Estratégias</h3>
                     <p class="description">Ecossistema completo: Direcionais, Diagonais, Calendários e Arbitragem com foco em fluxo de caixa.</p>
-                    <button onclick="window.open('/saiba-mais/estrategias.html', '_blank')">Abrir Manual</button>
+                    <button onclick="window.open('./estrategias/estrategias.html', '_blank')">Abrir Manual</button>
                 </div>
             </div>
         </div>
