@@ -26,102 +26,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        #boardpro-features {
-            font-family: 'Roboto', sans-serif;
+        /* Mantendo apenas os estilos globais necessários */
+        body {
+            margin: 0;
+            padding: 0;
             background-color: #0d1117;
             color: #c9d1d9;
-            padding: 80px 20px;
-            text-align: center;
-            border-top: 1px solid #30363d;
-        }
-        .container-docs { max-width: 1200px; margin: 0 auto; }
-        #boardpro-features h2 {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 2.5em;
-            color: #58a6ff;
-            margin-bottom: 20px;
-        }
-        #boardpro-features p.subtitle {
-            font-size: 1.1em;
-            color: #8b949e;
-            max-width: 800px;
-            margin: 0 auto 50px auto;
-        }
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-        }
-        .feature-item {
-            background-color: #161b22;
-            padding: 30px;
-            border-radius: 12px;
-            border: 1px solid #30363d;
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .feature-item:hover {
-            transform: translateY(-5px);
-            border-color: #58a6ff;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }
-        .feature-item .icon { font-size: 2.5em; margin-bottom: 15px; }
-        .feature-item h3 { font-family: 'Montserrat', sans-serif; margin-bottom: 15px; color: #f1f5f9; }
-        .feature-item .description { font-size: 0.95em; color: #8b949e; margin-bottom: 20px; flex-grow: 1; }
-        .feature-item button {
-            background-color: #58a6ff;
-            color: #0d1117;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .feature-item button:hover { background-color: #79c0ff; }
-
-        @media (max-width: 768px) {
-            #boardpro-features h2 { font-size: 2em; }
-            .features-grid { grid-template-columns: 1fr; }
+            font-family: 'Roboto', sans-serif;
         }
     </style>
   </head>
   <body>
     <div id="root"></div>
-
-    <section id="boardpro-features">
-        <div class="container-docs">
-            <h2>Vantagem Institucional BoardPRO</h2>
-            <p class="subtitle">
-                Tecnologia de ponta para o mercado de opções brasileiro. Explore os pilares do nosso motor de cálculo atualizado para v2026.1.
-            </p>
-
-            <div class="features-grid">
-                <div class="feature-item">
-                    <span class="icon">🧮</span>
-                    <h3>Motor BSM 252</h3>
-                    <p class="description">Precificação institucional adaptada para dias úteis (Base 252) conforme padrão B3 para máxima precisão.</p>
-                    <button onclick="window.open('./saiba-mais/black-scholes-merton.html', '_blank')">Saiba Mais</button>
-                </div>
-
-                <div class="feature-item">
-                    <span class="icon">🛡️</span>
-                    <h3>Vigilante V2</h3>
-                    <p class="description">Auditoria ativa de risco com monitoramento de Gregas e margem para setups profissionais.</p>
-                    <button onclick="window.open('./saiba-mais/sistema-vigilante.html', '_blank')">Saiba Mais</button>
-                </div>
-
-                <div class="feature-item">
-                    <span class="icon">📊</span>
-                    <h3>23 Estratégias</h3>
-                    <p class="description">Ecossistema completo: Direcionais, Diagonais, Calendários e Arbitragem com foco em fluxo de caixa.</p>
-                    <button onclick="window.open('./estrategias/estrategias.html', '_blank')">Abrir Manual</button>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <script type="module" src="/src/main.tsx"></script>
   </body>

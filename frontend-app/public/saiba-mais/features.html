@@ -6,104 +6,20 @@
     <title>BoardPRO - Descubra o Poder dos Derivativos</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #0d1117; /* Fundo escuro GitHub */
-            color: #c9d1d9; /* Cor de texto padrão */
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        .section-2 {
-            text-align: center;
-            padding: 80px 20px;
-            background: linear-gradient(135deg, #161b22, #0d1117); /* Gradiente suave */
-            border-bottom: 1px solid #30363d;
-        }
-        .section-2 h2 {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 3em;
-            color: #58a6ff; /* Azul vibrante */
-            margin-bottom: 20px;
-            font-weight: 700;
-        }
-        .section-2 p {
-            font-size: 1.2em;
-            max-width: 800px;
-            margin: 0 auto 50px auto;
-            color: #8b949e;
-        }
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
-        }
-        .feature-item {
-            background-color: #161b22;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            border: 1px solid #30363d;
-            height: 100%;
-        }
-        .feature-item:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.6);
-            border-color: #58a6ff;
-        }
-        .feature-item .icon {
-            font-size: 3em;
-            margin-bottom: 15px;
-            color: #22c55e; /* Verde para ícones */
-            line-height: 1;
-        }
-        .feature-item h3 {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.5em;
-            color: #c9d1d9;
-            margin-bottom: 15px;
-            font-weight: 700;
-        }
-        .feature-item .description {
-            font-size: 1em;
-            color: #8b949e;
-            margin-bottom: 25px;
-            flex-grow: 1;
-        }
-        .feature-item button {
-            background-color: #58a6ff; /* Azul do CTA */
-            color: #0d1117;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 10px rgba(0, 100, 255, 0.3);
-        }
-        .feature-item button:hover {
-            background-color: #79c0ff;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 100, 255, 0.4);
-        }
-
-        @media (max-width: 768px) {
-            .section-2 h2 { font-size: 2.5em; }
-            .section-2 p { font-size: 1em; }
-            .features-grid { grid-template-columns: 1fr; }
-        }
+        body { font-family: 'Roboto', sans-serif; margin: 0; padding: 0; background-color: #0d1117; color: #c9d1d9; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+        .section-2 { text-align: center; padding: 80px 20px; background: linear-gradient(135deg, #161b22, #0d1117); border-bottom: 1px solid #30363d; }
+        .section-2 h2 { font-family: 'Montserrat', sans-serif; font-size: 3em; color: #58a6ff; margin-bottom: 20px; font-weight: 700; }
+        .section-2 p { font-size: 1.2em; max-width: 800px; margin: 0 auto 50px auto; color: #8b949e; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 40px; }
+        .feature-item { background-color: #161b22; padding: 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); transition: transform 0.3s ease, box-shadow 0.3s ease; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px solid #30363d; height: 100%; }
+        .feature-item:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 12px 25px rgba(0, 0, 0, 0.6); border-color: #58a6ff; }
+        .feature-item .icon { font-size: 3em; margin-bottom: 15px; color: #22c55e; line-height: 1; }
+        .feature-item h3 { font-family: 'Montserrat', sans-serif; font-size: 1.5em; color: #c9d1d9; margin-bottom: 15px; font-weight: 700; }
+        .feature-item .description { font-size: 1em; color: #8b949e; margin-bottom: 25px; flex-grow: 1; }
+        .feature-item button { background-color: #58a6ff; color: #0d1117; border: none; padding: 12px 25px; border-radius: 8px; font-size: 1.1em; font-weight: 700; cursor: pointer; transition: background-color 0.3s ease, transform 0.2s ease; box-shadow: 0 4px 10px rgba(0, 100, 255, 0.3); }
+        .feature-item button:hover { background-color: #79c0ff; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0, 100, 255, 0.4); }
+        @media (max-width: 768px) { .section-2 h2 { font-size: 2.5em; } .section-2 p { font-size: 1em; } .features-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -111,57 +27,43 @@
     <section id="boardpro-features" class="section-2">
         <div class="container">
             <h2>BoardPRO: Sua Vantagem no Mercado de Derivativos</h2>
-            <p>
-                O BoardPRO é uma calculadora institucional de estratégias de derivativos v2026.1, desenvolvida para precisão absoluta no mercado brasileiro (B3).
-            </p>
+            <p>O BoardPRO é uma calculadora institucional de estratégias v2026.1, desenvolvida para máxima precisão técnica na B3.</p>
 
             <div class="features-grid">
-                
                 <div class="feature-item">
                     <span class="icon">🧮</span>
                     <h3>Motor BSM 252</h3>
-                    <p class="description">
-                        Precificação institucional adaptada para Base 252 (dias úteis). Cálculos de Gregas e Volatilidade Implícita seguindo o rigor técnico da B3.
-                    </p>
+                    <p class="description">Precificação institucional adaptada para Base 252 (dias úteis), garantindo cálculos de Gregas e Volatilidade precisos.</p>
                     <button onclick="window.open('/saiba-mais/black-scholes-merton.html', '_blank')">Saiba Mais</button>
                 </div>
 
                 <div class="feature-item">
                     <span class="icon">🛡️</span>
-                    <h3>Sistema Vigilante V2</h3>
-                    <p class="description">
-                        Auditoria de risco ativa. Monitore margens, pontos de breakeven e receba alertas automáticos sobre distorções de liquidez no book.
-                    </p>
+                    <h3>Vigilante V2</h3>
+                    <p class="description">Auditoria de risco ativa que monitora margens e breakevens, alertando sobre distorções de liquidez.</p>
                     <button onclick="window.open('/saiba-mais/sistema-vigilante.html', '_blank')">Saiba Mais</button>
                 </div>
 
                 <div class="feature-item">
                     <span class="icon">📊</span>
                     <h3>23 Estratégias Ativas</h3>
-                    <p class="description">
-                        Setup completo: de travas simples a Spreads de Calendário, Diagonais, Borboletas e Arbitragem (Box Spread) com foco em fluxo de caixa.
-                    </p>
-                    <button onclick="window.open('/saiba-mais/estrategias.html', '_blank')">Abrir Manual</button>
+                    <p class="description">Setup completo: de travas simples a Spreads de Calendário, Diagonais e Arbitragem de Juros.</p>
+                    <button onclick="window.open('/saiba-mais/manual.html', '_blank')">Abrir Manual</button>
                 </div>
 
                 <div class="feature-item">
                     <span class="icon">📄</span>
                     <h3>Relatórios White-Label</h3>
-                    <p class="description">
-                        Gere lâminas PDF profissionais com gráficos de Payoff e análise de risco para apresentar estratégias a clientes ou comitês.
-                    </p>
+                    <p class="description">Gere lâminas PDF profissionais com gráficos de Payoff e análise de risco para apresentar a clientes.</p>
                     <button onclick="window.open('/saiba-mais/relatorios.html', '_blank')">Saiba Mais</button>
                 </div>
 
                 <div class="feature-item">
                     <span class="icon">⚡</span>
-                    <h3>Scanner de Oportunidades</h3>
-                    <p class="description">
-                        Identifique distorções de prêmio e oportunidades de arbitragem temporal em tempo real através de algoritmos de varredura.
-                    </p>
+                    <h3>Scanner Inteligente</h3>
+                    <p class="description">Identifique oportunidades de mercado e distorções de volatilidade em tempo real com filtros avançados.</p>
                     <button onclick="window.open('/saiba-mais/scanner.html', '_blank')">Saiba Mais</button>
                 </div>
-
             </div>
         </div>
     </section>

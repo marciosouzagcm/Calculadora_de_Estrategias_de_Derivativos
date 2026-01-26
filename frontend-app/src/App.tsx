@@ -3,12 +3,19 @@ import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
 import { ReportTemplate } from './components/ReportTemplate';
-import { FileDown, ExternalLink } from 'lucide-react';
+import { 
+  FileDown, 
+  ExternalLink, 
+  BookOpen, 
+  ShieldCheck, 
+  Zap,
+  ClipboardList 
+} from 'lucide-react';
 
 const marketService = new MarketDataService();
 
-// Caminho da imagem na pasta public da Vercel
-const LOGO_SRC = "/Logo.png";
+// Caminho atualizado para o seu diretório local conforme solicitado
+const LOGO_SRC = "/saiba-mais/Logo.png";
 
 const strategyCard = (active: boolean): React.CSSProperties => ({
   padding: '12px',
@@ -161,39 +168,62 @@ const App: React.FC = () => {
           body { background: white !important; }
         }
         .app-logo {
-          height: 38px; width: auto; margin-right: 15px;
-          filter: drop-shadow(0 0 5px rgba(14, 165, 233, 0.4));
+          height: 32px; width: auto; margin-right: 12px;
+          filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.3));
         }
-        .btn-export-top {
-          background-color: #22c55e; color: white; border: none; padding: 8px 16px;
-          border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px;
-          display: flex; align-items: center; gap: 8px; transition: all 0.2s;
+        .btn-header-action {
+          color: white; border: none; padding: 6px 14px;
+          border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 10px;
+          display: flex; align-items: center; gap: 6px; transition: all 0.2s;
         }
-        .btn-export-top:hover { background-color: #16a34a; }
-        .btn-export-top:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; }
+        .btn-export-top { background-color: #16a34a; }
+        .btn-export-top:hover { background-color: #15803d; transform: translateY(-1px); }
         
-        .doc-link {
-          display: flex; align-items: center; gap: 4px; color: #0ea5e9; 
-          font-size: 10px; text-decoration: none; font-weight: bold; margin-top: 5px;
+        .btn-report-top { background-color: #334155; }
+        .btn-report-top:hover { background-color: #475569; transform: translateY(-1px); }
+
+        .btn-header-action:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; transform: none; }
+        
+        .nav-doc-link {
+          display: flex; align-items: center; gap: 5px; color: #94a3b8; 
+          font-size: 10px; text-decoration: none; font-weight: 600;
+          padding: 5px 10px; border-radius: 4px; transition: all 0.2s;
         }
-        .doc-link:hover { text-decoration: underline; }
+        .nav-doc-link:hover { 
+          color: #0ea5e9; background: rgba(14, 165, 233, 0.1); 
+        }
+        .nav-divider { width: 1px; height: 16px; background: #334155; margin: 0 8px; }
       `}</style>
 
       <header style={headerStyle} className="no-print">
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '15px', flexWrap: 'wrap'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '18px', flexWrap: 'wrap', borderBottom: '1px solid #1e293b', paddingBottom: '12px'}}>
           <div style={{display: 'flex', alignItems: 'center'}}>
             <img src={LOGO_SRC} alt="BoardPRO" className="app-logo" />
             <div>
-              <h1 style={logoStyle}>TRADING BOARD PRO <span style={{color:'#0ea5e9'}}>V2026.1</span></h1>
-              <a href="/docs/black-scholes-merton.html" target="_blank" className="doc-link">
-                <ExternalLink size={10} /> MANUAL MOTOR BSM 252
-              </a>
+              <h1 style={logoStyle}>TRADING BOARD PRO <span style={{color:'#0ea5e9', fontSize: '11px', opacity: 0.8}}>V2026.1</span></h1>
             </div>
+            
+            <div className="nav-divider"></div>
+            
+            <nav style={{display: 'flex', gap: '4px'}}>
+              <a href="/saiba-mais/black-scholes-merton.html" target="_blank" className="nav-doc-link">
+                <Zap size={12} /> MOTOR BSM
+              </a>
+              <a href="/saiba-mais/sistema-vigilante.html" target="_blank" className="nav-doc-link">
+                <ShieldCheck size={12} /> VIGILANTE
+              </a>
+              <a href="/estrategias/estrategias.html" target="_blank" className="nav-doc-link">
+                <BookOpen size={12} /> ESTRATÉGIAS
+              </a>
+            </nav>
           </div>
           
-          <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
-            <button onClick={handleExportPDF} className="btn-export-top" disabled={!selecionada}>
-              <FileDown size={16} /> EXPORTAR PDF
+          <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+            <button onClick={() => alert('Abrindo Relatório Detalhado...')} className="btn-header-action btn-report-top" disabled={!selecionada}>
+              <ClipboardList size={14} /> RELATÓRIO
+            </button>
+            <button onClick={handleExportPDF} className="btn-header-action btn-export-top" disabled={!selecionada}>
+              <FileDown size={14} /> EXPORTAR PDF
             </button>
             <div style={badgeContainer}>
               <span style={liveBadge}>● LIVE: {lastUpdate || '--:--'}</span>
@@ -207,9 +237,11 @@ const App: React.FC = () => {
           <div style={inputGroup}><label style={label}>ATIVO</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} style={input} /></div>
           <div style={inputGroup}><label style={label}>PREÇO REF</label><input type="number" step="0.01" value={precoSlot} onChange={e => setPrecoSlot(e.target.value)} style={input} /></div>
           <div style={inputGroup}><label style={label}>LOTE</label><input type="number" value={lote} onChange={e => setLote(Number(e.target.value))} style={input} /></div>
-          <div style={inputGroup}><label style={label}>RISCO UNIT.</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(toNum(e.target.value))} style={{...input, color: '#f87171'}} /></div>
+          <div style={inputGroup}><label style={label}>RISCO UNIT.</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(toNum(e.target.value))} style={{...input, color: '#f87171', borderColor: '#450a0a'}} /></div>
           <div style={inputGroup}><label style={label}>TAXA/PERNA</label><input type="number" value={taxaPorPerna} onChange={e => setTaxaPorPerna(Number(e.target.value))} style={{...input, color: '#fbbf24'}} /></div>
-          <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>{loading ? '...' : 'SCANNER'}</button>
+          <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>
+            {loading ? 'PROCESSANDO...' : 'EXECUTAR'}
+          </button>
         </div>
       </header>
 
@@ -303,10 +335,10 @@ const App: React.FC = () => {
   );
 };
 
-// Estilos
+// Estilos Consolidados
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
-const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '15px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
-const logoStyle: React.CSSProperties = { margin: 0, fontSize: '18px', fontWeight: '900' };
+const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '12px 20px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
+const logoStyle: React.CSSProperties = { margin: 0, fontSize: '16px', fontWeight: '900', letterSpacing: '-0.5px' };
 const badgeContainer: React.CSSProperties = { display: 'flex', gap: '8px', flexWrap: 'wrap' };
 const liveBadge: React.CSSProperties = { backgroundColor: '#064e3b', color: '#4ade80', padding: '4px 12px', borderRadius: '4px', fontSize: '10px', fontWeight:'bold' };
 const priceBadge: React.CSSProperties = { backgroundColor: '#1e293b', color: '#38bdf8', padding: '4px 12px', borderRadius: '4px', fontSize: '10px', border: '1px solid #334155' };
@@ -314,8 +346,8 @@ const controlGrid: React.CSSProperties = { display: 'flex', gap: '10px', alignIt
 const inputGroup: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '4px' };
 const label: React.CSSProperties = { fontSize: '9px', color: '#64748b', fontWeight: '800' };
 const input: React.CSSProperties = { backgroundColor: '#020617', border: '1px solid #334155', color: '#fff', padding: '8px', borderRadius: '4px', width: '85px', fontSize: '12px' };
-const btnScan: React.CSSProperties = { backgroundColor: '#0ea5e9', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '4px', fontWeight: '900', cursor: 'pointer', fontSize: '11px', height: '35px', minWidth: '60px' };
-const mainLayout: React.CSSProperties = { display: 'flex', gap: '15px', height: 'calc(100vh - 180px)' };
+const btnScan: React.CSSProperties = { backgroundColor: '#0ea5e9', color: '#fff', border: 'none', padding: '0 15px', borderRadius: '4px', fontWeight: '900', cursor: 'pointer', fontSize: '11px', height: '35px', transition: 'all 0.2s' };
+const mainLayout: React.CSSProperties = { display: 'flex', gap: '15px', height: 'calc(100vh - 185px)' };
 const sidebar: React.CSSProperties = { width: '250px', backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b', display:'flex', flexDirection:'column' };
 const sidebarTitle: React.CSSProperties = { padding: '12px', fontSize: '10px', fontWeight: 'bold', color:'#64748b', borderBottom:'1px solid #1e293b' };
 const listScroll: React.CSSProperties = { overflowY: 'auto', flex: 1 };
