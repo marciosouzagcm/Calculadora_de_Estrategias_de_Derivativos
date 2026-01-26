@@ -2,6 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manual Técnico - Long Call Spread | BoardPRO Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -19,9 +20,9 @@
         <header class="mb-12 border-b border-slate-700 pb-8">
             <div class="flex justify-between items-start mb-4">
                 <div>
-                    <span class="status-bull px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Direção: Bullish</span>
-                    <h1 class="text-4xl font-extrabold mt-4 accent-gold">LONG CALL SPREAD</h1>
-                    <p class="text-slate-400 italic">Também conhecida como Bull Call Spread ou Call Debit Spread.</p>
+                    <span class="status-bull px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Direção: Bullish (Alta)</span>
+                    <h1 class="text-4xl font-extrabold mt-4 accent-gold uppercase">Long Call Spread</h1>
+                    <p class="text-slate-400 italic">Trava de Alta com Call / Call Debit Spread.</p>
                 </div>
                 <div class="text-right text-xs text-slate-500 font-mono font-bold">
                     CÓDIGO: STRAT-001 <br> VERSÃO: 2026.1
@@ -34,20 +35,22 @@
                 <i class="fa-solid fa-layer-group text-sky-500"></i> 1. Arquitetura da Operação
             </h2>
             <div class="data-card p-6">
-                <p class="mb-4">Estratégia executada para capitalizar em cenários de alta do ativo subjacente com volatilidade neutra. Consiste na combinação de:</p>
+                <p class="mb-4">Estratégia executada para capitalizar em cenários de alta moderada do ativo subjacente. Consiste na montagem simultânea de:</p>
                 <div class="grid md:grid-cols-2 gap-4">
                     <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                         <strong class="block text-sky-400 mb-1">Ponta A (Compradora)</strong>
-                        Compra de Call ATM (At-the-Money) em preço de exercício (A).
+                        Compra de Call ITM ou ATM no strike inferior (K1).
                     </div>
                     <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                         <strong class="block text-orange-400 mb-1">Ponta B (Vendedora)</strong>
-                        Venda de Call OTM (Out-of-the-Money) em preço de exercício superior (B).
+                        Venda de Call OTM no strike superior (K2).
                     </div>
                 </div>
-                <p class="mt-4 text-sm text-slate-400 italic">Nota: Ambas as opções possuem o mesmo vencimento e ativo-objeto. A estratégia não requer chamada de margem.</p>
+                <p class="mt-4 text-sm text-slate-400 italic">Nota: Ambos os contratos possuem o mesmo vencimento. A ponta vendedora financia parte da ponta compradora, reduzindo o custo total (Net Debit).</p>
             </div>
         </section>
+
+        
 
         <section class="mb-12">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -55,15 +58,15 @@
             </h2>
             <div class="grid md:grid-cols-2 gap-6">
                 <div class="data-card p-6">
-                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Métricas de Custo e Ponto de Equilíbrio</h3>
+                    <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Métricas de Custo e Equilíbrio</h3>
                     <ul class="space-y-4">
                         <li>
                             <span class="block text-xs uppercase text-slate-500">Débito Líquido (Custo)</span>
-                            <span class="math-text">Prêmio Compra (A) - Prêmio Venda (B)</span>
+                            <span class="math-text">Premium (K1) - Premium (K2)</span>
                         </li>
                         <li>
-                            <span class="block text-xs uppercase text-slate-500">Ponto de Equilíbrio (PE/Breakeven)</span>
-                            <span class="math-text">Strike (A) + Débito Líquido Pago</span>
+                            <span class="block text-xs uppercase text-slate-500">Breakeven Point (B.E.P)</span>
+                            <span class="math-text">Strike (K1) + Débito Pago</span>
                         </li>
                     </ul>
                 </div>
@@ -71,12 +74,12 @@
                     <h3 class="font-bold mb-4 uppercase text-xs tracking-widest text-slate-500">Métricas de Performance</h3>
                     <ul class="space-y-4">
                         <li>
-                            <span class="block text-xs uppercase text-slate-500">Retorno Máximo</span>
-                            <span class="math-text">(Strike B - Strike A) - Débito Pago</span>
+                            <span class="block text-xs uppercase text-slate-500">Lucro Máximo</span>
+                            <span class="math-text">(Strike K2 - Strike K1) - Débito Pago</span>
                         </li>
                         <li>
-                            <span class="block text-xs uppercase text-slate-500">ROI Máximo</span>
-                            <span class="math-text">(Retorno Máx / Risco Máx) x 100</span>
+                            <span class="block text-xs uppercase text-slate-500">Probabilidade de Sucesso</span>
+                            <span class="math-text">Calculado via Delta / BSM</span>
                         </li>
                     </ul>
                 </div>
@@ -88,21 +91,21 @@
                 <i class="fa-solid fa-shield-halved text-sky-500"></i> 3. Gestão de Risco e RRR
             </h2>
             <div class="data-card p-6">
-                <p class="mb-6">O gerenciamento de risco é definido pela proporção entre o capital exposto e o ganho potencial.</p>
+                <p class="mb-6">O gerenciamento de risco é definido pelo capital exposto versus o teto de ganho estabelecido pela trava.</p>
                 <div class="grid md:grid-cols-2 gap-8">
                     <div class="border-l-2 border-green-500 pl-4">
-                        <h4 class="font-bold text-sm uppercase mb-2">RRR (Reward Risk Ratio)</h4>
-                        <p class="text-2xl font-mono">3,00 : 1</p>
-                        <p class="text-xs text-slate-500 mt-1">Indica que se lucra US$ 3,00 para cada US$ 1,00 arriscado (Exemplo Bitcoin).</p>
+                        <h4 class="font-bold text-sm uppercase mb-2">Reward/Risk Ratio (Exemplo)</h4>
+                        <p class="text-2xl font-mono text-green-400">2,50 : 1</p>
+                        <p class="text-xs text-slate-500 mt-1">Significa buscar R$ 2,50 de lucro para cada R$ 1,00 investido.</p>
                     </div>
                     <div class="border-l-2 border-red-500 pl-4">
-                        <h4 class="font-bold text-sm uppercase mb-2">RRR (Risk Reward Ratio)</h4>
-                        <p class="text-2xl font-mono">0,33 : 1</p>
-                        <p class="text-xs text-slate-500 mt-1">Indica que se arrisca US$ 0,33 para cada US$ 1,00 de lucro potencial.</p>
+                        <h4 class="font-bold text-sm uppercase mb-2">Risco Máximo</h4>
+                        <p class="text-2xl font-mono text-red-400">100%</p>
+                        <p class="text-xs text-slate-500 mt-1">O prejuízo máximo é limitado ao valor total pago na montagem.</p>
                     </div>
                 </div>
-                <div class="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded text-sm">
-                    <strong>Risco Máximo:</strong> Suportado se o ativo, no exercício, estiver abaixo do preço de exercício (A). O prejuízo é limitado ao débito líquido pago.
+                <div class="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded text-sm">
+                    <strong>Comportamento do Tempo (Theta):</strong> Por ser uma trava de débito, o passar do tempo é prejudicial se o ativo estiver longe do Breakeven, mas o efeito é suavizado pela ponta vendida.
                 </div>
             </div>
         </section>
