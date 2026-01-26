@@ -9,191 +9,165 @@
     <style>
         body { background-color: #0f172a; color: #e2e8f0; }
         .gradient-border { border-left: 4px solid; border-image: linear-gradient(to bottom, #0ea5e9, #d4af37) 1; }
-        .card { background: #1e293b; border: 1px solid #334155; }
+        .card { background: #1e293b; border: 1px solid #334155; transition: transform 0.2s; }
+        .card:hover { transform: scale(1.02); border-color: #38bdf8; }
         .accent-gold { color: #d4af37; }
         .accent-blue { color: #38bdf8; }
-        .table-row:hover { background-color: #1e293b; }
+        .file-id { font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #64748b; }
+        .badge-c { color: #4ade80; border: 1px solid #22c55e; padding: 2px 5px; border-radius: 4px; font-size: 9px; }
+        .badge-d { color: #f87171; border: 1px solid #ef4444; padding: 2px 5px; border-radius: 4px; font-size: 9px; }
     </style>
 </head>
 <body class="font-sans leading-relaxed">
 
     <nav class="p-6 border-b border-slate-700 bg-slate-900 sticky top-0 z-50">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-bold text-white">B</div>
                 <span class="font-bold text-xl tracking-tight">BoardPRO <span class="text-sky-500">Intelligence</span></span>
             </div>
-            <div class="text-xs text-slate-400 uppercase tracking-widest">Versão 2026.1 - Institucional</div>
+            <div class="text-xs text-slate-400 uppercase tracking-widest">v2026.1 - 23 Estratégias Ativas</div>
         </div>
     </nav>
 
-    <main class="max-w-5xl mx-auto p-6 md:p-12">
+    <main class="max-w-6xl mx-auto p-6 md:p-12">
         
         <header class="mb-12 text-center">
             <h1 class="text-4xl font-extrabold mb-4 accent-gold uppercase tracking-tight">📘 Manual Técnico de Estratégias</h1>
-            <p class="text-slate-400 max-w-2xl mx-auto text-lg">Definições, Perfis de Risco e Configurações Operacionais para o Mercado B3.</p>
+            <p class="text-slate-400 max-w-2xl mx-auto text-lg">Catálogo Completo de Modelos Matemáticos e Arquivos de Configuração.</p>
             <div class="mt-6 flex justify-center gap-4 text-sm italic text-slate-500">
-                <span><i class="fa-regular fa-calendar-check mr-1"></i> Atualizado em: 23/01/2026</span>
-                <span><i class="fa-solid fa-shield-halved mr-1"></i> Classificação: Restrita</span>
+                <span><i class="fa-regular fa-calendar-check mr-1"></i> 26/01/2026</span>
+                <span><i class="fa-solid fa-microchip mr-1"></i> Total: 23 Modelos</span>
             </div>
         </header>
 
         <section class="mb-12">
-            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-circle-info accent-blue"></i> 1. Introdução
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2 uppercase tracking-widest text-sky-400">
+                <i class="fa-solid fa-arrows-up-down"></i> 1. Travas Direcionais e Ratios
             </h2>
-            <div class="card p-6 rounded-lg gradient-border shadow-xl">
-                <p>Este documento detalha as estratégias de derivativos implementadas no motor de análise da <strong>Trading Board Pro V2026.1</strong>. Ele serve como base teórica para a geração de relatórios institucionais, fornecendo definições, perfis de risco, visões de mercado e terminologia técnica rigorosa aplicada ao cenário brasileiro.</p>
-            </div>
-        </section>
-
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold mb-8 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-arrow-trend-up accent-blue"></i> 2. Estratégias de Direção (Travas)
-            </h2>
-
-            <div class="grid md:grid-cols-2 gap-6">
-                <div class="card p-6 rounded-lg border-l-4 border-green-500">
-                    <h3 class="text-xl font-bold mb-2 accent-gold uppercase">Bull Call Spread</h3>
-                    <p class="text-xs text-slate-500 mb-3 font-mono">ID: BullCallSpread | Nomenclatura: Trava de Alta com Call</p>
-                    <p class="text-sm mb-4">Compra de Call (ATM/ITM) + Venda de Call (OTM) superior. Visa capturar valorização reduzindo custo via financiamento.</p>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <span class="p-1 bg-slate-800 rounded">Visão: Moderada Alta</span>
-                        <span class="p-1 bg-slate-800 rounded">Fluxo: Débito 💸</span>
-                    </div>
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="card p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-2"><span class="badge-d">DÉBITO</span><span class="file-id">long-call-spread.html</span></div>
+                    <h3 class="font-bold text-sm uppercase">Long Call Spread (Alta)</h3>
                 </div>
-
-                <div class="card p-6 rounded-lg border-l-4 border-red-500">
-                    <h3 class="text-xl font-bold mb-2 accent-gold uppercase">Bear Call Spread</h3>
-                    <p class="text-xs text-slate-500 mb-3 font-mono">ID: BearCallSpread | Nomenclatura: Trava de Baixa com Call</p>
-                    <p class="text-sm mb-4">Venda de Call inferior + Compra de Call superior (Proteção). Beneficia-se da queda ou lateralização.</p>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <span class="p-1 bg-slate-800 rounded">Visão: Baixista</span>
-                        <span class="p-1 bg-slate-800 rounded">Fluxo: Crédito 💰</span>
-                    </div>
+                <div class="card p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-2"><span class="badge-c">CRÉDITO</span><span class="file-id">short-call-spread.html</span></div>
+                    <h3 class="font-bold text-sm uppercase">Short Call Spread (Baixa)</h3>
                 </div>
-
-                <div class="card p-6 rounded-lg border-l-4 border-green-400">
-                    <h3 class="text-xl font-bold mb-2 accent-gold uppercase">Bull Put Spread</h3>
-                    <p class="text-xs text-slate-500 mb-3 font-mono">ID: BullPutSpread | Nomenclatura: Trava de Alta com Put</p>
-                    <p class="text-sm mb-4">Venda de Put (prox. dinheiro) + Compra de Put (longe do dinheiro). Foco em coletar prêmio e Theta.</p>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <span class="p-1 bg-slate-800 rounded">Visão: Neutro-Alta</span>
-                        <span class="p-1 bg-slate-800 rounded">Fluxo: Crédito 💰</span>
-                    </div>
+                <div class="card p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-2"><span class="badge-d">DÉBITO</span><span class="file-id">long-put-spread.html</span></div>
+                    <h3 class="font-bold text-sm uppercase">Long Put Spread (Baixa)</h3>
                 </div>
-
-                <div class="card p-6 rounded-lg border-l-4 border-red-400">
-                    <h3 class="text-xl font-bold mb-2 accent-gold uppercase">Bear Put Spread</h3>
-                    <p class="text-xs text-slate-500 mb-3 font-mono">ID: BearPutSpread | Nomenclatura: Trava de Baixa com Put</p>
-                    <p class="text-sm mb-4">Compra de Put (ATM) + Venda de Put (OTM) inferior. Barateia a proteção contra quedas.</p>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <span class="p-1 bg-slate-800 rounded">Visão: Baixista</span>
-                        <span class="p-1 bg-slate-800 rounded">Fluxo: Débito 💸</span>
-                    </div>
+                <div class="card p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-2"><span class="badge-c">CRÉDITO</span><span class="file-id">short-put-spread.html</span></div>
+                    <h3 class="font-bold text-sm uppercase">Short Put Spread (Alta)</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-2"><span class="badge-c">RATIO</span><span class="file-id">ratio-call-spread.html</span></div>
+                    <h3 class="font-bold text-sm uppercase">Ratio Call Spread</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-2"><span class="badge-c">RATIO</span><span class="file-id">ratio-put-spread.html</span></div>
+                    <h3 class="font-bold text-sm uppercase">Ratio Put Spread</h3>
                 </div>
             </div>
         </section>
 
         <section class="mb-12">
-            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-bolt-lightning accent-blue"></i> 3. Volatilidade (Straddle & Strangle)
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2 uppercase tracking-widest text-purple-400">
+                <i class="fa-solid fa-bolt"></i> 2. Volatilidade e Market Neutral
             </h2>
-            <div class="grid md:grid-cols-2 gap-6">
-                <div class="card p-6 rounded-lg">
-                    <h4 class="font-bold text-sky-400 mb-2">Straddle (Long/Short)</h4>
-                    <p class="text-sm text-slate-400">Operação em 1 Call e 1 Put no mesmo strike. O <strong>Long</strong> busca explosão de preço; o <strong>Short</strong> busca estabilidade absoluta.</p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="card p-4 rounded-lg border-t-2 border-purple-500">
+                    <span class="file-id block mb-1">long-straddle.html</span>
+                    <h3 class="font-bold text-xs uppercase">Long Straddle</h3>
                 </div>
-                <div class="card p-6 rounded-lg">
-                    <h4 class="font-bold text-sky-400 mb-2">Strangle (Long/Short)</h4>
-                    <p class="text-sm text-slate-400">Call e Put em strikes diferentes (OTM). Cria uma "zona de silêncio" onde o investidor ganha se o ativo não oscilar bruscamente.</p>
+                <div class="card p-4 rounded-lg border-t-2 border-purple-500">
+                    <span class="file-id block mb-1">short-straddle.html</span>
+                    <h3 class="font-bold text-xs uppercase">Short Straddle</h3>
+                </div>
+                <div class="card p-4 rounded-lg border-t-2 border-purple-500">
+                    <span class="file-id block mb-1">long-strangle.html</span>
+                    <h3 class="font-bold text-xs uppercase">Long Strangle</h3>
+                </div>
+                <div class="card p-4 rounded-lg border-t-2 border-purple-500">
+                    <span class="file-id block mb-1">short-strangle.html</span>
+                    <h3 class="font-bold text-xs uppercase">Short Strangle</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">iron-condor.html</span>
+                    <h3 class="font-bold text-xs uppercase">Iron Condor</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">short-iron-condor.html</span>
+                    <h3 class="font-bold text-xs uppercase">Short Iron Condor</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">long-butterfly-call.html</span>
+                    <h3 class="font-bold text-xs uppercase">Long Butterfly Call</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">short-butterfly-call.html</span>
+                    <h3 class="font-bold text-xs uppercase">Short Butterfly Call</h3>
                 </div>
             </div>
         </section>
 
         <section class="mb-12">
-            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-table accent-blue"></i> 4. Resumo de Métricas e Performance
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2 uppercase tracking-widest text-emerald-400">
+                <i class="fa-solid fa-clock"></i> 3. Dimensão Temporal (Calendar/Diagonal)
             </h2>
-            <div class="overflow-x-auto card rounded-lg shadow-2xl">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-800 text-slate-300 uppercase text-xs font-mono">
-                        <tr>
-                            <th class="p-4">Estratégia</th>
-                            <th class="p-4">Direção</th>
-                            <th class="p-4">P&L Máximo</th>
-                            <th class="p-4">Risco Máximo</th>
-                            <th class="p-4">Natureza</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-700">
-                        <tr class="table-row">
-                            <td class="p-4 font-bold">Bull Call</td>
-                            <td class="p-4">🟢 Alta</td>
-                            <td class="p-4">Limitado</td>
-                            <td class="p-4">Débito Pago</td>
-                            <td class="p-4 text-red-400">Débito</td>
-                        </tr>
-                        <tr class="table-row">
-                            <td class="p-4 font-bold">Bear Call</td>
-                            <td class="p-4">🔴 Baixa</td>
-                            <td class="p-4 text-green-400">Crédito</td>
-                            <td class="p-4 text-orange-400">Limitado (Asa)</td>
-                            <td class="p-4 text-green-400">Crédito</td>
-                        </tr>
-                        <tr class="table-row">
-                            <td class="p-4 font-bold">Long Straddle</td>
-                            <td class="p-4">🌀 Volatilidade</td>
-                            <td class="p-4 text-green-400">Ilimitado</td>
-                            <td class="p-4">Débito Pago</td>
-                            <td class="p-4 text-red-400">Débito</td>
-                        </tr>
-                        <tr class="table-row">
-                            <td class="p-4 font-bold">Short Strangle</td>
-                            <td class="p-4">⚪ Neutro</td>
-                            <td class="p-4 text-green-400">Crédito</td>
-                            <td class="p-4 text-red-500 font-bold uppercase">Ilimitado*</td>
-                            <td class="p-4 text-green-400">Crédito</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">bull-calendar-spread.html</span>
+                    <h3 class="font-bold text-sm uppercase">Bull Calendar Spread</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">bear-calendar-spread.html</span>
+                    <h3 class="font-bold text-sm uppercase">Bear Calendar Spread</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">bull-diagonal-spread.html</span>
+                    <h3 class="font-bold text-sm uppercase">Bull Diagonal Spread</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">bear-diagonal-spread.html</span>
+                    <h3 class="font-bold text-sm uppercase">Bear Diagonal Spread</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">short-call-diagonal.html</span>
+                    <h3 class="font-bold text-sm uppercase">Short Call Diagonal</h3>
+                </div>
+                <div class="card p-4 rounded-lg">
+                    <span class="file-id block mb-1">short-put-diagonal.html</span>
+                    <h3 class="font-bold text-sm uppercase">Short Put Diagonal</h3>
+                </div>
             </div>
-            <p class="text-[10px] text-slate-500 mt-2 px-2">* Operações sinalizadas automaticamente pelo sistema Vigilante V2 para monitoramento de margem.</p>
         </section>
 
         <section class="mb-12">
-            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-book accent-blue"></i> 5. Glossário e Indicadores
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2 uppercase tracking-widest text-amber-500">
+                <i class="fa-solid fa-vault"></i> 4. Renda Coberta e Arbitragem
             </h2>
-            <div class="grid md:grid-cols-2 gap-4 text-sm font-light">
-                <div class="p-4 bg-slate-900 border border-slate-800 rounded-lg">
-                    <p><strong class="accent-gold">U.R. (Unitary Risk):</strong> Risco unitário total dividido pelo lote. Indicador crítico de sanidade do setup.</p>
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="card p-4 rounded-lg border-l-4 border-amber-500">
+                    <span class="file-id block mb-1">covered-call.html</span>
+                    <h3 class="font-bold text-sm uppercase">Covered Call (Lançamento)</h3>
                 </div>
-                <div class="p-4 bg-slate-900 border border-slate-800 rounded-lg">
-                    <p><strong class="accent-gold">BEP (Breakeven Point):</strong> Preço exato do ativo onde o lucro líquido é zero.</p>
+                <div class="card p-4 rounded-lg border-l-4 border-amber-500">
+                    <span class="file-id block mb-1">covered-put.html</span>
+                    <h3 class="font-bold text-sm uppercase">Covered Put (Lançamento)</h3>
                 </div>
-                <div class="p-4 bg-slate-900 border border-slate-800 rounded-lg">
-                    <p><strong class="accent-gold">Net Premium:</strong> A soma algébrica dos prêmios das opções compradas e vendidas.</p>
-                </div>
-                <div class="p-4 bg-slate-900 border border-slate-800 rounded-lg">
-                    <p><strong class="accent-gold">ROI:</strong> Percentual de lucro líquido em relação ao capital total em risco.</p>
+                <div class="card p-4 rounded-lg border-l-4 border-amber-500">
+                    <span class="file-id block mb-1">box-spread.html</span>
+                    <h3 class="font-bold text-sm uppercase">Box Spread (Arbitragem)</h3>
                 </div>
             </div>
         </section>
-
-        <div class="flex justify-center mt-12">
-            <button onclick="window.close()" class="px-8 py-3 bg-sky-600 hover:bg-sky-500 rounded-full font-bold transition-all shadow-lg flex items-center gap-2">
-                <i class="fa-solid fa-circle-xmark"></i> Fechar Manual e Voltar
-            </button>
-        </div>
 
         <footer class="mt-20 pt-10 border-t border-slate-800 text-center">
-            <div class="mb-4">
-                <i class="fa-solid fa-shield-virus text-4xl text-slate-700"></i>
-            </div>
-            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">6. Governança e Disclaimer</h3>
-            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl mx-auto uppercase">
-                Uso restrito da BoardPRO Intelligence. Projeções baseadas em modelos matemáticos (Black-Scholes). Resultados passados não garantem retornos futuros. O mercado de opções envolve riscos significativos.
+            <p class="text-[11px] text-slate-500 leading-relaxed uppercase">
+                Uso restrito da BoardPRO Intelligence. Documentação atualizada com todos os 23 arquivos de sistema detectados no servidor em 26/01/2026.
             </p>
             <div class="mt-8 text-[10px] text-slate-600">
                 © 2026 TradingPro Brasil | Powered by BoardPRO Engine

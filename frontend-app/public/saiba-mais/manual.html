@@ -9,30 +9,31 @@
     <style>
         body { background-color: #0f172a; color: #e2e8f0; }
         .gradient-border { border-left: 4px solid; border-image: linear-gradient(to bottom, #0ea5e9, #d4af37) 1; }
-        .card { background: #1e293b; border: 1px solid #334155; }
+        .card { background: #1e293b; border: 1px solid #334155; transition: border-color 0.2s; }
         .accent-gold { color: #d4af37; }
         .accent-blue { color: #38bdf8; }
+        .strategy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
     </style>
 </head>
 <body class="font-sans leading-relaxed">
 
     <nav class="p-6 border-b border-slate-700 bg-slate-900 sticky top-0 z-50">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-bold text-white">B</div>
                 <span class="font-bold text-xl tracking-tight">BoardPRO <span class="text-sky-500">Intelligence</span></span>
             </div>
-            <div class="text-xs text-slate-400 uppercase tracking-widest">Versão 2026.1 - Institucional</div>
+            <div class="text-xs text-slate-400 uppercase tracking-widest">v2026.1 - 23 Estratégias Ativas</div>
         </div>
     </nav>
 
-    <main class="max-w-5xl mx-auto p-6 md:p-12">
+    <main class="max-w-6xl mx-auto p-6 md:p-12">
         
         <header class="mb-12 text-center">
             <h1 class="text-4xl font-extrabold mb-4 accent-gold uppercase tracking-tight">📘 Manual Técnico de Estratégias</h1>
             <p class="text-slate-400 max-w-2xl mx-auto text-lg">Detalhamento teórico e arquitetura de derivativos para a B3.</p>
             <div class="mt-6 flex justify-center gap-4 text-sm italic text-slate-500">
-                <span><i class="fa-regular fa-calendar-check mr-1"></i> Atualizado em: 23/01/2026</span>
+                <span><i class="fa-regular fa-calendar-check mr-1"></i> Atualizado em: 26/01/2026</span>
                 <span><i class="fa-solid fa-shield-halved mr-1"></i> Classificação: Restrita</span>
             </div>
         </header>
@@ -42,47 +43,60 @@
                 <i class="fa-solid fa-circle-info accent-blue"></i> 1. Introdução
             </h2>
             <div class="card p-6 rounded-lg gradient-border shadow-xl">
-                <p>Este documento detalha as estratégias de derivativos implementadas no motor de análise da <strong>Trading Board Pro V2026.1</strong>. Ele serve como base teórica para a geração de relatórios institucionais, fornecendo definições, perfis de risco, visões de mercado e terminologia técnica rigorosa.</p>
+                <p>Este documento detalha as <strong>23 estratégias de derivativos</strong> implementadas no motor de análise da <strong>BoardPRO V2026.1</strong>. A arquitetura cobre desde travas direcionais clássicas até arbitragens de juros e spreads temporais (calendário/diagonal), com foco exclusivo no modelo de liquidação da B3.</p>
             </div>
         </section>
 
         <section class="mb-12">
             <h2 class="text-2xl font-bold mb-8 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-arrow-trend-up accent-blue"></i> 2. Estratégias de Direção (Spreads)
+                <i class="fa-solid fa-layer-group accent-blue"></i> 2. Inventário de Modelos (23 Arquivos)
             </h2>
 
-            <div class="grid md:grid-cols-2 gap-6">
-                <div class="card p-6 rounded-lg hover:border-sky-500 transition-all">
-                    <div class="flex justify-between mb-4">
-                        <span class="bg-green-500/10 text-green-400 text-xs font-bold px-2 py-1 rounded">🟢 BULLISH</span>
-                        <span class="text-slate-500 text-xs">ID: BullCallSpread</span>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2 accent-gold uppercase">Bull Call Spread</h3>
-                    <p class="text-sm text-slate-400 mb-4 italic">Trava de Alta com Call</p>
-                    <ul class="text-sm space-y-2 mb-6">
-                        <li><strong>Visão:</strong> Alta moderada.</li>
-                        <li><strong>Natureza:</strong> Débito 💸</li>
-                        <li class="p-2 bg-slate-800 rounded"><strong>Config:</strong> Comprar Call (ITM) + Vender Call (OTM).</li>
-                    </ul>
-                    <div class="text-xs bg-slate-900 p-3 rounded border-l-2 border-green-500 italic">
-                        "Ideal para capturar valorização dentro de um intervalo, reduzindo o custo via financiamento."
+            <div class="space-y-8">
+                <div>
+                    <h3 class="text-sky-400 font-bold mb-4 uppercase text-sm tracking-wider">● Travas e Ratios (6)</h3>
+                    <div class="strategy-grid">
+                        <div class="card p-4 rounded text-xs">Bull Call Spread</div>
+                        <div class="card p-4 rounded text-xs">Bear Call Spread</div>
+                        <div class="card p-4 rounded text-xs">Bull Put Spread</div>
+                        <div class="card p-4 rounded text-xs">Bear Put Spread</div>
+                        <div class="card p-4 rounded text-xs">Ratio Call Spread</div>
+                        <div class="card p-4 rounded text-xs">Ratio Put Spread</div>
                     </div>
                 </div>
 
-                <div class="card p-6 rounded-lg hover:border-red-500 transition-all">
-                    <div class="flex justify-between mb-4">
-                        <span class="bg-red-500/10 text-red-400 text-xs font-bold px-2 py-1 rounded">🔴 BEARISH</span>
-                        <span class="text-slate-500 text-xs">ID: BearCallSpread</span>
+                <div>
+                    <h3 class="text-purple-400 font-bold mb-4 uppercase text-sm tracking-wider">● Volatilidade e Neutralidade (8)</h3>
+                    <div class="strategy-grid">
+                        <div class="card p-4 rounded text-xs">Long Straddle</div>
+                        <div class="card p-4 rounded text-xs">Short Straddle</div>
+                        <div class="card p-4 rounded text-xs">Long Strangle</div>
+                        <div class="card p-4 rounded text-xs">Short Strangle</div>
+                        <div class="card p-4 rounded text-xs">Iron Condor</div>
+                        <div class="card p-4 rounded text-xs">Short Iron Condor</div>
+                        <div class="card p-4 rounded text-xs">Long Butterfly</div>
+                        <div class="card p-4 rounded text-xs">Short Butterfly</div>
                     </div>
-                    <h3 class="text-xl font-bold mb-2 accent-gold uppercase">Bear Call Spread</h3>
-                    <p class="text-sm text-slate-400 mb-4 italic">Trava de Baixa com Call</p>
-                    <ul class="text-sm space-y-2 mb-6">
-                        <li><strong>Visão:</strong> Queda ou Lateralização.</li>
-                        <li><strong>Natureza:</strong> Crédito 💰</li>
-                        <li class="p-2 bg-slate-800 rounded"><strong>Config:</strong> Vender Call (K inferior) + Comprar Call (K superior).</li>
-                    </ul>
-                    <div class="text-xs bg-slate-900 p-3 rounded border-l-2 border-red-500 italic">
-                        "Geração de renda via decaimento temporal se o ativo ficar abaixo da barreira vendida."
+                </div>
+
+                <div>
+                    <h3 class="text-emerald-400 font-bold mb-4 uppercase text-sm tracking-wider">● Temporais e Diagonais (6)</h3>
+                    <div class="strategy-grid">
+                        <div class="card p-4 rounded text-xs">Bull Calendar Spread</div>
+                        <div class="card p-4 rounded text-xs">Bear Calendar Spread</div>
+                        <div class="card p-4 rounded text-xs">Bull Diagonal Spread</div>
+                        <div class="card p-4 rounded text-xs">Bear Diagonal Spread</div>
+                        <div class="card p-4 rounded text-xs">Short Call Diagonal</div>
+                        <div class="card p-4 rounded text-xs">Short Put Diagonal</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-amber-500 font-bold mb-4 uppercase text-sm tracking-wider">● Renda e Arbitragem (3)</h3>
+                    <div class="strategy-grid">
+                        <div class="card p-4 rounded text-xs">Covered Call (Lançamento)</div>
+                        <div class="card p-4 rounded text-xs">Covered Put</div>
+                        <div class="card p-4 rounded text-xs font-bold border-amber-500/50">Box Spread (Juros)</div>
                     </div>
                 </div>
             </div>
@@ -90,77 +104,84 @@
 
         <section class="mb-12">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-table accent-blue"></i> 4. Resumo de Métricas
+                <i class="fa-solid fa-table accent-blue"></i> 3. Matriz de Risco e Natureza
             </h2>
             <div class="overflow-x-auto card rounded-lg shadow-2xl">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800 text-slate-300 uppercase text-xs">
                         <tr>
-                            <th class="p-4">Estratégia</th>
-                            <th class="p-4">Direção</th>
-                            <th class="p-4">P&L Máx</th>
-                            <th class="p-4">Risco</th>
+                            <th class="p-4">Classe</th>
+                            <th class="p-4">Theta (Tempo)</th>
+                            <th class="p-4">Vega (Vol)</th>
                             <th class="p-4">Natureza</th>
+                            <th class="p-4">Risco de Margem</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-700">
                         <tr>
-                            <td class="p-4 font-bold italic">Bull Call</td>
-                            <td class="p-4">🟢 Alta</td>
-                            <td class="p-4">Limitado</td>
-                            <td class="p-4">Limitado</td>
-                            <td class="p-4 text-red-400">Débito</td>
+                            <td class="p-4 font-bold">Travas de Débito</td>
+                            <td class="p-4 text-red-400">Negativo</td>
+                            <td class="p-4 text-green-400">Positivo</td>
+                            <td class="p-4">Investimento</td>
+                            <td class="p-4">Nulo (Pago)</td>
                         </tr>
                         <tr>
-                            <td class="p-4 font-bold italic">Bear Call</td>
-                            <td class="p-4">🔴 Baixa</td>
-                            <td class="p-4 italic">Crédito</td>
-                            <td class="p-4 font-bold text-orange-400">Asa</td>
-                            <td class="p-4 text-green-400">Crédito</td>
+                            <td class="p-4 font-bold">Travas de Crédito</td>
+                            <td class="p-4 text-green-400">Positivo</td>
+                            <td class="p-4 text-red-400">Negativo</td>
+                            <td class="p-4">Renda</td>
+                            <td class="p-4 text-orange-400">Sim (Asa)</td>
                         </tr>
                         <tr>
-                            <td class="p-4 font-bold italic">Short Strangle</td>
-                            <td class="p-4 text-slate-400">⚪ Neutro</td>
-                            <td class="p-4 italic text-green-400">Crédito</td>
-                            <td class="p-4 text-red-500 font-extrabold uppercase">Ilimitado*</td>
-                            <td class="p-4 text-green-400">Crédito</td>
+                            <td class="p-4 font-bold">Spreads de Calendário</td>
+                            <td class="p-4 text-green-400">Positivo++</td>
+                            <td class="p-4 text-green-400">Positivo</td>
+                            <td class="p-4">Distorção</td>
+                            <td class="p-4">Baixo</td>
+                        </tr>
+                        <tr>
+                            <td class="p-4 font-bold">Vendas Descobertas</td>
+                            <td class="p-4 text-green-400">Positivo</td>
+                            <td class="p-4 text-red-400">Negativo--</td>
+                            <td class="p-4">Fluxo</td>
+                            <td class="p-4 text-red-500 font-bold text-xs uppercase">Crítico (Vigilante V2)</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-            <p class="text-[10px] text-slate-500 mt-2 px-2">* Estratégias sinalizadas automaticamente pelo sistema Vigilante V2.</p>
+            <p class="text-[10px] text-slate-500 mt-2 px-2">* O Sistema Vigilante V2 atua em tempo real em todas as classes de "Risco Crítico".</p>
         </section>
 
         <section class="mb-12">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2">
-                <i class="fa-solid fa-book accent-blue"></i> 5. Glossário e Indicadores
+                <i class="fa-solid fa-book accent-blue"></i> 4. Glossário Técnico BoardPRO
             </h2>
             <div class="grid md:grid-cols-3 gap-4">
                 <div class="p-4 bg-slate-900 border border-slate-800 rounded-lg">
-                    <h4 class="font-bold accent-gold mb-1 underline">Net Premium</h4>
-                    <p class="text-xs text-slate-400">Soma algébrica dos prêmios. Indica fluxo de caixa de entrada ou saída.</p>
+                    <h4 class="font-bold accent-gold mb-1 underline text-sm">Base 252 (BSM)</h4>
+                    <p class="text-[11px] text-slate-400">Modelo Black-Scholes ajustado para dias úteis brasileiros, essencial para derivativos de juros e ações na B3.</p>
                 </div>
                 <div class="p-4 bg-slate-900 border border-slate-800 rounded-lg">
-                    <h4 class="font-bold accent-gold mb-1 underline">U.R. (Unitary Risk)</h4>
-                    <p class="text-xs text-slate-400">Risco total dividido pelo lote. Indicador crítico para sanidade do setup.</p>
+                    <h4 class="font-bold accent-gold mb-1 underline text-sm">U.R. (Unitary Risk)</h4>
+                    <p class="text-[11px] text-slate-400">Métrica proprietária que define a perda máxima por contrato, usada pelo scanner para filtrar setups saudáveis.</p>
                 </div>
                 <div class="p-4 bg-slate-900 border border-slate-800 rounded-lg">
-                    <h4 class="font-bold accent-gold mb-1 underline">BEP</h4>
-                    <p class="text-xs text-slate-400">Breakeven Point. Preço exato onde o lucro zera os custos.</p>
+                    <h4 class="font-bold accent-gold mb-1 underline text-sm">Payoff Dinâmico</h4>
+                    <p class="text-[11px] text-slate-400">Gráfico que projeta o lucro/prejuízo não apenas no vencimento, mas também no rastro temporal (T+n).</p>
                 </div>
             </div>
         </section>
 
         <footer class="mt-20 pt-10 border-t border-slate-800 text-center">
             <div class="mb-4">
-                <i class="fa-solid fa-shield-virus text-4xl text-slate-700"></i>
+                <i class="fa-solid fa-microchip text-4xl text-slate-700"></i>
             </div>
-            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">6. Governança e Disclaimer</h3>
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">5. Governança e Disclaimer</h3>
             <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl mx-auto uppercase">
-                Este documento é de uso restrito da BoardPRO Intelligence. As projeções são baseadas em modelos matemáticos (Black-Scholes / Binomial). Resultados passados não garantem retornos futuros. O mercado de opções envolve riscos significativos, incluindo a perda total do capital.
+                Uso restrito. A BoardPRO Intelligence não recomenda ativos. O manual detalha algoritmos de 23 modelos matemáticos. A execução e gerenciamento de risco são de responsabilidade do operador. Risco de cauda monitorado pelo Sistema Vigilante.
             </p>
             <div class="mt-8 text-[10px] text-slate-600">
-                © 2026 TradingPro Brasil | Powered by TypeScript Engine
+                © 2026 TradingPro Brasil | Engine v2.0.23-Stable
             </div>
         </footer>
 
