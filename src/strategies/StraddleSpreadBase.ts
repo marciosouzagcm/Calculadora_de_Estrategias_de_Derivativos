@@ -1,6 +1,10 @@
 import { IStrategy } from '../interfaces/IStrategy.js';
 import { OptionLeg, StrategyMetrics, NaturezaOperacao, Greeks } from '../interfaces/Types.js';
 
+/**
+ * BOARDPRO V40.1 - Volatility Strategy Base
+ * Gerencia Long/Short Straddles e Strangles.
+ */
 export abstract class VolatilityBase implements IStrategy {
     abstract name: string;
     abstract isLong: boolean;
@@ -11,7 +15,7 @@ export abstract class VolatilityBase implements IStrategy {
         const results: StrategyMetrics[] = [];
         const expirationGroups: Record<string, OptionLeg[]> = {};
 
-        // 1. Agrupamento por Vencimento
+        // 1. Agrupamento por Vencimento para garantir que as pernas coincidam
         allOptions.forEach(opt => {
             if (!opt.vencimento || opt.tipo === 'SUBJACENTE') return;
             const dateStr = String(opt.vencimento).split(/[T ]/)[0];
@@ -30,7 +34,7 @@ export abstract class VolatilityBase implements IStrategy {
                     
                     // --- Validação de Estrutura ---
                     if (this.isStraddle) {
-                        // Straddle: Strikes devem ser iguais ou muito próximos (ATM)
+                        // Straddle: Mesmos strikes (tolerância de 2% para strikes ATM da B3)
                         if (strikeDiff > (call.strike! * 0.02)) continue; 
                     } else {
                         // Strangle: Put deve ter strike menor que a Call (OTM)
@@ -38,7 +42,7 @@ export abstract class VolatilityBase implements IStrategy {
                     }
 
                     const premiumTotal = call.premio + put.premio;
-                    if (premiumTotal < 0.10) continue; // Filtra liquidez baixa
+                    if (premiumTotal < 0.05) continue; // Filtra opções com baixíssima liquidez
 
                     // --- Cálculo de Gregas ---
                     const getG = (l: OptionLeg) => l.gregas_unitarias || { delta: 0, gamma: 0, theta: 0, vega: 0 };
@@ -53,19 +57,20 @@ export abstract class VolatilityBase implements IStrategy {
                         vega: Number((mult * (gC.vega + gP.vega)).toFixed(4)),
                     };
 
-                    // --- Breakevens de Mercado (Precisão B3) ---
-                    // No Straddle usamos o strike da Call como base. No Strangle, as extremidades.
-                    const lowerStrike = this.isStraddle ? call.strike! : put.strike!;
-                    const upperStrike = this.isStraddle ? call.strike! : call.strike!;
+                    // --- Breakevens ---
+                    const lowerStrikeBase = this.isStraddle ? call.strike! : put.strike!;
+                    const upperStrikeBase = call.strike!;
                     
-                    const beLow = lowerStrike - premiumTotal;
-                    const beHigh = upperStrike + premiumTotal;
+                    const beLow = lowerStrikeBase - premiumTotal;
+                    const beHigh = upperStrikeBase + premiumTotal;
 
                     // --- Gestão de Risco e ROI ---
-                    // Para Shorts, o risco é teoricamente ilimitado, mas usamos a margem (20% do spot) para cálculo de ROI
-                    const margemEstimada = spotPrice * 0.20; 
-                    const lucroMaximoUnitario = this.isLong ? 999999 : premiumTotal;
-                    const riscoMaximoUnitario = this.isLong ? premiumTotal : margemEstimada;
+                    // IMPORTANTE: Mantemos valores numéricos para não quebrar o motor de cálculo.
+                    // '999999' sinaliza ao frontend/serviço o conceito de ilimitado.
+                    const margemEstimada = spotPrice * 0.25; // Margem B3 costuma variar de 15% a 30%
+                    
+                    const lucroMax = this.isLong ? 999999 : premiumTotal;
+                    const riscoMax = this.isLong ? premiumTotal : 999999;
 
                     results.push({
                         name: this.name,
@@ -78,19 +83,19 @@ export abstract class VolatilityBase implements IStrategy {
                         initialCashFlow: this.isLong ? -premiumTotal : premiumTotal,
                         natureza: (this.isLong ? 'DÉBITO' : 'CRÉDITO') as NaturezaOperacao,
 
-                        // Campos que o StrategyService usará para multiplicar pelo Lote
-                        max_profit: this.isLong ? 'Ilimitado' : premiumTotal,
-                        max_loss: this.isLong ? premiumTotal : 'Ilimitado',
-                        lucro_maximo: this.isLong ? 'Ilimitado' : premiumTotal,
-                        risco_maximo: this.isLong ? premiumTotal : margemEstimada,
-
+                        max_profit: lucroMax,
+                        max_loss: riscoMax,
+                        lucro_maximo: lucroMax,
+                        risco_maximo: this.isLong ? premiumTotal : margemEstimada, // Para ROI usamos margem no Short
+                        
+                        roi: this.isLong ? (lucroMax / premiumTotal) : (premiumTotal / margemEstimada),
                         breakEvenPoints: [Number(beLow.toFixed(2)), Number(beHigh.toFixed(2))],
                         greeks: netGreeks,
                         pernas: [
-                            { ...call, direction: this.isLong ? 'COMPRA' : 'VENDA', qtd: 1000 },
-                            { ...put, direction: this.isLong ? 'COMPRA' : 'VENDA', qtd: 1000 }
+                            { derivative: call, direction: this.isLong ? 'COMPRA' : 'VENDA', multiplier: 1, display: `[${this.isLong ? 'C' : 'V'}] Call K:${call.strike}` },
+                            { derivative: put, direction: this.isLong ? 'COMPRA' : 'VENDA', multiplier: 1, display: `[${this.isLong ? 'C' : 'V'}] Put K:${put.strike}` }
                         ]
-                    } as unknown as StrategyMetrics);
+                    } as StrategyMetrics);
                 }
             }
         }
@@ -100,7 +105,7 @@ export abstract class VolatilityBase implements IStrategy {
     getLegCount(): number { return 2; }
 }
 
-// Implementações concretas permanecem as mesmas
+// Implementações concretas com Visão de Mercado ajustada
 export class LongStraddle extends VolatilityBase { name = 'Long Straddle'; isLong = true; isStraddle = true; marketView = 'VOLÁTIL' as const; }
 export class ShortStraddle extends VolatilityBase { name = 'Short Straddle'; isLong = false; isStraddle = true; marketView = 'NEUTRA' as const; }
 export class LongStrangle extends VolatilityBase { name = 'Long Strangle'; isLong = true; isStraddle = false; marketView = 'VOLÁTIL' as const; }

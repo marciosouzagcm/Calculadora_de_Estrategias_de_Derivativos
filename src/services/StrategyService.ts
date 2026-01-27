@@ -4,7 +4,7 @@ import { OptionLeg, StrategyMetrics } from '../interfaces/Types.js';
 
 /**
  * BOARDPRO V41.8 - Strategy Orchestrator
- * UPDATED: Sanitização rigorosa de nulos, proteção de tipos e correção de roteamento de dados.
+ * UPDATED: Sanitização de nulos e inclusão de mapeamento de Ticker/Série para o Frontend.
  */
 export class StrategyService {
     private static readonly FEE_PER_LEG = 22.00; 
@@ -24,7 +24,7 @@ export class StrategyService {
 
         if (!rawOptions || rawOptions.length === 0) return [];
 
-        // Mapeamento com proteção contra valores nulos/undefined (causa dos erros no log)
+        // Mapeamento com proteção contra valores nulos/undefined
         const options: OptionLeg[] = rawOptions.map((opt: any) => {
             if (!opt) return null;
 
@@ -63,7 +63,12 @@ export class StrategyService {
                     combinations.forEach(m => {
                         if (m && m.name) {
                             const formatted = this.formatForFrontend(m, lot, spotPrice);
-                            bestOfEach.set(formatted.name, formatted);
+                            
+                            // Mantém apenas a melhor variação por estratégia (Maior ROI)
+                            const existing = bestOfEach.get(formatted.name);
+                            if (!existing || (formatted.roi > (existing.roi || 0))) {
+                                bestOfEach.set(formatted.name, formatted);
+                            }
                         }
                     });
                 }
@@ -82,11 +87,11 @@ export class StrategyService {
         const feePerUnit = feesTotal / safeLot;
         
         // 1. CÁLCULO DO TARGET REAL (Saída 0x0)
-        const unitPremium = Math.abs(s.net_premium || 0);
+        const unitPremium = Math.abs(Number(s.net_premium) || 0);
         const targetZeroZero = unitPremium + feePerUnit;
 
         // 2. FINANCEIRO TOTAL
-        const isUnlimited = s.max_profit === 'Ilimitado' || s.max_profit === Infinity;
+        const isUnlimited = s.max_profit === 'Ilimitado' || s.max_profit === Infinity || s.max_profit === 999999;
         const rawProfit = Number(s.max_profit) || 0;
         const rawLoss = Number(s.max_loss) || 0;
 
@@ -117,7 +122,7 @@ export class StrategyService {
             lucro_maximo: netProfit,
             risco_maximo: netRisk,
             
-            initialCashFlow: Math.abs(Number(((s.initialCashFlow || 0) * safeLot).toFixed(2))),
+            initialCashFlow: Math.abs(Number(((Number(s.initialCashFlow) || 0) * safeLot).toFixed(2))),
             breakEvenPoints: finalBE.map(p => Number(Math.abs(p || 0).toFixed(2))),
             
             greeks: {
@@ -125,7 +130,23 @@ export class StrategyService {
                 gamma: Number(((s.greeks?.gamma || 0) * safeLot).toFixed(4)),
                 theta: Number(((s.greeks?.theta || 0) * safeLot).toFixed(2)),
                 vega: Number(((s.greeks?.vega || 0) * safeLot).toFixed(2))
-            }
+            },
+
+            // AJUSTE: Mapeamento detalhado das pernas para a tabela do Frontend
+            pernas: pernas.map(p => {
+                const ticker = p.derivative?.option_ticker || p.derivative?.symbol || '---';
+                // Extrai a letra da série (5ª posição no padrão B3: PETRC174 -> C)
+                const serie = ticker.length >= 5 ? ticker.charAt(4) : '---';
+
+                return {
+                    ...p,
+                    option_ticker: ticker,
+                    serie: serie,
+                    qtd: safeLot * (p.multiplier || 1),
+                    strike: p.derivative?.strike || 0,
+                    premio: p.derivative?.premio || 0
+                };
+            })
         };
     }
 }
