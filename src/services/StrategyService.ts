@@ -3,8 +3,8 @@ import { StrategyFactory } from '../factories/StrategyFactory.js';
 import { OptionLeg, StrategyMetrics } from '../interfaces/Types.js';
 
 /**
- * BOARDPRO V41.10 - Strategy Orchestrator
- * FIX: Correção definitiva para escala de strikes CSAN3 (Série 500/600).
+ * BOARDPRO V41.12 - Strategy Orchestrator
+ * UPDATED: Suporte a estratégias de Calendário + Trava de Segurança para Estruturadas Simétricas.
  */
 export class StrategyService {
     private static readonly FEE_PER_LEG = 22.00; 
@@ -30,27 +30,19 @@ export class StrategyService {
             const cleanAtivo = (opt.ativo_subjacente || '').replace(/^\d+/, '');
             let correctedStrike = parseFloat(opt.strike || 0);
             
-            // --- LÓGICA DE NORMALIZAÇÃO DE STRIKE ---
-            
-            // Caso 1: CSAN3 (Séries 500, 600...)
-            // Se strike >= 500, extraímos o final e ajustamos para a casa dos R$ 15,00 - R$ 16,00
+            // --- LÓGICA DE NORMALIZAÇÃO DE STRIKE (CSAN3 / BOVA11) ---
             if (cleanAtivo.includes('CSAN') && correctedStrike >= 500) {
-                const sufixo = correctedStrike % 100; // 510 -> 10, 520 -> 20
-                correctedStrike = 15 + (sufixo / 100); // 15 + 0.10 = 15.10
-                
-                // Se o spot price estiver muito longe (ex: R$ 25), o código se ajusta
+                const sufixo = correctedStrike % 100;
+                correctedStrike = 15 + (sufixo / 100); 
                 if (spotPrice > 20) correctedStrike += 10; 
             }
-            // Caso 2: BOVA11 (Strikes decimais importados como inteiros baixos)
             else if (cleanAtivo.includes('BOVA') && correctedStrike < 80 && correctedStrike > 0) {
                 correctedStrike *= 10;
             }
-            // Caso 3: Fallback para strikes multiplicados por 100 (ex: 1510 em vez de 15.10)
             else if (correctedStrike > (spotPrice * 10)) {
                 correctedStrike = correctedStrike / 100;
             }
 
-            // Identificação do Tipo pela letra da série (5ª posição)
             const tickerStr = opt.ticker || opt.symbol || '';
             const charSerie = tickerStr.charAt(4).toUpperCase();
             const tipoIdentificado = opt.tipo || (charSerie.match(/[A-L]/) ? 'CALL' : 'PUT');
@@ -76,15 +68,30 @@ export class StrategyService {
 
         for (const strategy of allStrategies) {
             try {
-                // Filtro pré-calculo: só tenta estratégias se houver CALLs e PUTs disponíveis
                 const combinations = strategy.calculateMetrics(options, spotPrice, this.FEE_PER_LEG);
                 if (Array.isArray(combinations)) {
                     combinations.forEach(m => {
-                        if (m && m.name) {
-                            const formatted = this.formatForFrontend(m, lot, spotPrice);
-                            const existing = bestOfEach.get(formatted.name);
-                            if (!existing || (formatted.roi > (existing.roi || 0))) {
-                                bestOfEach.set(formatted.name, formatted);
+                        if (m && m.name && m.pernas) {
+                            
+                            // --- REGRA DE CALENDÁRIO VS ESTRUTURADAS ---
+                            const seriesNoSetup = new Set(m.pernas.map(p => {
+                                const t = p.derivative?.option_ticker || p.ticker || '';
+                                return t.charAt(4); // Letra da série (mês)
+                            }));
+
+                            const isCalendarType = m.name.toLowerCase().includes('calendário') || 
+                                                 m.name.toLowerCase().includes('calendar') ||
+                                                 m.name.toLowerCase().includes('horizontal');
+
+                            // Só permite meses diferentes se a estratégia for explicitamente de Calendário
+                            const isValidTemporal = isCalendarType ? seriesNoSetup.size > 1 : seriesNoSetup.size === 1;
+
+                            if (isValidTemporal) {
+                                const formatted = this.formatForFrontend(m, lot, spotPrice);
+                                const existing = bestOfEach.get(formatted.name);
+                                if (!existing || (formatted.roi > (existing.roi || 0))) {
+                                    bestOfEach.set(formatted.name, formatted);
+                                }
                             }
                         }
                     });
@@ -141,11 +148,13 @@ export class StrategyService {
             pernas: pernas.map(p => {
                 const ticker = p.derivative?.option_ticker || p.derivative?.symbol || p.ticker || '---';
                 const serie = ticker.length >= 5 ? ticker.charAt(4) : '---';
+                const multiplier = p.multiplier || 1;
+
                 return {
                     ...p,
                     option_ticker: ticker,
                     serie: serie,
-                    qtd: safeLot * (p.multiplier || 1),
+                    qtd: safeLot * multiplier,
                     strike: p.strike || p.derivative?.strike || 0,
                     premio: p.premio || p.derivative?.premio || 0
                 };
