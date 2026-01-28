@@ -3,6 +3,8 @@ import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
 import { ReportTemplate } from './components/ReportTemplate';
+// IMPORTANTE: Serviço de exportação para geração de documentos PDF institucionais
+import { exportarPDF } from './services/pdfService';
 import { 
   FileDown, 
   ExternalLink, 
@@ -14,7 +16,7 @@ import {
 
 const marketService = new MarketDataService();
 
-// Caminho atualizado para o seu diretório local conforme solicitado
+// Caminho para o diretório de recursos locais
 const LOGO_SRC = "/saiba-mais/Logo.png";
 
 const strategyCard = (active: boolean): React.CSSProperties => ({
@@ -57,13 +59,13 @@ const App: React.FC = () => {
 
   const getManualDescription = (name: string) => {
     const n = name.toUpperCase();
-    if (n.includes('BULL CALL')) return "Trava de Alta com Call: Compra-se uma Call em strike baixo e vende-se em strike alto. Lucra-se com a valorização moderada do ativo.";
-    if (n.includes('BULL PUT')) return "Trava de Alta com Put: Estratégia de crédito. Vende-se uma Put próxima ao dinheiro com proteção inferior para colher prêmio e tempo.";
-    if (n.includes('BEAR CALL')) return "Trava de Baixa com Call: Operação de crédito que se beneficia da queda ou lateralização do preço do ativo subjacente.";
-    if (n.includes('BEAR PUT')) return "Trava de Baixa com Put: Compra-se proteção (Put) e financia-se parte do custo com a venda de uma Put de strike inferior.";
-    if (n.includes('STRANGLE')) return "Strangle: Estratégia de volatilidade que utiliza strikes diferentes fora do dinheiro para criar uma zona de conforto.";
-    if (n.includes('STRADDLE')) return "Straddle: Operação simultânea no mesmo strike para capturar grandes movimentos ou baixa volatilidade extrema.";
-    return "Análise técnica institucional processada pelo motor de cálculo BoardPRO.";
+    if (n.includes('BULL CALL')) return "Trava de Alta com Call: Estratégia de débito para cenários de alta moderada, limitando o risco ao prêmio pago.";
+    if (n.includes('BULL PUT')) return "Trava de Alta com Put: Estratégia de crédito (Bullish) que visa a retenção do prêmio através da passagem do tempo.";
+    if (n.includes('BEAR CALL')) return "Trava de Baixa com Call: Operação de crédito que se beneficia da queda ou lateralização do preço do ativo.";
+    if (n.includes('BEAR PUT')) return "Trava de Baixa com Put: Compra de proteção financiada pela venda de strike inferior, otimizando o delta negativo.";
+    if (n.includes('STRANGLE')) return "Strangle: Estratégia de volatilidade pura, buscando movimentos explosivos fora da zona de strikes.";
+    if (n.includes('STRADDLE')) return "Straddle: Aposta em alta volatilidade no mesmo strike, ideal para eventos de divulgação de resultados.";
+    return "Análise técnica institucional baseada em Black-Scholes processada pelo motor BoardPRO.";
   };
 
   const handleExportPDF = () => {
@@ -71,14 +73,14 @@ const App: React.FC = () => {
       alert("Selecione uma estratégia para exportar o relatório.");
       return;
     }
-    window.print();
+    exportarPDF(selecionada.name || 'Estrategia_BoardPro');
   };
 
   const calcularMetricasCompletas = (est: StrategyMetrics | null) => {
     if (!est || !est.pernas) return null;
     const nPernas = est.pernas.length;
     const taxasMontagem = nPernas * taxaPorPerna;
-    const taxasTotais = taxasMontagem * 2;
+    const taxasTotais = taxasMontagem * 2; // Ida e Volta
     const pRefAtivo = toNum(precoSlot);
     
     let fluxoCaixaUnit = 0;
@@ -104,6 +106,15 @@ const App: React.FC = () => {
 
     const isCredito = fluxoCaixaUnit > 0;
     const premioAbsoluto = Math.abs(fluxoCaixaUnit);
+    
+    // --- AJUSTE DE TARGET (BREAKEVEN FINANCEIRO UNITÁRIO) ---
+    // Se crédito: Recebi X, para sair no 0x0 preciso recomprar por (X - taxas)
+    // Se débito: Paguei X, para sair no 0x0 preciso vender por (X + taxas)
+    const taxasPorLoteUnit = taxasTotais / lote;
+    const targetAjustado = isCredito 
+      ? (premioAbsoluto - taxasPorLoteUnit) 
+      : (premioAbsoluto + taxasPorLoteUnit);
+
     let riscoRealCalculado = 0;
 
     if (nPernas === 2 && strikes.length === 2 && !possuiVendaSeca) {
@@ -125,7 +136,7 @@ const App: React.FC = () => {
       riscoReal: capitalEmRiscoTotal, 
       roi: roiCalculado, 
       ur: capitalEmRiscoTotal / lote, 
-      target: Math.floor((isCredito ? premioAbsoluto - (taxasTotais/lote) : premioAbsoluto + (taxasTotais/lote)) * 100) / 100, 
+      target: Math.max(0, Math.floor(targetAjustado * 100) / 100), 
       taxas: taxasMontagem, 
       isCredito, 
       be: toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : est.be),
@@ -162,11 +173,6 @@ const App: React.FC = () => {
   return (
     <div style={containerStyle}>
       <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          #report-pdf-template { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
-          body { background: white !important; }
-        }
         .app-logo {
           height: 32px; width: auto; margin-right: 12px;
           filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.3));
@@ -178,20 +184,15 @@ const App: React.FC = () => {
         }
         .btn-export-top { background-color: #16a34a; }
         .btn-export-top:hover { background-color: #15803d; transform: translateY(-1px); }
-        
         .btn-report-top { background-color: #334155; }
         .btn-report-top:hover { background-color: #475569; transform: translateY(-1px); }
-
         .btn-header-action:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; transform: none; }
-        
         .nav-doc-link {
           display: flex; align-items: center; gap: 5px; color: #94a3b8; 
           font-size: 10px; text-decoration: none; font-weight: 600;
           padding: 5px 10px; border-radius: 4px; transition: all 0.2s;
         }
-        .nav-doc-link:hover { 
-          color: #0ea5e9; background: rgba(14, 165, 233, 0.1); 
-        }
+        .nav-doc-link:hover { color: #0ea5e9; background: rgba(14, 165, 233, 0.1); }
         .nav-divider { width: 1px; height: 16px; background: #334155; margin: 0 8px; }
       `}</style>
 
@@ -202,24 +203,16 @@ const App: React.FC = () => {
             <div>
               <h1 style={logoStyle}>TRADING BOARD PRO <span style={{color:'#0ea5e9', fontSize: '11px', opacity: 0.8}}>V2026.1</span></h1>
             </div>
-            
             <div className="nav-divider"></div>
-            
             <nav style={{display: 'flex', gap: '4px'}}>
-              <a href="/saiba-mais/black-scholes-merton.html" target="_blank" className="nav-doc-link">
-                <Zap size={12} /> MOTOR BSM
-              </a>
-              <a href="/saiba-mais/sistema-vigilante.html" target="_blank" className="nav-doc-link">
-                <ShieldCheck size={12} /> VIGILANTE
-              </a>
-              <a href="/estrategias/estrategias.html" target="_blank" className="nav-doc-link">
-                <BookOpen size={12} /> ESTRATÉGIAS
-              </a>
+              <a href="/saiba-mais/black-scholes-merton.html" target="_blank" className="nav-doc-link"><Zap size={12} /> MOTOR BSM</a>
+              <a href="/saiba-mais/sistema-vigilante.html" target="_blank" className="nav-doc-link"><ShieldCheck size={12} /> VIGILANTE</a>
+              <a href="/estrategias/estrategias.html" target="_blank" className="nav-doc-link"><BookOpen size={12} /> ESTRATÉGIAS</a>
             </nav>
           </div>
           
           <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-            <button onClick={() => alert('Abrindo Relatório Detalhado...')} className="btn-header-action btn-report-top" disabled={!selecionada}>
+            <button onClick={() => alert('Abrindo painel analítico...')} className="btn-header-action btn-report-top" disabled={!selecionada}>
               <ClipboardList size={14} /> RELATÓRIO
             </button>
             <button onClick={handleExportPDF} className="btn-header-action btn-export-top" disabled={!selecionada}>
@@ -237,17 +230,17 @@ const App: React.FC = () => {
           <div style={inputGroup}><label style={label}>ATIVO</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} style={input} /></div>
           <div style={inputGroup}><label style={label}>PREÇO REF</label><input type="number" step="0.01" value={precoSlot} onChange={e => setPrecoSlot(e.target.value)} style={input} /></div>
           <div style={inputGroup}><label style={label}>LOTE</label><input type="number" value={lote} onChange={e => setLote(Number(e.target.value))} style={input} /></div>
-          <div style={inputGroup}><label style={label}>RISCO UNIT.</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(toNum(e.target.value))} style={{...input, color: '#f87171', borderColor: '#450a0a'}} /></div>
+          <div style={inputGroup}><label style={label}>RISCO UNIT. (U.R)</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(toNum(e.target.value))} style={{...input, color: '#f87171', borderColor: '#450a0a'}} /></div>
           <div style={inputGroup}><label style={label}>TAXA/PERNA</label><input type="number" value={taxaPorPerna} onChange={e => setTaxaPorPerna(Number(e.target.value))} style={{...input, color: '#fbbf24'}} /></div>
           <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>
-            {loading ? 'PROCESSANDO...' : 'EXECUTAR'}
+            {loading ? 'PROCESSANDO...' : 'EXECUTAR SCANNER'}
           </button>
         </div>
       </header>
 
       <main style={mainLayout} className="no-print">
         <aside style={sidebar}>
-          <div style={sidebarTitle}>OPORTUNIDADES FILTRADAS ({estrategias.length})</div>
+          <div style={sidebarTitle}>OPORTUNIDADES IDENTIFICADAS ({estrategias.length})</div>
           <div style={listScroll}>
             {estrategias.map((est, idx) => {
               const m = calcularMetricasCompletas(est);
@@ -255,7 +248,7 @@ const App: React.FC = () => {
                 <div key={idx} onClick={() => setSelecionada(est)} style={strategyCard(selecionada?.name === est.name)}>
                   <div style={{fontWeight:'800', fontSize:'11px', color: '#fff'}}>{est.name}</div>
                   <div style={{color:'#4ade80', fontSize:'14px', fontWeight:'900', margin: '4px 0'}}>R$ {m?.totalLiquido.toFixed(2)}</div>
-                  <div style={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}>Risco Real: <span style={{color: '#f87171'}}>R$ {m?.riscoReal.toFixed(2)}</span></div>
+                  <div style={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}>Risco Auditado: <span style={{color: '#f87171'}}>R$ {m?.riscoReal.toFixed(2)}</span></div>
                   <div style={{display: 'flex', gap: '5px'}}>
                     <div style={roiBadge}>ROI: {m?.roi.toFixed(1) || '0.0'}%</div>
                     <div style={riscoUnitBadge}>U.R: R$ {m?.ur.toFixed(2) || '0.00'}</div>
@@ -270,7 +263,7 @@ const App: React.FC = () => {
           {selecionada && selecionadaMetricas ? (
             <div style={detailGrid}>
               <div style={panel}>
-                <div style={panelHeader}>COMPOSIÇÃO DETALHADA DO SETUP</div>
+                <div style={panelHeader}>COMPOSIÇÃO ESTRUTURAL DO SETUP</div>
                 <div style={{flex: 1, overflow: 'auto'}}>
                   <table style={table}>
                     <thead>
@@ -279,7 +272,7 @@ const App: React.FC = () => {
                     <tbody>
                       {selecionada.pernas?.map((p, i) => (
                         <tr key={i} style={tr}>
-                          <td style={{ color: (p.direction || '').toUpperCase() === 'COMPRA' ? '#4ade80' : '#f87171', padding: '10px', fontWeight: 'bold' }}>{p.direction}</td>
+                          <td style={{ color: (p.direction || p.direcao || '').toUpperCase() === 'COMPRA' ? '#4ade80' : '#f87171', padding: '10px', fontWeight: 'bold' }}>{p.direction || p.direcao}</td>
                           <td style={{ color: '#94a3b8' }}>{(p.derivative?.tipo || p.tipo || '').toUpperCase()}</td>
                           <td style={{ color: '#fff', fontWeight: 'bold' }}>{p.derivative?.symbol || p.symbol || p.option_ticker || '---'}</td>
                           <td style={{ color: '#fff' }}>R$ {toNum(p.strike || p.derivative?.strike).toFixed(2)}</td>
@@ -295,13 +288,13 @@ const App: React.FC = () => {
                   <div style={{ display: 'flex', gap: '22px', flexWrap: 'wrap' }}>
                     <div style={footerBlock}><span style={label}>LUCRO LÍQUIDO</span><b style={{ color: '#4ade80' }}>R$ {selecionadaMetricas.totalLiquido.toFixed(2)}</b></div>
                     <div style={footerBlock}><span style={label}>RISCO REAL (AUDITADO)</span><b style={{ color: '#f87171' }}>R$ {selecionadaMetricas.riscoReal.toFixed(2)}</b></div>
-                    <div style={footerBlock}><span style={label}>TARGET (0x0)</span><b style={{ color: '#38bdf8' }}>R$ {selecionadaMetricas.target.toFixed(2)}</b></div>
+                    <div style={footerBlock}><span style={label}>TARGET BREAKEVEN (UNIT)</span><b style={{ color: '#38bdf8' }}>R$ {selecionadaMetricas.target.toFixed(2)}</b></div>
                     <div style={footerBlock}><span style={label}>U.R. ATUAL</span><b style={{ color: '#fbbf24' }}>R$ {selecionadaMetricas.ur.toFixed(2)}</b></div>
                   </div>
                 </div>
               </div>
               <div style={panel}>
-                <div style={panelHeader}>CURVA DE PAYOFF (VENCIMENTO)</div>
+                <div style={panelHeader}>MODELAGEM DE PAYOFF (VENCIMENTO)</div>
                 <div style={{flex:1}}>
                   <PayoffChart 
                     strategy={selecionada} 
@@ -317,7 +310,6 @@ const App: React.FC = () => {
       </main>
 
       {selecionada && selecionadaMetricas && (
-        <div id="report-pdf-template" style={{ display: 'none' }}>
           <ReportTemplate 
             est={{
               ...selecionada,
@@ -329,7 +321,6 @@ const App: React.FC = () => {
             lote={lote} 
             logoUrl={LOGO_SRC}
           />
-        </div>
       )}
     </div>
   );

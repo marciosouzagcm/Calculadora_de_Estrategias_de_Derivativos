@@ -20,6 +20,10 @@ interface PayoffProps {
     isLightMode?: boolean;
 }
 
+/**
+ * BOARDPRO V2026.1 - Payoff Engine
+ * FIXED: Estabilização de renderização para exportação PDF (No-Animation Mode)
+ */
 export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false }: PayoffProps) => {
     
     const toNum = (val: any) => {
@@ -30,9 +34,10 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
     };
 
     const colors = {
-        grid: isLightMode ? '#e2e8f0' : '#1e293b',
-        text: isLightMode ? '#475569' : '#94a3b8',
-        axis: isLightMode ? '#94a3b8' : '#64748b',
+        grid: isLightMode ? '#f1f5f9' : '#1e293b',
+        text: isLightMode ? '#334155' : '#94a3b8',
+        axis: isLightMode ? '#cbd5e1' : '#64748b',
+        line: isLightMode ? '#2563eb' : '#0ea5e9', // Azul mais forte para o PDF
         tooltipBg: isLightMode ? '#ffffff' : '#020617',
         tooltipBorder: isLightMode ? '#e2e8f0' : '#1e293b'
     };
@@ -43,19 +48,20 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
         if (!strategy.pernas || strategy.pernas.length === 0) return [];
 
         const pernasNormalizadas = strategy.pernas.map(p => ({
-            strike: toNum(p.derivative?.strike || p.strike),
-            premio: toNum(p.derivative?.premio || p.premio),
-            tipo: (p.derivative?.tipo || p.tipo || '').toUpperCase(),
-            direcao: (p.direction || '').toUpperCase()
+            strike: toNum(p.strike || p.derivative?.strike),
+            premio: toNum(p.premio || p.derivative?.premio),
+            tipo: (p.tipo || p.derivative?.tipo || '').toUpperCase(),
+            direcao: (p.direction || p.direcao || '').toUpperCase()
         }));
 
         const strikes = pernasNormalizadas.map(p => p.strike).filter(s => s > 0);
         const minS = Math.min(...strikes, spotPrice);
         const maxS = Math.max(...strikes, spotPrice);
         
-        const minRange = minS * 0.90; 
-        const maxRange = maxS * 1.10;
-        const steps = 60; // Reduzido levemente para estabilidade de renderização
+        // Margem de 15% para visualização confortável
+        const minRange = minS * 0.85; 
+        const maxRange = maxS * 1.15;
+        const steps = 80; 
         const stepSize = (maxRange - minRange) / steps;
 
         const data = [];
@@ -68,7 +74,7 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
                 if (p.tipo === 'CALL') payoffPerna = Math.max(0, precoSimulado - p.strike);
                 else if (p.tipo === 'PUT') payoffPerna = Math.max(0, p.strike - precoSimulado);
 
-                const pnlUnidade = p.direcao === 'COMPRA' 
+                const pnlUnidade = (p.direcao === 'COMPRA' || p.direcao === 'BUY') 
                     ? (payoffPerna - p.premio) 
                     : (p.premio - payoffPerna);
                 pnlUnitarioTotal += pnlUnidade;
@@ -102,19 +108,17 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
     if (chartData.length === 0) return null;
 
     return (
-        /* SOLUÇÃO: Definimos uma altura fixa (300px) para o container pai. 
-           Isso garante que o ResponsiveContainer consiga calcular o tamanho no PDF. */
-        <div style={{ width: '100%', height: '300px', position: 'relative' }}>
-            <ResponsiveContainer width="99%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 20 }}>
+        <div style={{ width: '100%', height: '100%', minHeight: '280px', position: 'relative' }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <defs>
                         <linearGradient id="pnlGreen" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#22c55e" stopOpacity={isLightMode ? 0.4 : 0.3}/>
+                            <stop offset="5%" stopColor="#22c55e" stopOpacity={isLightMode ? 0.3 : 0.2}/>
                             <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
                         </linearGradient>
                         <linearGradient id="pnlRed" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#ef4444" stopOpacity={0}/>
-                            <stop offset="95%" stopColor="#ef4444" stopOpacity={isLightMode ? 0.4 : 0.3}/>
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={isLightMode ? 0.3 : 0.2}/>
                         </linearGradient>
                     </defs>
                     
@@ -125,65 +129,73 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
                         type="number" 
                         domain={['dataMin', 'dataMax']} 
                         stroke={colors.axis} 
-                        fontSize={10}
+                        fontSize={9}
                         tick={{fill: colors.text}}
                         tickFormatter={(v) => `R$${v}`} 
                     />
                     
                     <YAxis 
                         stroke={colors.axis} 
-                        fontSize={10}
+                        fontSize={9}
                         tick={{fill: colors.text}}
                         tickFormatter={(v) => `R$${v}`}
-                        width={60}
+                        width={50}
                     />
 
                     <Tooltip 
+                        isAnimationActive={false}
                         contentStyle={{ 
                             backgroundColor: colors.tooltipBg, 
                             border: `1px solid ${colors.tooltipBorder}`, 
-                            borderRadius: '8px', 
-                            fontSize: '11px',
-                            color: isLightMode ? '#000' : '#fff'
+                            borderRadius: '4px', 
+                            fontSize: '10px'
                         }}
-                        labelStyle={{ color: '#0ea5e9', fontWeight: 'bold', marginBottom: '4px' }}
-                        labelFormatter={(v) => `Preço: R$ ${v}`}
-                        formatter={(value: number) => [
-                            <span style={{ color: value >= 0 ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
-                                R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>, 
-                            'Resultado'
-                        ]}
                     />
 
-                    {/* IMPORTANTE: isAnimationActive={false} desativa transições que quebram o PDF */}
+                    {/* Áreas de Lucro/Prejuízo */}
                     <Area type="monotone" dataKey="lucroPositivo" fill="url(#pnlGreen)" stroke="none" isAnimationActive={false} />
                     <Area type="monotone" dataKey="lucroNegativo" fill="url(#pnlRed)" stroke="none" isAnimationActive={false} />
-                    <Area type="monotone" dataKey="lucro" stroke="#0ea5e9" strokeWidth={3} fill="none" isAnimationActive={false} />
+                    
+                    {/* Linha Principal de Payoff */}
+                    <Area 
+                        type="monotone" 
+                        dataKey="lucro" 
+                        stroke={colors.line} 
+                        strokeWidth={2.5} 
+                        fill="none" 
+                        isAnimationActive={false} 
+                    />
 
-                    <ReferenceLine x={spotPrice} stroke="#0ea5e9" strokeDasharray="3 3">
-                        <Label value="SPOT" position="top" fill="#0ea5e9" fontSize={10} fontWeight="bold" />
+                    {/* Referência do Preço Atual (SPOT) */}
+                    <ReferenceLine x={spotPrice} stroke="#6366f1" strokeDasharray="5 5">
+                        <Label value="PREÇO ATUAL" position="top" fill="#6366f1" fontSize={8} fontWeight="bold" />
                     </ReferenceLine>
 
+                    {/* Pontos de Breakeven */}
                     {breakevens.map((be, idx) => (
-                        <ReferenceLine key={`be-line-${idx}`} x={be} stroke="#f59e0b" strokeWidth={1} strokeDasharray="2 2" />
-                    ))}
-                    {breakevens.map((be, idx) => (
-                        <ReferenceDot key={`be-dot-${idx}`} x={be} y={0} r={4} fill="#f59e0b" stroke={isLightMode ? "#fff" : "#020617"} strokeWidth={2} isAnimationActive={false} />
+                        <ReferenceDot 
+                            key={`be-dot-${idx}`} 
+                            x={be} 
+                            y={0} 
+                            r={3} 
+                            fill="#f59e0b" 
+                            stroke={isLightMode ? "#fff" : "#020617"} 
+                            strokeWidth={1} 
+                            isAnimationActive={false} 
+                        />
                     ))}
 
-                    {strategy.pernas.map((p, idx) => (
-                        <ReferenceLine 
-                            key={`strike-${idx}`} 
-                            x={toNum(p.strike || p.derivative?.strike)} 
-                            stroke={isLightMode ? "#94a3b8" : "#475569"} 
-                            strokeWidth={1}
-                        >
-                             <Label value={`K:${toNum(p.strike || p.derivative?.strike)}`} position="bottom" fill={colors.text} fontSize={9} />
-                        </ReferenceLine>
-                    ))}
+                    {/* Marcação de Strikes */}
+                    {strategy.pernas.map((p, idx) => {
+                        const k = toNum(p.strike || p.derivative?.strike);
+                        return (
+                            <ReferenceLine key={`k-${idx}`} x={k} stroke={colors.axis} strokeWidth={0.5} strokeDasharray="2 2">
+                                <Label value={`K:${k}`} position="bottom" fill={colors.text} fontSize={8} />
+                            </ReferenceLine>
+                        );
+                    })}
 
-                    <ReferenceLine y={0} stroke={isLightMode ? "#64748b" : "#94a3b8"} strokeWidth={1} />
+                    <ReferenceLine y={0} stroke={isLightMode ? "#94a3b8" : "#475569"} strokeWidth={1} />
                 </ComposedChart>
             </ResponsiveContainer>
         </div>

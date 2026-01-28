@@ -86,7 +86,7 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
 });
 
 /**
- * --- INICIALIZAÇÃO ---
+ * --- INICIALIZAÇÃO RESILIENTE ---
  */
 const PORT: number = Number(process.env.PORT) || 10000;
 
@@ -96,16 +96,25 @@ const startServer = async () => {
         if (process.env.VERCEL === '1') return;
 
         console.log("⏳ [STARTUP] Inicializando serviços de dados...");
-        await DataOrchestrator.init();
+        
+        // Tentativa de conexão com tratamento de erro para evitar queda do processo (Crash por DNS)
+        try {
+            await DataOrchestrator.init();
+            console.log("✅ [DATABASE] Conexão com TiDB estabelecida com sucesso.");
+        } catch (dbErr: any) {
+            console.error("⚠️ [DATABASE ERROR] Não foi possível conectar ao TiDB no startup.");
+            console.error(`Detalhe técnico: ${dbErr.message}`);
+            console.log("👉 O servidor continuará subindo para manter a disponibilidade da API.");
+        }
         
         app.listen(PORT, '0.0.0.0', () => {
             console.log("--------------------------------------------------");
             console.log(`🚀 BOARDPRO API RODANDO NA PORTA: ${PORT}`);
-            console.log(`🌍 AMBIENTE: ${process.env.NODE_ENV || 'production'}`);
+            console.log(`🌍 AMBIENTE: ${process.env.NODE_ENV || 'development'}`);
             console.log("--------------------------------------------------");
         });
     } catch (err) {
-        console.error("❌ [FATAL] Falha crítica ao iniciar servidor:", err);
+        console.error("❌ [FATAL] Falha crítica ao configurar o Express:", err);
         process.exit(1); 
     }
 };
