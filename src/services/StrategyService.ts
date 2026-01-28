@@ -3,9 +3,9 @@ import { StrategyFactory } from '../factories/StrategyFactory.js';
 import { OptionLeg, StrategyMetrics } from '../interfaces/Types.js';
 
 /**
- * BOARDPRO V41.30 - Strategy Orchestrator
- * FIXED: Correção de escala para ativos com Spot baixo (Ex: CSAN3 a R$ 5,82).
- * REMOVIDO: Forçagem de strikes para casa dos R$ 15,00.
+ * BOARDPRO V41.50 - Strategy Orchestrator
+ * FIXED: Correção definitiva de escala decimal para strikes fracionados (Ex: BBAS3 0.25 -> 25.00)
+ * BASE: V41.45 com reforço na lógica de magnitude proporcional ao Spot.
  */
 export class StrategyService {
     private static readonly FEE_PER_LEG = 22.00; 
@@ -24,21 +24,28 @@ export class StrategyService {
 
         if (!rawOptions || rawOptions.length === 0) return [];
 
-        // 1. MAPEAMENTO COM NORMALIZAÇÃO PROPORCIONAL AO SPOT
+        // 1. MAPEAMENTO COM NORMALIZAÇÃO DE MAGNITUDE ABSOLUTA
         const options: OptionLeg[] = rawOptions.map((opt: any) => {
             if (!opt) return null;
 
             const cleanAtivo = (opt.ativo_subjacente || '').replace(/^\d+/, '');
-            let correctedStrike = parseFloat(opt.strike || 0);
+            let strike = parseFloat(opt.strike || 0);
             
-            // --- LÓGICA DE NORMALIZAÇÃO DINÂMICA ---
-            // Se o strike for > 10x o valor do spot (ex: strike 590 para spot 5.82), divide por 100.
-            if (correctedStrike > (spotPrice * 10)) {
-                correctedStrike = correctedStrike / 100;
-            } 
-            // Se o strike for < 10% do spot (ex: 0.58 para spot 5.82), pode ser erro de decimal.
-            else if (correctedStrike > 0 && correctedStrike < (spotPrice * 0.1)) {
-                correctedStrike *= 10;
+            // --- LÓGICA DE CORREÇÃO DE ESCALA (MAGNITUDE) ---
+            if (strike > 0 && spotPrice > 0) {
+                // Caso A: Strike vindo como 0.25 para spot 24.69 (Erro de centavos/escala)
+                // Se o strike for menor que 5% do valor da ação, é um erro de escala.
+                if (strike < (spotPrice * 0.05)) {
+                    strike = strike * 100;
+                }
+                // Caso B: Strike vindo como 590 para spot 5.82 (Erro de escala inflada)
+                else if (strike > (spotPrice * 10)) {
+                    strike = strike / 100;
+                }
+                // Caso C: Ajuste para ativos de dezena (Ex: 2.50 para spot 25.00)
+                else if (strike < (spotPrice / 5) && spotPrice > 10) {
+                    strike = strike * 10;
+                }
             }
 
             const tickerStr = opt.ticker || opt.symbol || '';
@@ -48,7 +55,7 @@ export class StrategyService {
             return {
                 ...opt,
                 ativo_subjacente: cleanAtivo,
-                strike: correctedStrike,
+                strike: strike,
                 tipo: tipoIdentificado,
                 premio: parseFloat(opt.premio || opt.premioPct || 0),
                 vencimento: typeof opt.vencimento === 'string' ? opt.vencimento.split('T')[0] : opt.vencimento,
@@ -59,7 +66,7 @@ export class StrategyService {
                     vega: parseFloat(opt.vega || 0)
                 }
             } as OptionLeg;
-        }).filter(o => o !== null && o.strike > 0 && o.premio > 0) as OptionLeg[];
+        }).filter(o => o !== null && o.strike > (spotPrice * 0.1) && o.premio > 0) as OptionLeg[];
 
         const allStrategies = StrategyFactory.getAllStrategies();
         const bestOfEach = new Map<string, StrategyMetrics>();
@@ -71,10 +78,8 @@ export class StrategyService {
                     combinations.forEach(m => {
                         if (m && m.name && m.pernas) {
                             
-                            // --- VALIDAÇÃO DE COERÊNCIA DE MERCADO ---
                             const isArbitrageClean = this.validateDataIntegrity(m.pernas);
 
-                            // --- REGRA DE CALENDÁRIO ---
                             const seriesNoSetup = new Set(m.pernas.map(p => {
                                 const t = p.derivative?.option_ticker || p.ticker || '';
                                 return t.charAt(4);
@@ -89,8 +94,8 @@ export class StrategyService {
                             if (isValidTemporal && isArbitrageClean) {
                                 const formatted = this.formatForFrontend(m, lot, spotPrice);
                                 
-                                // Filtro de ROI Realista para evitar erros de prêmio
-                                if (formatted.roi < 15) { // Limite de 1500% para travas secas
+                                // Filtro de ROI Realista para evitar erros de prêmio (Vigilante)
+                                if (formatted.roi < 15) { 
                                     const existing = bestOfEach.get(formatted.name);
                                     if (!existing || (formatted.roi > (existing.roi || 0))) {
                                         bestOfEach.set(formatted.name, formatted);
