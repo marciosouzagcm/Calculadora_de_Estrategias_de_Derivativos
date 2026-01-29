@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório BoardPro - BOVA11</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            .no-print { display: none; }
+            body { background: white !important; padding: 0 !important; }
+            .max-w-\[850px\] { max-width: 100% !important; border: none !important; shadow: none !important; }
+            .page-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 sm:p-10">
+
+    <div class="max-w-[850px] mx-auto mb-6 no-print flex justify-end gap-3">
+        <button onclick="window.close()" class="bg-white text-slate-500 px-4 py-2 rounded-lg font-bold border border-slate-200 hover:bg-slate-50 transition">
+            Fechar
+        </button>
+        <button onclick="window.print()" class="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-blue-600 transition flex items-center gap-2">
+            <span>🖨️ Imprimir / Salvar PDF</span>
+        </button>
+    </div>
+
+    <div class="max-w-[850px] mx-auto bg-white shadow-2xl border border-slate-200 overflow-hidden">
+        
+        <div class="p-12 min-h-[1100px] flex flex-col">
+            <header class="flex justify-between items-end border-b-4 border-slate-900 pb-6 mb-8">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-none">TRADING BOARD PRO</h1>
+                    <p class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.3em] mt-2">Structured Intelligence</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-4xl font-black text-slate-900 leading-none">BOVA11</div>
+                    <div class="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">12/01/2026</div>
+                </div>
+            </header>
+
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-slate-900 font-black text-xs uppercase flex items-center gap-2">
+                        📘 Tese Estrutural: BUTTERFLY SPREAD (Call)
+                    </h3>
+                    <span class="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-1 rounded">RISCO: MEDIUM</span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-relaxed text-justify">
+                    A estratégia Butterfly é uma estrutura de opções que combina a compra de 1 call ITM, venda de 2 calls ATM e compra de 1 call OTM. É ideal para cenários onde se espera que o ativo termine próximo ao strike central no vencimento, com lucro máximo nesse ponto e perda limitada às extremidades.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-4 gap-4 mb-8">
+                <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center shadow-sm">
+                    <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Lucro Máximo</span>
+                    <div class="text-xl font-black text-green-600 font-mono">R$ 3.804,00</div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-xl border border-red-100 text-center shadow-sm">
+                    <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Risco Real</span>
+                    <div class="text-xl font-black text-red-600 font-mono">R$ 196,00</div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center shadow-sm">
+                    <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Breakeven</span>
+                    <div class="text-xl font-black text-blue-600 font-mono text-nowrap">R$ 156,26</div>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-xl text-center shadow-sm">
+                    <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">ROI Est.</span>
+                    <div class="text-xl font-black text-white font-mono">1940.80%</div>
+                </div>
+            </div>
+
+            <div class="mb-8 flex-1">
+                <h3 class="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2">📈 Projeção de Payoff no Vencimento</h3>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center h-[350px] relative shadow-inner">
+                    <svg width="600" height="200" viewBox="0 0 600 200" class="overflow-visible">
+                        <line x1="0" y1="150" x2="600" y2="150" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5,5"/>
+                        <path d="M 0 180 L 200 180 L 300 30 L 400 180 L 600 180" fill="none" stroke="#2563eb" stroke-width="4" stroke-linejoin="round"/>
+                        <circle cx="300" cy="30" r="6" fill="#2563eb"/>
+                        <text x="300" y="15" text-anchor="middle" class="text-[10px] font-black fill-slate-900 uppercase">Lucro Máximo: Strike 160,00</text>
+                    </svg>
+                    <div class="w-full flex justify-between mt-4 px-10 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                        <span>P: 150.00</span>
+                        <span>SPOT</span>
+                        <span>P: 170.00</span>
+                    </div>
+                </div>
+                
+            </div>
+
+            <div class="mt-auto">
+                <h3 class="text-xs font-black text-slate-800 uppercase mb-3">Composição da Operação</h3>
+                <table class="w-full text-[11px] border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900 text-white uppercase text-[9px]">
+                            <th class="p-3 text-left">Série Ativo</th>
+                            <th class="p-3 text-center">Direção</th>
+                            <th class="p-3 text-center">Strike</th>
+                            <th class="p-3 text-center">Vencimento</th>
+                            <th class="p-3 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 border-x border-b border-slate-200">
+                        <tr><td class="p-3 font-bold uppercase tracking-tighter">BOVAC156</td><td class="p-3 text-center text-green-600 font-black italic">COMPRA</td><td class="p-3 text-center font-mono italic">R$ 156,00</td><td class="p-3 text-center">20/03/26</td><td class="p-3 text-right font-mono">-R$ 9.000,00</td></tr>
+                        <tr><td class="p-3 font-bold uppercase tracking-tighter">BOVAC160</td><td class="p-3 text-center text-red-600 font-black italic">VENDA (x2)</td><td class="p-3 text-center font-mono italic">R$ 160,00</td><td class="p-3 text-center">20/03/26</td><td class="p-3 text-right font-mono">R$ 13.560,00</td></tr>
+                        <tr><td class="p-3 font-bold uppercase tracking-tighter">BOVAC164</td><td class="p-3 text-center text-green-600 font-black italic">COMPRA</td><td class="p-3 text-center font-mono italic">R$ 164,00</td><td class="p-3 text-center">20/03/26</td><td class="p-3 text-right font-mono">-R$ 4.690,00</td></tr>
+                    </tbody>
+                </table>
+                <div class="bg-slate-900 text-white text-right p-3 text-xs font-black uppercase flex justify-between items-center">
+                    <span class="text-blue-400 text-[9px]">Calculado via Black-Scholes Engine</span>
+                    <span>Custo Líquido: R$ 196,00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <div class="p-12 min-h-[1100px] bg-slate-50 flex flex-col">
+            <h3 class="text-lg font-black text-slate-900 uppercase mb-8 flex items-center gap-2 border-b-2 border-slate-200 pb-2">
+                ⚖️ Gregas e Sensibilidade à Volatilidade
+            </h3>
+            
+            <div class="grid grid-cols-4 gap-4 mb-10">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 text-center shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 mb-1 uppercase">Delta (Δ)</p>
+                    <p class="text-2xl font-black text-slate-900 font-mono">-1.0000</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 text-center shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 mb-1 uppercase">Gamma (Γ)</p>
+                    <p class="text-2xl font-black text-slate-900 font-mono">-1.1036</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 text-center shadow-sm border-b-4 border-b-green-500">
+                    <p class="text-[10px] font-black text-slate-400 mb-1 uppercase">Theta (Θ)</p>
+                    <p class="text-2xl font-black text-green-600 font-mono">+0.8500</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 text-center shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 mb-1 uppercase">Vega (V)</p>
+                    <p class="text-2xl font-black text-slate-900 font-mono">-0.4200</p>
+                </div>
+            </div>
+
+            <div class="flex-1">
+                <h3 class="text-xs font-black text-slate-800 uppercase mb-4">Cenários Probabilísticos</h3>
+                <div class="space-y-3">
+                    <div class="bg-white p-4 border border-slate-200 rounded-lg flex justify-between items-center">
+                        <span class="text-[10px] font-black text-red-600">ALTA FORTE (+5%)</span>
+                        <span class="text-[11px] font-medium text-slate-500 italic">Fora do Breakeven</span>
+                        <span class="text-xs font-black text-red-600">-R$ 196,00</span>
+                    </div>
+                    <div class="bg-green-50 p-4 border border-green-200 rounded-lg flex justify-between items-center">
+                        <span class="text-[10px] font-black text-green-700">LATERAL (0%)</span>
+                        <span class="text-[11px] font-medium text-green-700 italic">Alvo da Estratégia</span>
+                        <span class="text-xs font-black text-green-700">+R$ 3.804,00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-auto">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="h-1 w-12 bg-red-600"></div>
+                    <h3 class="text-xs font-black text-slate-800 uppercase mt-0">Compliance e Notas de Risco</h3>
+                </div>
+                <div class="bg-white p-8 rounded-2xl border border-slate-200 text-[11px] text-slate-500 leading-relaxed text-justify shadow-sm">
+                    <p class="mb-4">
+                        <strong>Aviso Legal:</strong> Este relatório é gerado através de uma simulação quantitativa utilizando modelos teóricos de precificação. Operações estruturadas com derivativos envolvem risco significativo e podem resultar na perda total do capital investido.
+                    </p>
+                    <p>
+                        Este documento não representa recomendação de compra. A BoardPro Intelligence recomenda que todas as operações sejam validadas junto a um assessor de investimentos devidamente certificado.
+                    </p>
+                    <div class="mt-12 pt-6 border-t flex justify-between items-center opacity-40 uppercase font-black italic text-[9px]">
+                        <span class="flex items-center gap-1">⚡ Trading Board Pro Intelligence © 2026</span>
+                        <span>Protocolo de Segurança: Secured Report V2026.1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -15,6 +15,7 @@ export interface Greeks {
 export interface OptionLeg {
     ticker?: string;           
     option_ticker?: string;    
+    symbol?: string; // Adicionado para compatibilidade com API
     ativo_subjacente: string; 
     vencimento: string; 
     dias_uteis: number; 
@@ -24,11 +25,12 @@ export interface OptionLeg {
     premio: number; 
     vol_implicita: number | null; 
     gregas_unitarias: Greeks; 
-    // Atalhos para gessão facilitada
+    // Campos diretos para facilitar acesso
     delta?: number;
     gamma?: number;
     theta?: number;
     vega?: number;
+    direction?: PositionDirection; // Adicionado para o loop de pernas
 }
 
 export interface StrategyLeg {
@@ -37,6 +39,11 @@ export interface StrategyLeg {
     derivative: OptionLeg; 
     display: string; 
     side_display?: string; 
+    // Atalhos para renderização direta
+    strike?: number;
+    premio?: number;
+    tipo?: string;
+    symbol?: string;
 }
 
 export interface StrategyMetrics {
@@ -59,11 +66,23 @@ export interface StrategyMetrics {
     
     breakEvenPoints: number[]; 
     greeks: Greeks; 
-    pernas: StrategyLeg[]; 
+    pernas: any[]; // Alterado para 'any' ou uma união para suportar OptionLeg[] direto
 
-    // --- Campos de exibição (Consumidos pelo Frontend) ---
-    // Marcados como opcionais (?) para permitir a criação da estratégia antes da formatação final
-    roi?: number;
+    // --- CAMPOS CRUCIAIS PARA O RELATÓRIO ---
+    totalLiquido: number;  // Usado no ReportTemplate
+    riscoReal: number;     // Usado no ReportTemplate
+    roi: number;           // Usado no ReportTemplate
+    be?: number;           // Atalho para breakEvenPoints[0]
+    ur?: number;           // Unidade de Risco
+    payoffData?: Array<{price: number, profit: number}>; // Essencial para o SVG
+    
+    // Gregas diretas para facilitar o mapeamento no template
+    delta?: number;
+    gamma?: number;
+    theta?: number;
+    vega?: number;
+
+    // Campos de exibição (Strings formatadas)
     exibir_roi?: string;           
     exibir_lucro?: string;         
     exibir_risco?: string;         
@@ -71,4 +90,5 @@ export interface StrategyMetrics {
     taxas_ciclo?: number;
     stop_loss_sugerido?: string;
     alvo_zero_a_zero?: string;
+    officialDescription?: string;
 }

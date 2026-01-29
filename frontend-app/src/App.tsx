@@ -2,21 +2,16 @@ import React, { useMemo, useState } from 'react';
 import { PayoffChart } from './components/PayoffChart';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
-import { ReportTemplate } from './components/ReportTemplate';
-// IMPORTANTE: Serviço de exportação para geração de documentos PDF institucionais
 import { exportarPDF } from './services/pdfService';
+import { ReportTemplate } from './components/ReportTemplate'; 
 import { 
   FileDown, 
-  ExternalLink, 
   BookOpen, 
   ShieldCheck, 
-  Zap,
-  ClipboardList 
+  Zap
 } from 'lucide-react';
 
 const marketService = new MarketDataService();
-
-// Caminho para o diretório de recursos locais
 const LOGO_SRC = "/saiba-mais/Logo.png";
 
 const strategyCard = (active: boolean): React.CSSProperties => ({
@@ -59,28 +54,29 @@ const App: React.FC = () => {
 
   const getManualDescription = (name: string) => {
     const n = name.toUpperCase();
-    if (n.includes('BULL CALL')) return "Trava de Alta com Call: Estratégia de débito para cenários de alta moderada, limitando o risco ao prêmio pago.";
-    if (n.includes('BULL PUT')) return "Trava de Alta com Put: Estratégia de crédito (Bullish) que visa a retenção do prêmio através da passagem do tempo.";
-    if (n.includes('BEAR CALL')) return "Trava de Baixa com Call: Operação de crédito que se beneficia da queda ou lateralização do preço do ativo.";
-    if (n.includes('BEAR PUT')) return "Trava de Baixa com Put: Compra de proteção financiada pela venda de strike inferior, otimizando o delta negativo.";
-    if (n.includes('STRANGLE')) return "Strangle: Estratégia de volatilidade pura, buscando movimentos explosivos fora da zona de strikes.";
-    if (n.includes('STRADDLE')) return "Straddle: Aposta em alta volatilidade no mesmo strike, ideal para eventos de divulgação de resultados.";
+    if (n.includes('BULL CALL')) return "Trava de Alta com Call: Estratégia de débito para cenários de alta moderada.";
+    if (n.includes('BULL PUT')) return "Trava de Alta com Put: Estratégia de crédito que visa a retenção do prêmio.";
+    if (n.includes('BEAR CALL')) return "Trava de Baixa com Call: Operação de crédito que se beneficia da queda ou lateralização.";
+    if (n.includes('BEAR PUT')) return "Trava de Baixa com Put: Compra de proteção financiada pela venda de strike inferior.";
     return "Análise técnica institucional baseada em Black-Scholes processada pelo motor BoardPRO.";
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!selecionada) {
       alert("Selecione uma estratégia para exportar o relatório.");
       return;
     }
-    exportarPDF(selecionada.name || 'Estrategia_BoardPro');
+    // Pequeno log para debug interno
+    console.log("Iniciando exportação para:", selecionada.name);
+    const sucesso = await exportarPDF(selecionada.name || 'Estrategia_BoardPro');
+    if (!sucesso) alert("Erro ao gerar PDF. Verifique o console.");
   };
 
   const calcularMetricasCompletas = (est: StrategyMetrics | null) => {
     if (!est || !est.pernas) return null;
     const nPernas = est.pernas.length;
     const taxasMontagem = nPernas * taxaPorPerna;
-    const taxasTotais = taxasMontagem * 2; // Ida e Volta
+    const taxasTotais = taxasMontagem * 2; 
     const pRefAtivo = toNum(precoSlot);
     
     let fluxoCaixaUnit = 0;
@@ -106,17 +102,10 @@ const App: React.FC = () => {
 
     const isCredito = fluxoCaixaUnit > 0;
     const premioAbsoluto = Math.abs(fluxoCaixaUnit);
-    
-    // --- AJUSTE DE TARGET (BREAKEVEN FINANCEIRO UNITÁRIO) ---
-    // Se crédito: Recebi X, para sair no 0x0 preciso recomprar por (X - taxas)
-    // Se débito: Paguei X, para sair no 0x0 preciso vender por (X + taxas)
     const taxasPorLoteUnit = taxasTotais / lote;
-    const targetAjustado = isCredito 
-      ? (premioAbsoluto - taxasPorLoteUnit) 
-      : (premioAbsoluto + taxasPorLoteUnit);
+    const targetAjustado = isCredito ? (premioAbsoluto - taxasPorLoteUnit) : (premioAbsoluto + taxasPorLoteUnit);
 
     let riscoRealCalculado = 0;
-
     if (nPernas === 2 && strikes.length === 2 && !possuiVendaSeca) {
       const diffStrikes = Math.abs(strikes[0] - strikes[1]);
       riscoRealCalculado = isCredito ? (diffStrikes - premioAbsoluto) * lote : premioAbsoluto * lote;
@@ -173,30 +162,48 @@ const App: React.FC = () => {
   return (
     <div style={containerStyle}>
       <style>{`
-        .app-logo {
-          height: 32px; width: auto; margin-right: 12px;
-          filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.3));
-        }
-        .btn-header-action {
-          color: white; border: none; padding: 6px 14px;
-          border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 10px;
-          display: flex; align-items: center; gap: 6px; transition: all 0.2s;
-        }
+        .app-logo { height: 32px; width: auto; margin-right: 12px; filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.3)); }
+        .btn-header-action { color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 10px; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
         .btn-export-top { background-color: #16a34a; }
         .btn-export-top:hover { background-color: #15803d; transform: translateY(-1px); }
-        .btn-report-top { background-color: #334155; }
-        .btn-report-top:hover { background-color: #475569; transform: translateY(-1px); }
         .btn-header-action:disabled { background-color: #1e293b; color: #475569; cursor: not-allowed; transform: none; }
-        .nav-doc-link {
-          display: flex; align-items: center; gap: 5px; color: #94a3b8; 
-          font-size: 10px; text-decoration: none; font-weight: 600;
-          padding: 5px 10px; border-radius: 4px; transition: all 0.2s;
-        }
+        .nav-doc-link { display: flex; align-items: center; gap: 5px; color: #94a3b8; font-size: 10px; text-decoration: none; font-weight: 600; padding: 5px 10px; border-radius: 4px; transition: all 0.2s; }
         .nav-doc-link:hover { color: #0ea5e9; background: rgba(14, 165, 233, 0.1); }
         .nav-divider { width: 1px; height: 16px; background: #334155; margin: 0 8px; }
       `}</style>
 
-      <header style={headerStyle} className="no-print">
+      {/* --- MOTOR DE PDF: Renderizado mas oculto para o usuário --- */}
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        zIndex: -9999, 
+        visibility: 'hidden', 
+        pointerEvents: 'none' 
+      }}>
+        {selecionada && selecionadaMetricas && (
+          <div id="report-pdf-template" style={{ 
+            width: '1200px', 
+            backgroundColor: '#ffffff', 
+            color: '#000000', 
+            padding: '40px' 
+          }}>
+            <ReportTemplate 
+              est={{
+                ...selecionada,
+                officialDescription: getManualDescription(selecionada.name)
+              }} 
+              metricas={selecionadaMetricas} 
+              ticker={ticker} 
+              spot={toNum(precoSlot)} 
+              lote={lote} 
+              logoUrl={LOGO_SRC}
+            />
+          </div>
+        )}
+      </div>
+
+      <header style={headerStyle}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '18px', flexWrap: 'wrap', borderBottom: '1px solid #1e293b', paddingBottom: '12px'}}>
           <div style={{display: 'flex', alignItems: 'center'}}>
             <img src={LOGO_SRC} alt="BoardPRO" className="app-logo" />
@@ -212,9 +219,6 @@ const App: React.FC = () => {
           </div>
           
           <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
-            <button onClick={() => alert('Abrindo painel analítico...')} className="btn-header-action btn-report-top" disabled={!selecionada}>
-              <ClipboardList size={14} /> RELATÓRIO
-            </button>
             <button onClick={handleExportPDF} className="btn-header-action btn-export-top" disabled={!selecionada}>
               <FileDown size={14} /> EXPORTAR PDF
             </button>
@@ -238,7 +242,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main style={mainLayout} className="no-print">
+      <main style={mainLayout}>
         <aside style={sidebar}>
           <div style={sidebarTitle}>OPORTUNIDADES IDENTIFICADAS ({estrategias.length})</div>
           <div style={listScroll}>
@@ -308,25 +312,11 @@ const App: React.FC = () => {
           ) : <div style={empty}>REALIZE O SCANNER PARA AUDITORIA DE PREÇOS E RISCO.</div>}
         </section>
       </main>
-
-      {selecionada && selecionadaMetricas && (
-          <ReportTemplate 
-            est={{
-              ...selecionada,
-              officialDescription: getManualDescription(selecionada.name)
-            }} 
-            metricas={selecionadaMetricas} 
-            ticker={ticker} 
-            spot={toNum(precoSlot)} 
-            lote={lote} 
-            logoUrl={LOGO_SRC}
-          />
-      )}
     </div>
   );
 };
 
-// Estilos Consolidados
+// Estilos Preservados
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '12px 20px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '16px', fontWeight: '900', letterSpacing: '-0.5px' };

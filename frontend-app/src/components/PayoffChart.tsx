@@ -22,7 +22,7 @@ interface PayoffProps {
 
 /**
  * BOARDPRO V2026.1 - Payoff Engine
- * FIXED: Estabilização de renderização para exportação PDF (No-Animation Mode)
+ * FIXED: Estabilização de renderização e normalização de fluxo financeiro
  */
 export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false }: PayoffProps) => {
     
@@ -37,12 +37,14 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
         grid: isLightMode ? '#f1f5f9' : '#1e293b',
         text: isLightMode ? '#334155' : '#94a3b8',
         axis: isLightMode ? '#cbd5e1' : '#64748b',
-        line: isLightMode ? '#2563eb' : '#0ea5e9', // Azul mais forte para o PDF
+        line: isLightMode ? '#2563eb' : '#0ea5e9',
         tooltipBg: isLightMode ? '#ffffff' : '#020617',
         tooltipBorder: isLightMode ? '#e2e8f0' : '#1e293b'
     };
 
-    const spotPrice = useMemo(() => toNum(strategy.asset_price || strategy.preco_ativo), [strategy.asset_price, strategy.preco_ativo]);
+    const spotPrice = useMemo(() => 
+        toNum(strategy.asset_price || strategy.assetPrice), 
+    [strategy.asset_price, strategy.assetPrice]);
 
     const chartData = useMemo(() => {
         if (!strategy.pernas || strategy.pernas.length === 0) return [];
@@ -58,7 +60,7 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
         const minS = Math.min(...strikes, spotPrice);
         const maxS = Math.max(...strikes, spotPrice);
         
-        // Margem de 15% para visualização confortável
+        // Janela de visualização: 15% de margem
         const minRange = minS * 0.85; 
         const maxRange = maxS * 1.15;
         const steps = 80; 
@@ -74,7 +76,9 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
                 if (p.tipo === 'CALL') payoffPerna = Math.max(0, precoSimulado - p.strike);
                 else if (p.tipo === 'PUT') payoffPerna = Math.max(0, p.strike - precoSimulado);
 
-                const pnlUnidade = (p.direcao === 'COMPRA' || p.direcao === 'BUY') 
+                // Normalização de compra/venda para cálculo PnL
+                const isLong = ['COMPRA', 'BUY', 'C'].includes(p.direcao);
+                const pnlUnidade = isLong 
                     ? (payoffPerna - p.premio) 
                     : (p.premio - payoffPerna);
                 pnlUnitarioTotal += pnlUnidade;
@@ -110,15 +114,15 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
     return (
         <div style={{ width: '100%', height: '100%', minHeight: '280px', position: 'relative' }}>
             <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <ComposedChart data={chartData} margin={{ top: 25, right: 30, left: 10, bottom: 20 }}>
                     <defs>
                         <linearGradient id="pnlGreen" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#22c55e" stopOpacity={isLightMode ? 0.3 : 0.2}/>
+                            <stop offset="5%" stopColor="#22c55e" stopOpacity={isLightMode ? 0.4 : 0.3}/>
                             <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
                         </linearGradient>
                         <linearGradient id="pnlRed" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#ef4444" stopOpacity={0}/>
-                            <stop offset="95%" stopColor="#ef4444" stopOpacity={isLightMode ? 0.3 : 0.2}/>
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={isLightMode ? 0.4 : 0.3}/>
                         </linearGradient>
                     </defs>
                     
@@ -139,24 +143,25 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
                         fontSize={9}
                         tick={{fill: colors.text}}
                         tickFormatter={(v) => `R$${v}`}
-                        width={50}
+                        width={60}
                     />
 
                     <Tooltip 
                         isAnimationActive={false}
+                        formatter={(value: number) => [`R$ ${value}`, 'Lucro/Prejuízo']}
+                        labelFormatter={(label) => `Preço: R$ ${label}`}
                         contentStyle={{ 
                             backgroundColor: colors.tooltipBg, 
                             border: `1px solid ${colors.tooltipBorder}`, 
                             borderRadius: '4px', 
-                            fontSize: '10px'
+                            fontSize: '10px',
+                            color: colors.text
                         }}
                     />
 
-                    {/* Áreas de Lucro/Prejuízo */}
                     <Area type="monotone" dataKey="lucroPositivo" fill="url(#pnlGreen)" stroke="none" isAnimationActive={false} />
                     <Area type="monotone" dataKey="lucroNegativo" fill="url(#pnlRed)" stroke="none" isAnimationActive={false} />
                     
-                    {/* Linha Principal de Payoff */}
                     <Area 
                         type="monotone" 
                         dataKey="lucro" 
@@ -166,36 +171,37 @@ export const PayoffChart = ({ strategy, lote, taxasIdaVolta, isLightMode = false
                         isAnimationActive={false} 
                     />
 
-                    {/* Referência do Preço Atual (SPOT) */}
+                    {/* Linha Zero (Breakeven Line) */}
+                    <ReferenceLine y={0} stroke={isLightMode ? "#64748b" : "#475569"} strokeWidth={1.5} />
+
+                    {/* SPOT PRICE */}
                     <ReferenceLine x={spotPrice} stroke="#6366f1" strokeDasharray="5 5">
-                        <Label value="PREÇO ATUAL" position="top" fill="#6366f1" fontSize={8} fontWeight="bold" />
+                        <Label value="SPOT" position="top" fill="#6366f1" fontSize={9} fontWeight="bold" />
                     </ReferenceLine>
 
-                    {/* Pontos de Breakeven */}
+                    {/* BREAKEVEN DOTS */}
                     {breakevens.map((be, idx) => (
                         <ReferenceDot 
                             key={`be-dot-${idx}`} 
                             x={be} 
                             y={0} 
-                            r={3} 
+                            r={4} 
                             fill="#f59e0b" 
-                            stroke={isLightMode ? "#fff" : "#020617"} 
-                            strokeWidth={1} 
+                            stroke="#fff" 
+                            strokeWidth={1.5} 
                             isAnimationActive={false} 
                         />
                     ))}
 
-                    {/* Marcação de Strikes */}
+                    {/* STRIKES MARKERS */}
                     {strategy.pernas.map((p, idx) => {
                         const k = toNum(p.strike || p.derivative?.strike);
                         return (
-                            <ReferenceLine key={`k-${idx}`} x={k} stroke={colors.axis} strokeWidth={0.5} strokeDasharray="2 2">
-                                <Label value={`K:${k}`} position="bottom" fill={colors.text} fontSize={8} />
+                            <ReferenceLine key={`k-${idx}`} x={k} stroke={colors.axis} strokeWidth={0.5} strokeDasharray="3 3">
+                                <Label value={`K:${k}`} position="insideBottom" fill={colors.text} fontSize={8} />
                             </ReferenceLine>
                         );
                     })}
-
-                    <ReferenceLine y={0} stroke={isLightMode ? "#94a3b8" : "#475569"} strokeWidth={1} />
                 </ComposedChart>
             </ResponsiveContainer>
         </div>
