@@ -4,10 +4,10 @@
   "type": "module",
   "main": "dist/src/server.js",
   "scripts": {
-    "build": "vite build frontend-app",
-    "vercel-build": "vite build frontend-app",
-    "start": "node dist/src/server.js",
     "dev": "tsx watch src/server.ts",
+    "build": "vite build",
+    "vercel-build": "vite build",
+    "start": "node dist/src/server.js",
     "clean": "rimraf dist"
   },
   "dependencies": {

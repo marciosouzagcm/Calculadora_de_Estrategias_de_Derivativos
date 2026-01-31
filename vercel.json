@@ -16,7 +16,7 @@
       "destination": "/features.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api|saiba-mais|features.html|assets|public|static|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]

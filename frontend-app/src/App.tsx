@@ -36,13 +36,11 @@ const App: React.FC = () => {
   const [estrategias, setEstrategias] = useState<StrategyMetrics[]>([]);
   const [selecionada, setSelecionada] = useState<StrategyMetrics | null>(null);
 
-  // AJUSTE NA toNum: Agora ela limpa códigos de séries (ex: BOVAO180 -> 180) antes de converter
   const toNum = (val: any): number => {
     if (val === undefined || val === null || val === '') return 0;
     if (typeof val === 'number') return val;
     let s = String(val).trim();
 
-    // Se a string contiver o padrão de ticker de opção, extrai apenas o número final
     if (/[A-Z]{4}[A-Z]\d+/.test(s)) {
       const extraido = s.match(/\d+(\.\d+)?$/);
       if (extraido) s = extraido[0];
@@ -149,11 +147,26 @@ const App: React.FC = () => {
       const pRef = precoSlot || marketData.price.toFixed(2);
       if (!precoSlot) setPrecoSlot(pRef);
       setLastUpdate(marketData.updatedAt.toLocaleTimeString());
+      
       const limiteUR = toNum(riscoMaximoInput);
-      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : window.location.origin;
+
+      // --- CORREÇÃO DE URL ABSOLUTA PARA O RENDER ---
+      const baseUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:10000' 
+        : 'https://calculadora-de-estrategias-de-derivativos.onrender.com';
+
       const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteUR * lote}&slot=${pRef}`;
+      
+      console.log("BOARDPRO DIAGNÓSTICO - Chamando:", url);
+
       const resp = await fetch(url);
+      
+      if (!resp.ok) {
+        throw new Error(`Erro no servidor: ${resp.status}`);
+      }
+
       const result = await resp.json();
+      
       if (result.status === "success") {
         const filtradas = result.data.filter((est: any) => {
           const m = calcularMetricasCompletas(est);
@@ -163,7 +176,12 @@ const App: React.FC = () => {
         if (filtradas.length > 0) setSelecionada(filtradas[0]);
         else setSelecionada(null);
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { 
+      console.error("ERRO NO SCANNER:", err);
+      alert("Erro ao conectar com o motor de cálculo no Render.");
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
@@ -266,7 +284,6 @@ const App: React.FC = () => {
                           <td style={{ color: (p.direction || p.direcao || '').toUpperCase() === 'COMPRA' ? '#4ade80' : '#f87171', padding: '10px', fontWeight: 'bold' }}>{p.direction || p.direcao}</td>
                           <td style={{ color: '#94a3b8' }}>{(p.derivative?.tipo || p.tipo || '').toUpperCase()}</td>
                           <td style={{ color: '#fff', fontWeight: 'bold' }}>{p.derivative?.symbol || p.symbol || p.option_ticker || '---'}</td>
-                          {/* AJUSTE AQUI: Extrai o valor do Strike de onde ele estiver disponível (p.strike ou p.symbol) */}
                           <td style={{ color: '#fff' }}>R$ {toNum(p.strike || p.derivative?.strike || p.derivative?.symbol || p.symbol || p.option_ticker).toFixed(2)}</td>
                           <td style={{ color: '#4ade80', fontWeight: 'bold' }}>R$ {toNum(p.premio || p.derivative?.premio).toFixed(2)}</td>
                           <td style={{ color: '#fbbf24' }}>{formatarData(p.vencimento || p.derivative?.vencimento || p.expiration)}</td>
@@ -299,7 +316,6 @@ const App: React.FC = () => {
   );
 };
 
-// Estilos preservados exatamente como você pediu
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '12px 20px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '16px', fontWeight: '900', letterSpacing: '-0.5px' };

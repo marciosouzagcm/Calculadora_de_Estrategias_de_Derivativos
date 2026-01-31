@@ -4,15 +4,16 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  root: 'frontend-app',
+  // Remova o root: 'frontend-app' pois o arquivo já está nela
   resolve: {
     alias: {
-      '@': resolve(__dirname, './frontend-app/src'),
-      // Removemos os aliases complexos, pois a versão estável resolve bem sozinha
+      // Ajuste o alias para apontar para o src local
+      '@': resolve(__dirname, './src'),
     }
   },
   build: {
-    outDir: '../dist',
+    // IMPORTANTE: Mude para 'dist' (sem o ../)
+    outDir: 'dist',
     emptyOutDir: true
   }
 })
