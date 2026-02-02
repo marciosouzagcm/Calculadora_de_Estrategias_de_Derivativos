@@ -46,7 +46,7 @@
       "destination": "/landinpagecalculadora/index.html"
     },
     {
-      "source": "/((?!api|landinpagecalculadora|frontend-app|assets|Logo.png).*)",
+      "source": "/(.*)",
       "destination": "/landinpagecalculadora/index.html"
     }
   ]
