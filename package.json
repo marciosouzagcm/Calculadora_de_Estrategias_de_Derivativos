@@ -26,6 +26,7 @@
   "author": "Marcio Souza",
   "license": "ISC",
   "dependencies": {
+    "@tanstack/react-query": "^5.90.20",
     "axios": "^1.7.0",
     "chokidar": "^4.0.3",
     "clsx": "^2.1.1",
@@ -47,7 +48,7 @@
     "react-smooth": "^4.0.4",
     "recharts": "^2.12.7",
     "recharts-scale": "^0.4.5",
-    "tailwind-merge": "^2.3.0",
+    "tailwind-merge": "^2.6.1",
     "undici": "^7.18.2",
     "xlsx": "^0.18.5"
   },
