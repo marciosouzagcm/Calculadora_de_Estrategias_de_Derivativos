@@ -1,18 +1,19 @@
 /**
  * COMPONENTE: Index
  * DESCRIÇÃO: Página principal (Landing Page) do ecossistema Trading Board Pro.
- * Este componente orquestra as seções de marketing e conversão.
+ * AJUSTE: Removidos aliases @ para garantir compatibilidade no deploy Vercel.
  */
 
 import { useEffect } from "react";
-import { Header } from "@/components/landing/Header";
-import { Hero } from "@/components/landing/Hero";
-import { Features } from "@/components/landing/Features";
-import { Vigilante } from "@/components/landing/Vigilante";
-import { Strategies } from "@/components/landing/Strategies";
-import { Pricing } from "@/components/landing/Pricing";
-import { CTA } from "@/components/landing/CTA";
-import { Footer } from "@/components/landing/Footer";
+// CAMINHOS RELATIVOS CORRIGIDOS:
+import { Header } from "../components/landing/Header";
+import { Hero } from "../components/landing/Hero";
+import { Features } from "../components/landing/Features";
+import { Vigilante } from "../components/landing/Vigilante";
+import { Strategies } from "../components/landing/Strategies";
+import { Pricing } from "../components/landing/Pricing";
+import { CTA } from "../components/landing/CTA";
+import { Footer } from "../components/landing/Footer";
 
 const Index = () => {
   
