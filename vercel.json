@@ -23,7 +23,7 @@
           "value": "app.tradingprobrasil.com"
         }
       ],
-      "destination": "/index.html"
+      "destination": "/frontend-app/index.html"
     },
     {
       "source": "/(.*)",
@@ -36,7 +36,17 @@
       "destination": "/landinpagecalculadora/index.html"
     },
     {
-      "source": "/((?!api|landinpagecalculadora|assets|Logo.png).*)",
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "tradingprobrasil.com"
+        }
+      ],
+      "destination": "/landinpagecalculadora/index.html"
+    },
+    {
+      "source": "/((?!api|landinpagecalculadora|frontend-app|assets|Logo.png).*)",
       "destination": "/landinpagecalculadora/index.html"
     }
   ]
