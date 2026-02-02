@@ -2,10 +2,11 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  // AJUSTE: O 'content' agora varre tanto a raiz quanto a subpasta da landing page
+  // AJUSTE: Caminhos absolutos em relação à raiz do projeto para garantir detecção
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx,js,jsx}",
+    "./landinpagecalculadora/index.html",
     "./landinpagecalculadora/src/**/*.{ts,tsx,js,jsx}",
     "./components/**/*.{ts,tsx,js,jsx}",
   ],
@@ -63,7 +64,6 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Cores de status para derivativos
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         info: "hsl(var(--info))",
