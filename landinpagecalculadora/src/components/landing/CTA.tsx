@@ -1,11 +1,12 @@
 /**
  * COMPONENTE: CTA (Call to Action)
  * DESCRIÇÃO: Seção de fechamento focada em conversão.
- * Atualizado para alinhar com a identidade TradingPro Brasil.
+ * AJUSTE: Corrigido import do Button para caminho relativo para compatibilidade com Vercel.
  */
 
 import { ArrowRight, Zap, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+// AJUSTE: Caminho relativo para garantir resolução no build
+import { Button } from "../ui/button";
 
 export const CTA = () => {
   // URL da calculadora para conversão imediata

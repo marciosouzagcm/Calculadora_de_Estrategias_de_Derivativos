@@ -1,11 +1,12 @@
 /**
  * COMPONENTE: Hero
  * DESCRIÇÃO: Seção principal de impacto da Landing Page.
- * Atualizado para refletir o arsenal de 23 estratégias implementadas.
+ * AJUSTE: Corrigido import do Button para caminho relativo para compatibilidade com Vercel.
  */
 
 import { ArrowRight, Shield, TrendingUp, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+// AJUSTE: Caminho relativo para evitar erro de alias @ no build da Vercel
+import { Button } from "../ui/button";
 
 export const Hero = () => {
   

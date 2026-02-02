@@ -1,12 +1,14 @@
 /**
  * COMPONENTE: Pricing
  * DESCRIÇÃO: Tabela de preços atualizada com o novo arsenal de 23 estratégias.
+ * AJUSTE: Corrigidos imports para caminhos relativos para compatibilidade com Vercel.
  */
 
 import { Check, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+// AJUSTES: Substituição de aliases @ por caminhos relativos
+import { Button } from "../ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
 
 interface PricingPlan {
   name: string;

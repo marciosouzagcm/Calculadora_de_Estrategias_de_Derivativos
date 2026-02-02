@@ -1,10 +1,10 @@
 /**
  * COMPONENTE: Header
  * DESCRIÇÃO: Barra de navegação fixa com suporte a scroll suave e links para a aplicação.
- * Atualizado com a logo oficial TradingPro Brasil.
+ * AJUSTE: Corrigido import do Button para caminho relativo para compatibilidade com Vercel.
  */
 
-import { Button } from "@/components/ui/button";
+import { Button } from "../ui/button"; // Ajustado: de @/components/ui/button para ../ui/button
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
