@@ -1,11 +1,13 @@
 /**
  * COMPONENTE: Strategies
  * DESCRIÇÃO: Catálogo expandido com as 23 estratégias implementadas no core.
+ * AJUSTE: Corrigidos imports de UI para caminhos relativos (../ui/...).
  */
 
 import { Check, TrendingUp, TrendingDown, Minus, Activity, LucideIcon, ShieldAlert } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+// AJUSTES DE IMPORT: Substituindo @/components/ui por ../ui
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
 
 interface StrategyItem {
   name: string;

@@ -1,13 +1,14 @@
 /**
  * COMPONENTE: Vigilante V2
  * DESCRIÇÃO: Seção técnica que explica o motor de auditoria de risco.
- * Utiliza um diagrama visual para mostrar como o sistema filtra operações perigosas.
+ * AJUSTE: Corrigidos imports de UI para caminhos relativos (../ui/...).
  */
 
 import { Shield, AlertTriangle, Check, X, TrendingUp, Info } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+// AJUSTES DE IMPORT: Substituindo @/components/ui por ../ui
+import { Card, CardContent } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 export const Vigilante = () => {
   return (

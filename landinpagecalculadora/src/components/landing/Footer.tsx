@@ -1,7 +1,8 @@
 /**
  * COMPONENTE: Footer
  * DESCRIÇÃO: Rodapé institucional.
- * Atualizado com a logo oficial e links de conformidade para o mercado brasileiro.
+ * OBSERVAÇÃO: Este componente não utiliza bibliotecas da pasta UI, 
+ * por isso não requer ajustes de caminhos relativos.
  */
 
 import { Github, Linkedin, Twitter, ExternalLink } from "lucide-react";

@@ -1,7 +1,7 @@
 /**
  * COMPONENTE: Features
  * DESCRIÇÃO: Grid de diferenciais técnicos da plataforma.
- * Atualizado para refletir o arsenal de 23 estratégias e tecnologia B3.
+ * AJUSTE: Corrigido import do Card para caminho relativo (../ui/card).
  */
 
 import { 
@@ -15,7 +15,8 @@ import {
   TrendingUp,
   LucideIcon
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+// AJUSTE: Caminho relativo para evitar erro de resolução no Rollup/Vercel
+import { Card, CardContent } from "../ui/card";
 
 interface FeatureItem {
   icon: LucideIcon;
