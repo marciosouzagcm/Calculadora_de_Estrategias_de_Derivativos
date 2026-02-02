@@ -1,19 +1,17 @@
 /**
- * ARQUIVO: App.tsx
- * DESCRIÇÃO: Ponto de entrada das rotas da aplicação.
- * Gerencia a navegação entre a Landing Page e o App da Calculadora.
+ * ARQUIVO: landinpagecalculadora/src/App.tsx
  */
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+// Importando do alias @ (que aponta para frontend-app/src no nosso vite.config.ts)
+// Adicionamos .tsx para garantir que o Rollup não se perca no build
+import { Toaster } from "@/components/ui/toaster.tsx";
+import { Toaster as Sonner } from "@/components/ui/sonner.tsx";
+import { TooltipProvider } from "@/components/ui/tooltip.tsx";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-
-// TODO: Importar a página principal da calculadora quando estiver pronta
-// import CalculatorDashboard from "./pages/CalculatorDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
