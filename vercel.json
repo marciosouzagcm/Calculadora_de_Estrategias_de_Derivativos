@@ -8,16 +8,36 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/saiba-mais/(.*)",
-      "destination": "/saiba-mais/$1"
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
     },
     {
-      "source": "/features.html",
-      "destination": "/features.html"
+      "source": "/Logo.png",
+      "destination": "/Logo.png"
     },
     {
-      "source": "/((?!api|saiba-mais|features.html|assets|public|static|.*\\..*).*)",
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.tradingprobrasil.com"
+        }
+      ],
       "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.tradingprobrasil.com"
+        }
+      ],
+      "destination": "/landinpagecalculadora/index.html"
+    },
+    {
+      "source": "/((?!api|landinpagecalculadora|assets|Logo.png).*)",
+      "destination": "/landinpagecalculadora/index.html"
     }
   ]
 }
