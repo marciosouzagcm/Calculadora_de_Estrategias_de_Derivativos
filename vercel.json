@@ -8,12 +8,12 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
-    },
-    {
       "source": "/Logo.png",
       "destination": "/Logo.png"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
     },
     {
       "source": "/(.*)",
