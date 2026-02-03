@@ -9,14 +9,10 @@ export default defineConfig({
     outDir: "dist",
     rollupOptions: {
       input: {
+        // Mapeia os dois index.html para o build final
         main: path.resolve(__dirname, "frontend-app/index.html"),
         landing: path.resolve(__dirname, "landinpagecalculadora/index.html"),
       },
-    },
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
     },
   },
 });
