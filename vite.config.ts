@@ -7,10 +7,10 @@ export default defineConfig({
   base: "/",
   build: {
     outDir: "dist",
+    emptyOutDir: true,
     rollupOptions: {
       input: {
-        // Define os dois pontos de entrada para o build unificado
-        main: path.resolve(__dirname, "frontend-app/index.html"),
+        app: path.resolve(__dirname, "frontend-app/index.html"),
         landing: path.resolve(__dirname, "landinpagecalculadora/index.html"),
       },
     },
