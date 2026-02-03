@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-import animate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -24,5 +23,6 @@ export default {
       },
     },
   },
-  plugins: [animate],
+  // ATUALIZAÇÃO: Substituímos o import/variável pelo require direto para resolver o erro do Rollup no build da Vercel
+  plugins: [require("tailwindcss-animate")],
 } satisfies Config;
