@@ -1,29 +1,6 @@
-import type { Config } from "tailwindcss";
-import animate from "tailwindcss-animate";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
 
-export default {
-  darkMode: ["class"],
-  content: [
-    "./index.html",
-    "./frontend-app/index.html",
-    "./frontend-app/src/**/*.{ts,tsx,js,jsx}",
-    "./landinpagecalculadora/index.html",
-    "./landinpagecalculadora/src/**/*.{ts,tsx,js,jsx}",
-    "./src/**/*.{ts,tsx,js,jsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-      },
-    },
-  },
-  // Usamos a variável importada para manter o padrão ESM e evitar erros no navegador
-  plugins: [animate],
-} satisfies Config;
+// O main.tsx deve apenas montar a aplicação no DOM
+createRoot(document.getElementById("root")!).render(<App />);
