@@ -7,8 +7,8 @@ export default {
     "./index.html",
     "./frontend-app/index.html",
     "./frontend-app/src/**/*.{ts,tsx,js,jsx}",
-    "./landinpagecalculadora/index.html",
-    "./landinpagecalculadora/src/**/*.{ts,tsx,js,jsx}",
+    "./landingpagecalculadora/index.html",
+    "./landingpagecalculadora/src/**/*.{ts,tsx,js,jsx}",
     "./src/**/*.{ts,tsx,js,jsx}",
   ],
   theme: {

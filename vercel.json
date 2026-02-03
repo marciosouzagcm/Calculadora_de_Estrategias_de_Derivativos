@@ -13,7 +13,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/landinpagecalculadora/index.html"
+      "destination": "/landingpagecalculadora/index.html"
     }
   ]
 }

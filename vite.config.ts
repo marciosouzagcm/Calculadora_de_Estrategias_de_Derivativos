@@ -1,6 +1,6 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
@@ -11,7 +11,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         app: path.resolve(__dirname, "frontend-app/index.html"),
-        landing: path.resolve(__dirname, "landinpagecalculadora/index.html"),
+        landing: path.resolve(__dirname, "landingpagecalculadora/index.html"),
       },
     },
   },
