@@ -12,7 +12,7 @@ export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // URL da aplicação para os botões de conversão
-  const APP_URL = "https://app.tradingprobrasil.com";
+  const APP_URL = "/app";
 
   /**
    * Links de navegação interna (Âncoras)
