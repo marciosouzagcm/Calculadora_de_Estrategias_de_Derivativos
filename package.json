@@ -9,9 +9,9 @@
   "main": "src/server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "vite build",
+    "build": "vite build && npm --prefix landingpagecalculadora install && npm --prefix landingpagecalculadora run build",
     "start": "tsx src/server.ts",
-    "clean": "rimraf dist",
+    "clean": "rimraf dist landingpagecalculadora/dist",
     "process-csv": "tsx src/processador_opcoes.ts"
   },
   "keywords": [

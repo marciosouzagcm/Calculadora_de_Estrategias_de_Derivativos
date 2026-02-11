@@ -1,22 +1,20 @@
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { DataOrchestrator } from './services/DataOrchestrator.js';
 import { StrategyService } from './services/StrategyService.js';
 
-/** * CORREÇÃO CRÍTICA (NodeNext):
- * Removemos o import de '../api/routes.js' pois ele foi deletado e unificado no api/index.ts.
- * Importamos o app unificado para manter a consistência.
- */
-import appUnificado from '../api/index.js'; 
+// Configuração para caminhos no ES6
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const app = express();
 
-/**
- * --- CONFIGURAÇÃO DE SEGURANÇA (CORS) ---
- */
 app.use(cors({
     origin: '*', 
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -26,7 +24,56 @@ app.use(cors({
 app.use(express.json());
 
 /**
- * --- ENDPOINT DE SAÚDE (HEALTH CHECK) ---
+ * --- CONFIGURAÇÃO DE ARQUIVOS ESTÁTICOS ---
+ * Aqui definimos onde o servidor busca os arquivos do Frontend
+ */
+const rootPath = process.cwd();
+const calculadoraPath = path.join(rootPath, 'dist');
+const landingPath = path.join(rootPath, 'landingpagecalculadora', 'dist');
+
+// Serve os arquivos estáticos (CSS, JS, Imagens) das duas pastas
+app.use(express.static(calculadoraPath, { index: false }));
+if (fs.existsSync(landingPath)) {
+    app.use(express.static(landingPath, { index: false }));
+}
+
+/**
+ * --- ROTEAMENTO DE DOMÍNIO E PÁGINAS ---
+ */
+
+// 1. ROTA RAIZ: Decide entre Landing Page ou Calculadora
+app.get('/', (req: Request, res: Response) => {
+    const host = req.headers.host || '';
+    
+    // Se vier pelo domínio oficial, tenta mostrar a Landing Page
+    if (host.includes('tradingprobrasil.com')) {
+        const landingIndex = path.join(landingPath, 'index.html');
+        if (fs.existsSync(landingIndex)) {
+            console.log("[SERVER] Servindo Landing Page para:", host);
+            return res.sendFile(landingIndex);
+        }
+    }
+
+    // Caso contrário (ou se a landing não existir), serve a Calculadora
+    const appIndex = path.join(calculadoraPath, 'index.html');
+    if (fs.existsSync(appIndex)) {
+        return res.sendFile(appIndex);
+    }
+    
+    res.status(404).send("Site em construção. Verifique os builds das pastas dist.");
+});
+
+// 2. ROTA /APP: Força a abertura da calculadora
+app.get(['/app', '/app/*'], (req: Request, res: Response) => {
+    const appIndex = path.join(calculadoraPath, 'index.html');
+    if (fs.existsSync(appIndex)) {
+        return res.sendFile(appIndex);
+    }
+    res.status(404).send("Calculadora não encontrada.");
+});
+
+/**
+ * --- ENDPOINTS DE API ---
  */
 app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ 
@@ -36,90 +83,51 @@ app.get('/health', (req: Request, res: Response) => {
     });
 });
 
-/**
- * --- ROTA DE ANÁLISE QUANTITATIVA ---
- */
 app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     try {
         const { ticker, preco, lote, risco } = req.query;
-
         if (!ticker) {
             res.status(400).json({ status: "error", message: "Ticker é obrigatório." });
             return;
         }
-
         const tickerStr = String(ticker).toUpperCase().trim();
-        const loteNum = parseInt(String(lote)) || 100;
-        const riscoMax = parseFloat(String(risco)) || 1000;
-        
-        let precoNum: number | undefined;
-        if (preco && preco !== 'undefined' && preco !== '') {
-            precoNum = parseFloat(String(preco));
-        }
-
-        console.log(`[API] 🔍 Scanner acionado: ${tickerStr} | Lote: ${loteNum} | Risco: ${riscoMax}`);
-
-        // Invoca o motor de estratégias
-        const resultados = await StrategyService.getOportunidades(
-            tickerStr, 
-            loteNum,
-            precoNum
-        );
-
-        res.json({
-            status: "success",
-            timestamp: new Date().toISOString(),
-            info: { ticker: tickerStr, lote: loteNum, riscoMax },
-            count: resultados.length,
-            data: resultados
-        });
-
+        const resultados = await StrategyService.getOportunidades(tickerStr, parseInt(String(lote)) || 100, preco ? parseFloat(String(preco)) : undefined);
+        res.json({ status: "success", data: resultados });
     } catch (error: any) {
         console.error(`[API ERROR] ❌ Erro: ${error.message}`);
-        if (!res.headersSent) {
-            res.status(500).json({ 
-                status: "error", 
-                message: "Erro ao calcular estratégias. Verifique a conexão com o TiDB." 
-            });
-        }
+        res.status(500).json({ status: "error", message: "Erro interno no servidor." });
     }
 });
 
 /**
- * --- INICIALIZAÇÃO RESILIENTE ---
+ * --- INICIALIZAÇÃO ---
  */
 const PORT: number = Number(process.env.PORT) || 10000;
 
 const startServer = async () => {
     try {
-        // Evita inicialização dupla se estiver rodando na Vercel
         if (process.env.VERCEL === '1') return;
 
-        console.log("⏳ [STARTUP] Inicializando serviços de dados...");
-        
-        // Tentativa de conexão com tratamento de erro para evitar queda do processo (Crash por DNS)
+        console.log("⏳ [STARTUP] Inicializando serviços...");
         try {
             await DataOrchestrator.init();
-            console.log("✅ [DATABASE] Conexão com TiDB estabelecida com sucesso.");
+            console.log("✅ [DATABASE] Conexão TiDB OK.");
         } catch (dbErr: any) {
-            console.error("⚠️ [DATABASE ERROR] Não foi possível conectar ao TiDB no startup.");
-            console.error(`Detalhe técnico: ${dbErr.message}`);
-            console.log("👉 O servidor continuará subindo para manter a disponibilidade da API.");
+            console.error("⚠️ [DATABASE ERROR] TiDB Offline.");
         }
         
         app.listen(PORT, '0.0.0.0', () => {
             console.log("--------------------------------------------------");
-            console.log(`🚀 BOARDPRO API RODANDO NA PORTA: ${PORT}`);
-            console.log(`🌍 AMBIENTE: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`🚀 SERVIDOR ATIVO NA PORTA: ${PORT}`);
+            console.log(`🔗 LANDING: www.tradingprobrasil.com`);
+            console.log(`📱 APP: /app`);
             console.log("--------------------------------------------------");
         });
     } catch (err) {
-        console.error("❌ [FATAL] Falha crítica ao configurar o Express:", err);
         process.exit(1); 
     }
 };
 
-// Executa apenas se não estiver em ambiente de teste ou Vercel
 if (process.env.NODE_ENV !== 'test') {
     startServer();
 }
