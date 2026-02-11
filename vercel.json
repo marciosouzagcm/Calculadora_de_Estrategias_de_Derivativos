@@ -7,6 +7,10 @@
     { "source": "/Logo.png", "destination": "/Logo.png" },
     { "source": "/api/(.*)", "destination": "/api/index.ts" },
     {
+      "source": "/app",
+      "destination": "/frontend-app/index.html"
+    },
+    {
       "source": "/app/(.*)",
       "destination": "/frontend-app/index.html"
     },
