@@ -36,10 +36,6 @@ export const Hero = () => {
             <span className="bg-gradient-to-r from-primary via-info to-accent bg-clip-text text-transparent">
               Institucional em Opções
             </span>
-            <br />
-            <span className="bg-gradient-to-r from-primary via-info to-accent bg-clip-text text-transparent">
-              Institucional em Opções
-            </span>
           </h1>
           
           {/* Subtitle */}
