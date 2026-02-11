@@ -7,13 +7,22 @@
     { "source": "/Logo.png", "destination": "/Logo.png" },
     { "source": "/api/(.*)", "destination": "/api/index.ts" },
     {
-      "source": "/(.*)",
+      "source": "/",
       "has": [{ "type": "host", "value": "www.tradingprobrasil.com" }],
+      "destination": "/landingpagecalculadora/index.html"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "tradingprobrasil.com" }],
+      "destination": "/landingpagecalculadora/index.html"
+    },
+    {
+      "source": "/app/(.*)",
       "destination": "/frontend-app/index.html"
     },
     {
       "source": "/(.*)",
-      "destination": "/landingpagecalculadora/index.html"
+      "destination": "/frontend-app/index.html"
     }
   ]
 }
