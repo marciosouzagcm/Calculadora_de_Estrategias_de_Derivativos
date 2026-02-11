@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 import { DataOrchestrator } from './services/DataOrchestrator.js';
 import { StrategyService } from './services/StrategyService.js';
 
-// Configuração para caminhos no ES6
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -25,17 +24,13 @@ app.use(express.json());
 
 /**
  * --- CONFIGURAÇÃO DE ARQUIVOS ESTÁTICOS ---
- * Aqui definimos onde o servidor busca os arquivos do Frontend
+ * Ajustado para o build unificado (Multi-Page App)
  */
 const rootPath = process.cwd();
-const calculadoraPath = path.join(rootPath, 'dist');
-const landingPath = path.join(rootPath, 'landingpagecalculadora', 'dist');
+const distPath = path.join(rootPath, 'dist');
 
-// Serve os arquivos estáticos (CSS, JS, Imagens) das duas pastas
-app.use(express.static(calculadoraPath, { index: false }));
-if (fs.existsSync(landingPath)) {
-    app.use(express.static(landingPath, { index: false }));
-}
+// Serve arquivos estáticos (JS, CSS, Imagens) a partir da raiz da dist
+app.use(express.static(distPath, { index: false }));
 
 /**
  * --- ROTEAMENTO DE DOMÍNIO E PÁGINAS ---
@@ -45,27 +40,29 @@ if (fs.existsSync(landingPath)) {
 app.get('/', (req: Request, res: Response) => {
     const host = req.headers.host || '';
     
-    // Se vier pelo domínio oficial, tenta mostrar a Landing Page
+    // Caminhos gerados pelo seu vite.config.ts (rollupOptions.input)
+    const landingIndex = path.join(distPath, 'landingpagecalculadora', 'index.html');
+    const appIndex = path.join(distPath, 'frontend-app', 'index.html');
+
+    // Se vier pelo domínio oficial, mostra a Landing Page
     if (host.includes('tradingprobrasil.com')) {
-        const landingIndex = path.join(landingPath, 'index.html');
         if (fs.existsSync(landingIndex)) {
             console.log("[SERVER] Servindo Landing Page para:", host);
             return res.sendFile(landingIndex);
         }
     }
 
-    // Caso contrário (ou se a landing não existir), serve a Calculadora
-    const appIndex = path.join(calculadoraPath, 'index.html');
+    // Caso contrário, serve a Calculadora
     if (fs.existsSync(appIndex)) {
         return res.sendFile(appIndex);
     }
     
-    res.status(404).send("Site em construção. Verifique os builds das pastas dist.");
+    res.status(404).send("Erro: Arquivos de build não encontrados na pasta dist.");
 });
 
 // 2. ROTA /APP: Força a abertura da calculadora
 app.get(['/app', '/app/*'], (req: Request, res: Response) => {
-    const appIndex = path.join(calculadoraPath, 'index.html');
+    const appIndex = path.join(distPath, 'frontend-app', 'index.html');
     if (fs.existsSync(appIndex)) {
         return res.sendFile(appIndex);
     }
@@ -85,7 +82,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     try {
-        const { ticker, preco, lote, risco } = req.query;
+        const { ticker, preco, lote } = req.query;
         if (!ticker) {
             res.status(400).json({ status: "error", message: "Ticker é obrigatório." });
             return;
@@ -99,9 +96,6 @@ app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
     }
 });
 
-/**
- * --- INICIALIZAÇÃO ---
- */
 const PORT: number = Number(process.env.PORT) || 10000;
 
 const startServer = async () => {
@@ -119,8 +113,8 @@ const startServer = async () => {
         app.listen(PORT, '0.0.0.0', () => {
             console.log("--------------------------------------------------");
             console.log(`🚀 SERVIDOR ATIVO NA PORTA: ${PORT}`);
-            console.log(`🔗 LANDING: www.tradingprobrasil.com`);
-            console.log(`📱 APP: /app`);
+            console.log(`🔗 DOMÍNIO: tradingprobrasil.com -> Landing Page`);
+            console.log(`📱 APP: /app -> Calculadora`);
             console.log("--------------------------------------------------");
         });
     } catch (err) {

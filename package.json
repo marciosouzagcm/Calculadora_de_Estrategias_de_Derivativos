@@ -1,7 +1,7 @@
 {
   "name": "calculadora_de_estrategias_de_derivativos",
   "version": "1.0.0",
-  "description": "Refatoração em TypeScript para cálculo e otimização de estratégias com opções.",
+  "description": "Refatoração em TypeScript para cálculo e otimaiização de estratégias com opções.",
   "type": "module",
   "engines": {
     "node": "20.x"
@@ -9,9 +9,9 @@
   "main": "src/server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "vite build && cd landingpagecalculadora && npm install && npm run build && cd ..",
+    "build": "vite build",
     "start": "tsx src/server.ts",
-    "clean": "rimraf dist landingpagecalculadora/dist",
+    "clean": "rimraf dist",
     "process-csv": "tsx src/processador_opcoes.ts"
   },
   "keywords": [
