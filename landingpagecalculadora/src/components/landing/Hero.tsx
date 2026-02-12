@@ -29,14 +29,15 @@ export const Hero = () => {
             <span className="text-sm font-medium text-primary">V2026.1 Production Ready</span>
           </div>
           
-          {/* Title */}
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            <span className="text-foreground">Inteligência</span>
-            <br />
-            <span className="bg-gradient-to-r from-primary via-info to-accent bg-clip-text text-transparent">
-              Institucional em Opções
-            </span>
-          </h1>
+          {/* Title - Ajustado para garantir visibilidade */}
+<h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
+  <span className="text-foreground block">
+    Inteligência
+  </span>
+  <span className="bg-gradient-to-r from-[#0A84FF] via-[#5AC8FA] to-[#32D74B] bg-clip-text text-transparent leading-normal">
+    Institucional em Opções
+  </span>
+</h1>
           
           {/* Subtitle */}
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
