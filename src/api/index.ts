@@ -1,51 +1,50 @@
-import cors from 'cors';
-import dotenv from 'dotenv';
-import express, { Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { DataOrchestrator } from '../services/DataOrchestrator.js';
 import { StrategyService } from '../services/StrategyService.js';
+import { analysisQuerySchema } from '../schemas/analysisSchema.js';
 
-dotenv.config();
+const router = Router();
 
-const app = express();
-
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-app.use(express.json());
-
-// Rota de teste rápido
-app.get('/api', (req, res) => {
-    res.json({ status: "online", message: "API unificada na raiz" });
+// Rota: GET /api/
+router.get('/', (req, res) => {
+    res.json({ status: "online", message: "API BoardPro Ativa" });
 });
 
-// Rota de Análise
-app.get('/api/analise', async (req: Request, res: Response) => {
+// Rota: GET /api/analise
+router.get('/analise', async (req: Request, res: Response) => {
     try {
-        const { ticker, preco, lote } = req.query;
-        if (!ticker) {
-            return res.status(400).json({ error: "Ticker é obrigatório" });
+        // 1. Validação Robusta com Zod
+        const validation = analysisQuerySchema.safeParse(req.query);
+        
+        if (!validation.success) {
+            return res.status(400).json({ 
+                error: "Parâmetros inválidos", 
+                details: validation.error.format() 
+            });
         }
 
-        const tickerStr = String(ticker).toUpperCase().trim();
-        const loteNum = parseInt(String(lote)) || 100;
-        const precoNum = preco ? parseFloat(String(preco)) : undefined;
+        const { ticker, preco, lote } = validation.data;
 
-        // Inicializa conexão com banco
+        // 2. Garante conexão com TiDB
         await DataOrchestrator.init();
 
-        const resultados = await StrategyService.getOportunidades(tickerStr, loteNum, precoNum);
+        // 3. Executa Motor de Cálculo
+        const resultados = await StrategyService.getOportunidades(ticker, lote, preco);
 
+        // 4. Resposta JSON
         res.json({
             status: "success",
+            timestamp: new Date().toISOString(),
             data: resultados
         });
+
     } catch (error: any) {
-        console.error("Erro na API:", error);
-        res.status(500).json({ error: error.message });
+        console.error("❌ Erro no Endpoint /analise:", error);
+        res.status(500).json({ 
+            error: "Falha interna no motor de cálculo",
+            message: error.message 
+        });
     }
 });
 
-export default app;
+export default router;
