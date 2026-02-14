@@ -7,8 +7,8 @@ import dotenv from 'dotenv';
 // --- IMPORTS DE SEGURANÇA E NEGÓCIO ---
 import { DataOrchestrator } from './services/DataOrchestrator.js';
 import apiRoutes from './api/index.js'; 
-// Ajustado para o caminho real que você enviou:
-import { globalLimiter, apiLimiter } from './middlewares/rateLimiter.js'; // O arquivo de limite que você mostrou
+// Ajustado para o caminho real:
+import { globalLimiter, apiLimiter } from './middlewares/rateLimiter.js';
 
 dotenv.config();
 
@@ -18,9 +18,14 @@ const __dirname = path.dirname(__filename);
 const rootPath = process.cwd();
 const distPath = path.join(rootPath, 'dist');
 const landingDist = path.join(rootPath, 'landingpagecalculadora', 'dist');
+const frontendDist = path.join(distPath, 'frontend-app'); // Novo caminho detectado no build
 const publicPath = path.join(rootPath, 'public');
 
 const app = express();
+
+// --- CONFIGURAÇÃO DE PROXY PARA CLOUD (Render/Vercel) ---
+// Resolve o erro ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set('trust proxy', 1);
 
 // --- APLICAÇÃO DE MIDDLEWARES ---
 app.use(express.json());
@@ -44,12 +49,14 @@ app.use('/api', apiRoutes);
 // Servir arquivos estáticos
 app.use(express.static(publicPath, { index: false }));
 app.use(express.static(distPath, { index: false }));
+app.use(express.static(frontendDist, { index: false })); // Adicionado para servir assets do app
 if (fs.existsSync(landingDist)) {
   app.use(express.static(landingDist, { index: false }));
 }
 
 // --- ROTEAMENTO ---
 
+// 1. ROTA DA LANDING PAGE (Raiz)
 app.get('/', (req, res) => {
   const candidates = [
     path.join(rootPath, 'public', 'index.html'),
@@ -63,16 +70,29 @@ app.get('/', (req, res) => {
   res.status(404).send('Landing page não encontrada. Verifique o build.');
 });
 
+// 2. ROTA DA CALCULADORA
 app.get(['/app', '/app/*'], (req, res) => {
-  const appIndex = path.join(distPath, 'index.html');
-  if (fs.existsSync(appIndex)) return res.sendFile(appIndex);
-  res.status(404).send('Calculadora não encontrada no diretório dist.');
+  // Busca prioritária no novo caminho 'frontend-app' detectado no deploy
+  const candidates = [
+    path.join(frontendDist, 'index.html'),
+    path.join(distPath, 'index.html')
+  ];
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return res.sendFile(p);
+  }
+
+  res.status(404).send('Calculadora não encontrada nos diretórios dist ou frontend-app.');
 });
 
 // Fallback Final
 app.get('*', (req, res) => {
   const landingIndex = path.join(landingDist, 'index.html');
   if (fs.existsSync(landingIndex)) return res.sendFile(landingIndex);
+  
+  const appIndex = path.join(frontendDist, 'index.html');
+  if (fs.existsSync(appIndex)) return res.sendFile(appIndex);
+
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
