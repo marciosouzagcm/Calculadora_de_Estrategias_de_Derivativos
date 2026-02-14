@@ -1,129 +1,100 @@
-import cors from 'cors';
-import express, { Request, Response } from 'express';
-import dotenv from 'dotenv';
-import path from 'path';
+import express from 'express';
 import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// --- IMPORTS DE SEGURANÇA E NEGÓCIO ---
 import { DataOrchestrator } from './services/DataOrchestrator.js';
-import { StrategyService } from './services/StrategyService.js';
+import apiRoutes from './api/index.js'; 
+// Ajustado para o caminho real que você enviou:
+import { globalLimiter, apiLimiter } from './middlewares/rateLimiter.js'; // O arquivo de limite que você mostrou
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
+const rootPath = process.cwd();
+const distPath = path.join(rootPath, 'dist');
+const landingDist = path.join(rootPath, 'landingpagecalculadora', 'dist');
+const publicPath = path.join(rootPath, 'public');
 
 const app = express();
 
-app.use(cors({
-    origin: '*', 
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-})); 
-
+// --- APLICAÇÃO DE MIDDLEWARES ---
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-/**
- * --- CONFIGURAÇÃO DE ARQUIVOS ESTÁTICOS ---
- * Ajustado para o build unificado (Multi-Page App)
- */
-const rootPath = process.cwd();
-const distPath = path.join(rootPath, 'dist');
+// 1. Proteção Global (100 req / 15 min)
+app.use(globalLimiter);
 
-// Serve arquivos estáticos (JS, CSS, Imagens) a partir da raiz da dist
+// 2. Proteção Específica para a API de Cálculos (10 req / 1 min)
+app.use('/api', apiLimiter);
+
+// CSP - Segurança
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline';");
+  next();
+});
+
+// Registra rotas de API
+app.use('/api', apiRoutes);
+
+// Servir arquivos estáticos
+app.use(express.static(publicPath, { index: false }));
 app.use(express.static(distPath, { index: false }));
-
-/**
- * --- ROTEAMENTO DE DOMÍNIO E PÁGINAS ---
- */
-
-// 1. ROTA RAIZ: Decide entre Landing Page ou Calculadora
-app.get('/', (req: Request, res: Response) => {
-    const host = req.headers.host || '';
-    
-    // Caminhos gerados pelo seu vite.config.ts (rollupOptions.input)
-    const landingIndex = path.join(distPath, 'landingpagecalculadora', 'index.html');
-    const appIndex = path.join(distPath, 'frontend-app', 'index.html');
-
-    // Se vier pelo domínio oficial, mostra a Landing Page
-    if (host.includes('tradingprobrasil.com')) {
-        if (fs.existsSync(landingIndex)) {
-            console.log("[SERVER] Servindo Landing Page para:", host);
-            return res.sendFile(landingIndex);
-        }
-    }
-
-    // Caso contrário, serve a Calculadora
-    if (fs.existsSync(appIndex)) {
-        return res.sendFile(appIndex);
-    }
-    
-    res.status(404).send("Erro: Arquivos de build não encontrados na pasta dist.");
-});
-
-// 2. ROTA /APP: Força a abertura da calculadora
-app.get(['/app', '/app/*'], (req: Request, res: Response) => {
-    const appIndex = path.join(distPath, 'frontend-app', 'index.html');
-    if (fs.existsSync(appIndex)) {
-        return res.sendFile(appIndex);
-    }
-    res.status(404).send("Calculadora não encontrada.");
-});
-
-/**
- * --- ENDPOINTS DE API ---
- */
-app.get('/health', (req: Request, res: Response) => {
-    res.status(200).json({ 
-        status: "ok", 
-        server: "BoardPro API",
-        timestamp: new Date().toISOString()
-    });
-});
-
-app.get('/api/analise', async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { ticker, preco, lote } = req.query;
-        if (!ticker) {
-            res.status(400).json({ status: "error", message: "Ticker é obrigatório." });
-            return;
-        }
-        const tickerStr = String(ticker).toUpperCase().trim();
-        const resultados = await StrategyService.getOportunidades(tickerStr, parseInt(String(lote)) || 100, preco ? parseFloat(String(preco)) : undefined);
-        res.json({ status: "success", data: resultados });
-    } catch (error: any) {
-        console.error(`[API ERROR] ❌ Erro: ${error.message}`);
-        res.status(500).json({ status: "error", message: "Erro interno no servidor." });
-    }
-});
-
-const PORT: number = Number(process.env.PORT) || 10000;
-
-const startServer = async () => {
-    try {
-        if (process.env.VERCEL === '1') return;
-
-        console.log("⏳ [STARTUP] Inicializando serviços...");
-        try {
-            await DataOrchestrator.init();
-            console.log("✅ [DATABASE] Conexão TiDB OK.");
-        } catch (dbErr: any) {
-            console.error("⚠️ [DATABASE ERROR] TiDB Offline.");
-        }
-        
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log("--------------------------------------------------");
-            console.log(`🚀 SERVIDOR ATIVO NA PORTA: ${PORT}`);
-            console.log(`🔗 DOMÍNIO: tradingprobrasil.com -> Landing Page`);
-            console.log(`📱 APP: /app -> Calculadora`);
-            console.log("--------------------------------------------------");
-        });
-    } catch (err) {
-        process.exit(1); 
-    }
-};
-
-if (process.env.NODE_ENV !== 'test') {
-    startServer();
+if (fs.existsSync(landingDist)) {
+  app.use(express.static(landingDist, { index: false }));
 }
 
+// --- ROTEAMENTO ---
+
+app.get('/', (req, res) => {
+  const candidates = [
+    path.join(rootPath, 'public', 'index.html'),
+    path.join(landingDist, 'index.html'),
+    path.join(distPath, 'landingpagecalculadora', 'index.html'),
+    path.join(distPath, 'index.html'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return res.sendFile(p);
+  }
+  res.status(404).send('Landing page não encontrada. Verifique o build.');
+});
+
+app.get(['/app', '/app/*'], (req, res) => {
+  const appIndex = path.join(distPath, 'index.html');
+  if (fs.existsSync(appIndex)) return res.sendFile(appIndex);
+  res.status(404).send('Calculadora não encontrada no diretório dist.');
+});
+
+// Fallback Final
+app.get('*', (req, res) => {
+  const landingIndex = path.join(landingDist, 'index.html');
+  if (fs.existsSync(landingIndex)) return res.sendFile(landingIndex);
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
 export default app;
+
+// --- INICIALIZAÇÃO LOCAL (WATCHER + TIDB) ---
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const PORT = process.env.PORT || 10000;
+  const startLocalServer = async () => {
+    try {
+      console.log("\n⏳ [STARTUP] Inicializando serviços BoardPro...");
+      await DataOrchestrator.init();
+      app.listen(PORT, () => {
+        console.log("--------------------------------------------------");
+        console.log(`🚀 SERVIDOR LOCAL ATIVO NA PORTA: ${PORT}`);
+        console.log(`🛡️  SEGURANÇA: Rate Limit e Validação Zod Ativos`);
+        console.log(`👁️  WATCHER: Monitorando Downloads para o TiDB Cloud`);
+        console.log("--------------------------------------------------");
+      });
+    } catch (err: any) {
+      console.error("❌ [ERRO] Falha ao iniciar serviços locais:", err.message);
+    }
+  };
+  startLocalServer();
+}

@@ -73,12 +73,12 @@ export class StrategyService {
 
         for (const strategy of allStrategies) {
             try {
-                const combinations = strategy.calculateMetrics(options, spotPrice, this.FEE_PER_LEG);
+                const combinations = strategy.calculateMetrics(options, spotPrice, StrategyService.FEE_PER_LEG, lot);
                 if (Array.isArray(combinations)) {
                     combinations.forEach(m => {
                         if (m && m.name && m.pernas) {
                             
-                            const isArbitrageClean = this.validateDataIntegrity(m.pernas);
+                            const isArbitrageClean = StrategyService.validateDataIntegrity(m.pernas);
 
                             const seriesNoSetup = new Set(m.pernas.map(p => {
                                 const t = p.derivative?.option_ticker || p.ticker || '';
@@ -92,7 +92,7 @@ export class StrategyService {
                             const isValidTemporal = isCalendarType ? seriesNoSetup.size > 1 : seriesNoSetup.size === 1;
 
                             if (isValidTemporal && isArbitrageClean) {
-                                const formatted = this.formatForFrontend(m, lot, spotPrice);
+                                const formatted = StrategyService.formatForFrontend(m, lot, spotPrice);
                                 
                                 // Filtro de ROI Realista para evitar erros de prêmio (Vigilante)
                                 if (formatted.roi < 15) { 
@@ -129,7 +129,7 @@ export class StrategyService {
 
     private static formatForFrontend(s: StrategyMetrics, lot: number, spotPrice: number): StrategyMetrics {
         const pernas = s.pernas || [];
-        const feesTotal = pernas.length * this.FEE_PER_LEG;
+        const feesTotal = pernas.length * StrategyService.FEE_PER_LEG;
         const safeLot = lot > 0 ? lot : 100;
         const feePerUnit = feesTotal / safeLot;
         

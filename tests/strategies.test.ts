@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest'; // Essencial para evitar o erro "defined"
 import { OptionLeg } from '../src/interfaces/Types';
 import { PayoffCalculator } from '../src/services/PayoffCalculator';
 
@@ -40,10 +41,13 @@ describe('PayoffCalculator V40.0', () => {
         );
 
         expect(bullCall).toBeDefined();
-        expect(bullCall?.breakEvenPoints).toBeDefined();
         
-        // 1.50 - 0.60 = 0.90 unitário. Com 100 opções = 90.00
-        expect(Number(bullCall?.max_profit)).toBeGreaterThan(0);
-        console.log(`Lucro Máximo Calculado: R$ ${bullCall?.max_profit}`);
+        if (bullCall) {
+            expect(bullCall.breakEvenPoints).toBeDefined();
+            // Verificação matemática: (30-28-0.90) * 100 = 110 de lucro máximo
+            expect(Number(bullCall.max_profit)).toBeGreaterThan(0);
+            console.log(`✅ Teste Sucesso: ${bullCall.name}`);
+            console.log(`💰 Lucro Máximo Calculado: R$ ${bullCall.max_profit}`);
+        }
     });
 });

@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * Configuração otimizada para TiDB Cloud e Vercel Serverless
+ * BOARDPRO V40.2 - Database Configuration
+ * Correção Crítica 16.1.3: SSL rejectUnauthorized set to TRUE.
  */
 const dbConfig: PoolOptions = {
     host: process.env.TIDB_HOST,
@@ -13,32 +14,43 @@ const dbConfig: PoolOptions = {
     database: process.env.TIDB_NAME || 'trading_options',
     port: Number(process.env.TIDB_PORT) || 4000,
     waitForConnections: true,
-    // Limite reduzido para 5 para evitar estouro de conexões em funções Serverless
     connectionLimit: 5,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 10000, // 10 segundos
+    keepAliveInitialDelay: 10000,
     ssl: {
         minVersion: 'TLSv1.2',
-        rejectUnauthorized: false 
+        // ITEM 16.1.3: Agora verificamos obrigatoriamente o certificado da TiDB Cloud
+        rejectUnauthorized: true 
     }
 };
 
-// Singleton do Pool de Conexões
-export const pool: Pool = process.env.DATABASE_URL 
-    ? mysql.createPool(process.env.DATABASE_URL as string) 
-    : mysql.createPool(dbConfig);
+/**
+ * Singleton do Pool de Conexões.
+ * Ajustado para garantir que o SSL seja aplicado mesmo via DATABASE_URL.
+ */
+export const pool: Pool = (() => {
+    if (process.env.DATABASE_URL) {
+        // Se usar URL, injetamos o SSL via opções para garantir o rejectUnauthorized: true
+        return mysql.createPool({
+            uri: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: true }
+        } as any);
+    }
+    return mysql.createPool(dbConfig);
+})();
 
 export class DatabaseService {
     /**
-     * Valida a saúde da conexão com o banco de dados
+     * Valida a saúde da conexão com o banco de dados e o handshake SSL
      */
     static async testConnection(): Promise<void> {
         try {
             const [rows] = await pool.query('SELECT 1 + 1 AS result');
-            console.log('📡 [TiDB Cloud] Conexão ativa e saudável.');
+            console.log('🛡️ [TiDB Cloud] Conexão SSL Segura e Saudável.');
         } catch (error: any) {
-            console.error('❌ [TiDB Cloud] Erro crítico de conexão:', error.message);
+            console.error('❌ [TiDB Cloud] Erro Crítico: Falha na autenticação SSL ou Conexão.');
+            console.error(`Detalhe: ${error.message}`);
             throw error;
         }
     }
@@ -66,7 +78,6 @@ export class DatabaseService {
     static async getOptionsByTicker(ticker: string): Promise<any[]> {
         try {
             const cleanTicker = ticker.toUpperCase().trim();
-            // Filtragem por CURDATE() garante que não processamos opções vencidas
             const query = `
                 SELECT id, idAcao, ticker, vencimento, diasUteis, tipo, 
                        strike, premioPct, volImplicita, delta, gamma, 
@@ -80,7 +91,6 @@ export class DatabaseService {
             return rows.map((row: any) => ({
                 id: row.id,
                 option_ticker: row.ticker,
-                // Limpeza para casos onde o ID vem colado no ticker (ex: 1PETR4)
                 ativo_subjacente: row.idAcao.replace(/^\d+/, ''),
                 tipo: row.tipo.toUpperCase(), 
                 strike: Number(row.strike),
