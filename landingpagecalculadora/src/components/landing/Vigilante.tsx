@@ -1,19 +1,17 @@
 /**
  * COMPONENTE: Vigilante V2
  * DESCRIÇÃO: Seção técnica que explica o motor de auditoria de risco.
- * AJUSTE: Corrigidos imports de UI para caminhos relativos (../ui/...).
  */
 
-import { Shield, AlertTriangle, Check, X, TrendingUp, Info } from "lucide-react";
-// AJUSTES DE IMPORT: Substituindo @/components/ui por ../ui
+import { Shield, AlertTriangle, Check, X, TrendingUp } from "lucide-react";
+// AJUSTES DE IMPORT: Garantindo caminhos relativos para o ambiente de produção
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 export const Vigilante = () => {
   return (
     <section id="vigilante" className="py-24 bg-background relative overflow-hidden">
-      {/* Background Decor */}
+      {/* Background Decor - Brilho sutil de fundo */}
       <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-accent/10 rounded-full blur-[100px] -z-10" />
       
       <div className="container mx-auto px-4">
@@ -28,7 +26,7 @@ export const Vigilante = () => {
             
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
               Sistema{" "}
-              <span className="bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent">
                 Vigilante V2
               </span>
             </h2>

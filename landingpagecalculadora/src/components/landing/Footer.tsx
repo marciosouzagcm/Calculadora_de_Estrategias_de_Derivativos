@@ -1,22 +1,21 @@
 /**
  * COMPONENTE: Footer
- * DESCRIÇÃO: Rodapé institucional.
- * OBSERVAÇÃO: Este componente não utiliza bibliotecas da pasta UI, 
- * por isso não requer ajustes de caminhos relativos.
+ * DESCRIÇÃO: Rodapé institucional completo com aviso de risco e links estratégicos.
+ * STATUS: Revisão final da Landing Page TradingPro Brasil.
  */
 
-import { Github, Linkedin, Twitter, ExternalLink } from "lucide-react";
+import { Github, Linkedin, Twitter, ExternalLink, ShieldAlert } from "lucide-react";
 
 export const Footer = () => {
-  // URLs para centralização de manutenção
+  // Configurações centralizadas para facilitar futuras trocas de URL
   const APP_URL = "https://app.tradingprobrasil.com";
   const GITHUB_REPO = "https://github.com/marciosouzagcm/Calculadora_de_Estrategias_de_Derivativos";
   const YEAR = new Date().getFullYear();
 
   return (
     <footer className="bg-card border-t border-border py-16 relative overflow-hidden">
-      {/* Detalhe visual sutil de borda colorida */}
-      <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-info opacity-50" />
+      {/* Detalhe visual: Borda superior com gradiente sutil */}
+      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
 
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
@@ -24,15 +23,17 @@ export const Footer = () => {
           {/* COLUNA 1: Brand & Social */}
           <div className="col-span-1">
             <div className="flex items-center gap-2 mb-6">
-              <img 
-                src="/Logo.png" 
-                alt="TradingPro Brasil" 
-                className="h-10 w-auto object-contain"
-              />
+              {/* Fallback para logo em texto caso a imagem não carregue */}
+              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+                <span className="text-xs font-bold text-white">TP</span>
+              </div>
+              <span className="text-xl font-bold tracking-tight">
+                TradingPro<span className="text-primary">Brasil</span>
+              </span>
             </div>
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
               Tecnologia quantitativa de ponta para o mercado brasileiro. 
-              Transformando dados complexos da B3 em decisões estratégicas simplificadas.
+              Transformando dados complexos da B3 em decisões estratégicas simplificadas para traders de opções.
             </p>
             <div className="flex gap-5">
               <a href="#" aria-label="Twitter" className="text-muted-foreground hover:text-primary transition-colors">
@@ -101,7 +102,7 @@ export const Footer = () => {
                 <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-all font-medium">Cookies</a>
               </li>
               <li>
-                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-all underline decoration-primary/30 font-medium">Compliance CVM</a>
+                <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-all underline decoration-primary/30 font-medium italic">Compliance CVM</a>
               </li>
             </ul>
           </div>
@@ -109,17 +110,25 @@ export const Footer = () => {
         
         {/* RODAPÉ FINAL: Copyright e Aviso de Risco */}
         <div className="pt-8 border-t border-border/50">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-6">
-            <div className="text-center lg:text-left">
+          <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
+            <div className="text-left">
               <p className="text-sm text-muted-foreground">
                 © {YEAR} <span className="font-semibold text-foreground">TradingPro Brasil</span>. 
-                Todos os direitos reservados.
+                <br className="md:hidden" /> Todos os direitos reservados.
               </p>
             </div>
             
-            <div className="max-w-xl text-center lg:text-right">
+            {/* Disclaimer Jurídico Profissional */}
+            <div className="max-w-2xl bg-secondary/30 p-4 rounded-xl border border-border/50">
+              <div className="flex gap-2 mb-2 items-center text-warning">
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Aviso de Risco Importante</span>
+              </div>
               <p className="text-[10px] leading-relaxed text-muted-foreground uppercase tracking-tight">
-                <span className="text-warning font-bold">Aviso de Risco:</span> O mercado de derivativos e opções envolve riscos substanciais de perda de capital e não é adequado para todos os investidores. O TradingPro Brasil é uma ferramenta de auxílio matemático e não constitui, em nenhuma circunstância, recomendação de compra ou venda de ativos financeiros. Performance passada não garante resultados futuros.
+                O mercado de derivativos e opções envolve riscos substanciais de perda de capital e não é adequado para todos os investidores. 
+                O TradingPro Brasil é uma plataforma de tecnologia e auxílio matemático, não constituindo recomendação de compra ou venda 
+                de ativos. Decisões de investimento são de responsabilidade exclusiva do usuário. 
+                Performance passada não garante resultados futuros.
               </p>
             </div>
           </div>

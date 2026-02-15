@@ -1,11 +1,10 @@
 /**
  * COMPONENTE: Strategies
- * DESCRIÇÃO: Catálogo expandido com as 23 estratégias implementadas no core.
- * AJUSTE: Corrigidos imports de UI para caminhos relativos (../ui/...).
+ * DESCRIÇÃO: Arsenal completo com as 23 estratégias auditadas pelo Vigilante V2.
  */
 
 import { Check, TrendingUp, TrendingDown, Minus, Activity, LucideIcon, ShieldAlert } from "lucide-react";
-// AJUSTES DE IMPORT: Substituindo @/components/ui por ../ui
+// AJUSTE: Caminhos relativos para estabilidade no build
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 
@@ -28,10 +27,10 @@ interface StrategyCategory {
 const strategies: StrategyCategory[] = [
   {
     category: "Alta (Bullish)",
-    description: "Para cenários de valorização do ativo.",
+    description: "Para cenários de valorização do ativo objeto.",
     color: "text-accent",
     bgColor: "bg-accent/10",
-    borderColor: "group-hover:border-accent/50",
+    borderColor: "hover:border-accent/40",
     icon: TrendingUp,
     items: [
       { name: "Bull Call Spread", type: "Débito", risk: "Limitado" },
@@ -43,10 +42,10 @@ const strategies: StrategyCategory[] = [
   },
   {
     category: "Baixa (Bearish)",
-    description: "Para lucrar com a queda ou proteção.",
+    description: "Para lucrar com a queda ou proteção de carteira.",
     color: "text-destructive",
     bgColor: "bg-destructive/10",
-    borderColor: "group-hover:border-destructive/50",
+    borderColor: "hover:border-destructive/40",
     icon: TrendingDown,
     items: [
       { name: "Bear Put Spread", type: "Débito", risk: "Limitado" },
@@ -58,26 +57,25 @@ const strategies: StrategyCategory[] = [
   },
   {
     category: "Renda & Neutras",
-    description: "Lucro com a passagem do tempo (Theta).",
+    description: "Lucro com a passagem do tempo (Theta Decay).",
     color: "text-info",
     bgColor: "bg-info/10",
-    borderColor: "group-hover:border-info/50",
+    borderColor: "hover:border-info/40",
     icon: Minus,
     items: [
       { name: "Iron Condor Spread", type: "Crédito", risk: "Limitado" },
-      { name: "Short Iron Condor", type: "Crédito", risk: "Limitado" },
+      { name: "Iron Butterfly", type: "Crédito", risk: "Limitado" },
       { name: "Butterfly Spread", type: "Misto", risk: "Limitado" },
-      { name: "Long Butterfly Call", type: "Débito", risk: "Limitado" },
-      { name: "Calendar Spread", type: "Débito", risk: "Limitado" },
+      { name: "Long Calendar", type: "Débito", risk: "Limitado" },
       { name: "Short Butterfly Call", type: "Crédito", risk: "Limitado" },
     ],
   },
   {
-    category: "Volatilidade & Avançadas",
-    description: "Estratégias de spread e distorção.",
+    category: "Volatilidade",
+    description: "Estratégias de spread e distorção de IV.",
     color: "text-primary",
     bgColor: "bg-primary/10",
-    borderColor: "group-hover:border-primary/50",
+    borderColor: "hover:border-primary/40",
     icon: Activity,
     items: [
       { name: "Long Straddle / Strangle", type: "Débito", risk: "Limitado" },
@@ -94,27 +92,29 @@ export const Strategies = () => {
     <section id="estrategias" className="py-24 bg-card/30">
       <div className="container mx-auto px-4">
         
-        <div className="text-center mb-16">
-          <Badge variant="outline" className="mb-4 px-4 py-1 border-primary/30 text-primary font-bold">
+        {/* Section Header */}
+        <div className="text-center mb-16 space-y-4">
+          <Badge variant="outline" className="px-4 py-1 border-primary/30 text-primary font-bold">
             23 Algoritmos Ativos
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
             O Maior Arsenal de{" "}
-            <span className="bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block">
               Derivativos da B3
             </span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            De travas simples a estruturas complexas de arbitragem e diagonais. 
-            Tudo auditado pelo nosso motor quantitativo.
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            De travas simples a estruturas complexas de arbitragem. 
+            Tudo auditado pelo nosso motor quantitativo nativo.
           </p>
         </div>
         
+        {/* Strategies Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {strategies.map((category, index) => (
             <Card 
               key={index}
-              className={`group bg-background border-2 transition-all duration-300 hover:shadow-2xl ${category.borderColor}`}
+              className={`group bg-background border-border transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 border-2 ${category.borderColor}`}
             >
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-3 mb-2">
@@ -134,7 +134,7 @@ export const Strategies = () => {
                     <li key={itemIndex} className="group/item">
                       <div className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                         <div className="flex items-center gap-2">
-                          <Check className="h-3 w-3 text-accent" />
+                          <Check className="h-3.5 w-3.5 text-accent flex-shrink-0" />
                           <span className="text-sm font-medium group-hover/item:text-primary transition-colors leading-tight">
                             {item.name}
                           </span>
@@ -144,7 +144,7 @@ export const Strategies = () => {
                         <span className="text-[9px] uppercase font-bold text-muted-foreground/70">
                           {item.type}
                         </span>
-                        <span className={`text-[9px] uppercase font-bold ${item.risk === 'Limitado' ? 'text-green-500/70' : 'text-warning/70'}`}>
+                        <span className={`text-[9px] uppercase font-bold ${item.risk === 'Limitado' ? 'text-green-500/70' : 'text-orange-500/70'}`}>
                           {item.risk}
                         </span>
                       </div>
@@ -157,12 +157,12 @@ export const Strategies = () => {
         </div>
 
         {/* Disclaimer Técnico */}
-        <div className="mt-12 p-6 bg-background rounded-2xl border border-border flex items-center gap-4">
-          <div className="shrink-0 w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
+        <div className="mt-12 p-6 bg-background/50 backdrop-blur-sm rounded-2xl border border-border flex flex-col md:flex-row items-center gap-4">
+          <div className="shrink-0 w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center border border-warning/20">
             <ShieldAlert className="h-6 w-6 text-warning" />
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong>Nota Técnica:</strong> Todas as 23 estratégias listadas utilizam os modelos de precificação baseados nas classes <code className="text-primary">StraddleSpreadBase</code> e <code className="text-primary">VerticalSpreadBase</code>. Estratégias de calendário e diagonais consideram a estrutura a termo da volatilidade.
+            <strong>Nota Técnica:</strong> Todas as estratégias listadas utilizam os modelos de precificação baseados nas classes <code className="text-primary font-mono font-bold">StraddleSpreadBase</code> e <code className="text-primary font-mono font-bold">VerticalSpreadBase</code>. Estratégias de calendário e diagonais consideram a estrutura a termo da volatilidade (IV Skew/Smile).
           </p>
         </div>
       </div>

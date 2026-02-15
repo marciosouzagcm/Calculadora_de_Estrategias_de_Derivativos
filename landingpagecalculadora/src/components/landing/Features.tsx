@@ -1,9 +1,3 @@
-/**
- * COMPONENTE: Features
- * DESCRIÇÃO: Grid de diferenciais técnicos da plataforma.
- * AJUSTE: Corrigido import do Card para caminho relativo (../ui/card).
- */
-
 import { 
   Calculator, 
   Shield, 
@@ -15,7 +9,7 @@ import {
   TrendingUp,
   LucideIcon
 } from "lucide-react";
-// AJUSTE: Caminho relativo para evitar erro de resolução no Rollup/Vercel
+// AJUSTE: Caminho relativo para garantir funcionamento no Render/Vercel
 import { Card, CardContent } from "../ui/card";
 
 interface FeatureItem {
@@ -88,14 +82,16 @@ const features: FeatureItem[] = [
 export const Features = () => {
   return (
     <section className="py-24 bg-background relative overflow-hidden">
+      {/* Luz de fundo sutil para profundidade visual */}
       <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[120px] rounded-full -z-10" />
 
       <div className="container mx-auto px-4">
         
+        {/* Section Header - Ajustado para garantir visibilidade do gradiente */}
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
-            Tecnologia{" "}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <span className="text-foreground">Tecnologia</span>{" "}
+            <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block">
               Institucional
             </span>
           </h2>
@@ -104,6 +100,7 @@ export const Features = () => {
           </p>
         </div>
         
+        {/* Features Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
             <Card 
@@ -111,6 +108,7 @@ export const Features = () => {
               className="group bg-card/50 backdrop-blur-sm border-border hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500"
             >
               <CardContent className="p-8">
+                {/* Icon Container com animação no hover */}
                 <div className={`inline-flex p-3 rounded-2xl ${feature.bgColor} mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
                   <feature.icon className={`h-7 w-7 ${feature.color}`} />
                 </div>

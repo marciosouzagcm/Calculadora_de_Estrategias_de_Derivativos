@@ -1,10 +1,10 @@
 import { ArrowRight, Shield, TrendingUp, Zap } from "lucide-react";
-// Usando o caminho relativo que funciona sempre na Vercel
-import { Button } from "../ui/button";
+// Mantendo o caminho que você confirmou que funciona
+import { Button } from "../ui/button"; 
 
 export const Hero = () => {
   
-  // URL correta apontando para a rota que configuramos no vercel.json
+  // URL da calculadora
   const APP_URL = "/app";
 
   const handleStartNow = () => {
@@ -29,15 +29,15 @@ export const Hero = () => {
             <span className="text-sm font-medium text-primary">V2026.1 Production Ready</span>
           </div>
           
-          {/* Title - Ajustado para garantir visibilidade */}
-<h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
-  <span className="text-foreground block">
-    Inteligência
-  </span>
-  <span className="bg-gradient-to-r from-[#0A84FF] via-[#5AC8FA] to-[#32D74B] bg-clip-text text-transparent leading-normal">
-    Institucional em Opções
-  </span>
-</h1>
+          {/* Title - RESTAURADO COM OS HEXADECIMAIS ORIGINAIS */}
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
+            <span className="text-foreground block">
+              Inteligência
+            </span>
+            <span className="bg-gradient-to-r from-[#0A84FF] via-[#5AC8FA] to-[#32D74B] bg-clip-text text-transparent leading-normal">
+              Institucional em Opções
+            </span>
+          </h1>
           
           {/* Subtitle */}
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
@@ -69,6 +69,7 @@ export const Hero = () => {
           {/* Feature Pills */}
           <div className="flex flex-wrap justify-center gap-4">
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border shadow-sm">
+              <Shield className="h-5 w-5 text-accent" />
               <span className="text-sm font-medium">Vigilante Anti-Ruína</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border shadow-sm">

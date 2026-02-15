@@ -1,11 +1,11 @@
 /**
  * COMPONENTE: Pricing
- * DESCRIÇÃO: Tabela de preços atualizada com o novo arsenal de 23 estratégias.
- * AJUSTE: Corrigidos imports para caminhos relativos para compatibilidade com Vercel.
+ * DESCRIÇÃO: Tabela de preços unificada com lógica de redirecionamento e design responsivo.
+ * AJUSTE: Imports relativos para garantir funcionamento em qualquer ambiente (Vercel/Netlify).
  */
 
 import { Check, Sparkles } from "lucide-react";
-// AJUSTES: Substituição de aliases @ por caminhos relativos
+// AJUSTES: Caminhos relativos para os componentes de UI
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -25,7 +25,7 @@ interface PricingPlan {
 const plans: PricingPlan[] = [
   {
     name: "Free",
-    description: "Para começar a explorar",
+    description: "Para começar a explorar o mercado",
     price: "0",
     period: "para sempre",
     features: [
@@ -40,13 +40,13 @@ const plans: PricingPlan[] = [
   },
   {
     name: "Starter",
-    description: "Para traders iniciantes",
+    description: "Ideal para traders iniciantes",
     price: "49",
     priceOld: "79",
     period: "/mês",
     features: [
       "10 análises por mês",
-      "Scan semanal",
+      "Scan semanal de oportunidades",
       "12 estratégias principais",
       "Suporte por email",
     ],
@@ -56,15 +56,15 @@ const plans: PricingPlan[] = [
   },
   {
     name: "Trader",
-    description: "Recursos completos",
+    description: "O arsenal completo para o dia a dia",
     price: "149",
     priceOld: "199",
     period: "/mês",
     features: [
       "50 análises por mês",
-      "Scan diário",
+      "Scan diário em tempo real",
       "Todas as 23 estratégias",
-      "Vigilante V2 Full",
+      "Vigilante V2 Full Access",
       "Export PDF Profissional",
       "Suporte prioritário",
     ],
@@ -74,7 +74,7 @@ const plans: PricingPlan[] = [
   },
   {
     name: "Pro",
-    description: "Para profissionais",
+    description: "Alta performance para profissionais",
     price: "299",
     priceOld: "399",
     period: "/mês",
@@ -93,6 +93,7 @@ const plans: PricingPlan[] = [
 ];
 
 export const Pricing = () => {
+  // Altere para a URL real do seu sistema de checkout/app
   const APP_URL = "https://app.tradingprobrasil.com";
 
   const handleSubscriptionRedirect = (planName: string) => {
@@ -100,25 +101,30 @@ export const Pricing = () => {
   };
 
   return (
-    <section id="precos" className="py-24 bg-background relative">
+    <section id="precos" className="py-24 bg-background relative overflow-hidden">
+      {/* Background Decor - Brilho sutil */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -z-10" />
+
       <div className="container mx-auto px-4">
         
-        <div className="text-center mb-16">
-          <Badge variant="outline" className="mb-4 px-4 py-1 border-primary/30 text-primary font-bold">
+        {/* Section Header */}
+        <div className="text-center mb-16 space-y-4">
+          <Badge variant="outline" className="px-4 py-1 border-primary/30 text-primary font-bold">
             Preços Transparentes
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
             Planos para{" "}
-            <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary to-[#0A84FF] bg-clip-text text-transparent">
               Todos os Níveis
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Tenha acesso ao motor quantitativo mais potente do Brasil. 
-            Escolha o plano ideal para sua curva de aprendizado.
+            Escolha o plano ideal para sua curva de aprendizado e tenha acesso 
+            ao motor quantitativo mais potente do mercado brasileiro.
           </p>
         </div>
         
+        {/* Pricing Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
           {plans.map((plan, index) => (
             <Card 
@@ -131,7 +137,7 @@ export const Pricing = () => {
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <Badge className="bg-gradient-primary border-0 shadow-lg px-3 py-1 animate-bounce-subtle">
+                  <Badge className="bg-gradient-primary border-0 shadow-lg px-3 py-1 animate-pulse">
                     <Sparkles className="h-3 w-3 mr-1" />
                     Mais Escolhido
                   </Badge>
@@ -140,11 +146,13 @@ export const Pricing = () => {
               
               <CardHeader className="text-center pb-2">
                 <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
-                <CardDescription className="min-h-[40px] text-xs">{plan.description}</CardDescription>
+                <CardDescription className="min-h-[40px] text-xs">
+                  {plan.description}
+                </CardDescription>
               </CardHeader>
               
-              <CardContent className="flex-grow flex flex-col text-center">
-                <div className="mb-8">
+              <CardContent className="flex-grow flex flex-col">
+                <div className="text-center mb-8">
                   <div className="h-6">
                     {plan.priceOld && (
                       <span className="text-sm text-muted-foreground line-through opacity-70">
@@ -156,18 +164,20 @@ export const Pricing = () => {
                     <span className="text-sm font-semibold text-muted-foreground">R$</span>
                     <span className="text-5xl font-extrabold tracking-tight">{plan.price}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
                     {plan.period}
-                  </span>
+                  </p>
                 </div>
                 
                 <ul className="space-y-4 mb-8 text-left flex-grow">
                   {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-start gap-3">
+                    <li key={featureIndex} className="flex items-start gap-3 group">
                       <div className={`mt-1 rounded-full p-0.5 ${plan.popular ? 'bg-primary/20' : 'bg-accent/20'}`}>
                         <Check className={`h-3.5 w-3.5 flex-shrink-0 ${plan.popular ? 'text-primary' : 'text-accent'}`} />
                       </div>
-                      <span className="text-sm text-foreground/80 leading-tight font-medium">{feature}</span>
+                      <span className="text-sm text-foreground/80 leading-tight font-medium">
+                        {feature}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -188,12 +198,13 @@ export const Pricing = () => {
           ))}
         </div>
         
-        <div className="text-center mt-16 p-8 border border-dashed border-border rounded-3xl bg-secondary/10">
+        {/* Enterprise / Prime Note */}
+        <div className="mt-16 p-8 border border-dashed border-border rounded-3xl bg-secondary/10 text-center">
           <p className="text-muted-foreground mb-4 text-sm">
-            Operação em larga escala? Temos planos sob medida para{" "}
+            Operação em larga escala? Temos soluções Enterprise para{" "}
             <span className="text-primary font-bold">AAIs</span>,{" "}
             <span className="text-primary font-bold">Gestoras</span> e{" "}
-            <span className="text-primary font-bold">Proprietary Trading Firms</span>.
+            <span className="text-primary font-bold">Prop Trading Firms</span>.
           </p>
           <Button variant="link" className="text-primary font-bold hover:no-underline group h-auto p-0">
             Consultar Atendimento Prime 
