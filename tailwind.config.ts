@@ -21,7 +21,12 @@ export default {
     },
     extend: {
       colors: {
-        // Isso resolve o erro de 'border-border' e outras classes do Shadcn
+        // Cores Institucionais do Gradiente (Adicionadas para evitar purga na produção)
+        brand: {
+          blue: "#0A84FF",
+          green: "#32D74B",
+        },
+        // Configurações Shadcn
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
