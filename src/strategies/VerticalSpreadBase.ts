@@ -1,5 +1,5 @@
 import { IStrategy } from '../interfaces/IStrategy.js';
-import { OptionLeg, StrategyMetrics, Greeks } from '../interfaces/Types.js';
+import { Greeks, OptionLeg, StrategyMetrics } from '../interfaces/Types.js';
 
 /**
  * BOARDPRO V40.1 - Vertical Spread Base
@@ -61,8 +61,11 @@ export abstract class VerticalSpreadBase implements IStrategy {
                     const creditReceived = Math.abs(cost);
                     maxProfit = creditReceived;
                     maxLoss = strikeDiff - creditReceived;
-                    // Break-even: Strike da ponta vendida +/- crédito
-                    be = this.type === 'CALL' ? sellLeg.strike! - creditReceived : sellLeg.strike! + creditReceived;
+                    
+                    // CORREÇÃO DOS BREAK-EVENS (CRÉDITO):
+                    // Bear Call Spread: Strike Vendido + Crédito
+                    // Bull Put Spread: Strike Vendido - Crédito
+                    be = this.type === 'CALL' ? sellLeg.strike! + creditReceived : sellLeg.strike! - creditReceived;
                 }
 
                 // Filtro de viabilidade operacional (ROI Mínimo)
