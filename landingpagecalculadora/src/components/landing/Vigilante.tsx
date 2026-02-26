@@ -24,12 +24,12 @@ export const Vigilante = () => {
               Tecnologia Proprietária
             </Badge>
             
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
-              Sistema{" "}
-              <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent">
-                Vigilante V2
-              </span>
-            </h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+  <span className="text-foreground block sm:inline">Sistema</span>{" "}
+  <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block pb-1">
+    Vigilante V2
+  </span>
+</h2>
             
             <p className="text-xl text-muted-foreground leading-relaxed">
               Mais que uma calculadora, uma camada de inteligência quantitativa que audita cada estratégia em milissegundos, protegendo você contra o "risco de ruína" do mercado de opções.

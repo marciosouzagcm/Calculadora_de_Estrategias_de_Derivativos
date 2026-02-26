@@ -112,12 +112,12 @@ export const Pricing = () => {
           <Badge variant="outline" className="px-4 py-1 border-primary/30 text-primary font-bold">
             Preços Transparentes
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
-            Planos para{" "}
-            <span className="bg-gradient-to-r from-primary to-[#0A84FF] bg-clip-text text-transparent">
-              Todos os Níveis
-            </span>
-          </h2>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+  <span className="text-foreground block sm:inline">Planos para</span>{" "}
+  <span className="bg-gradient-to-r from-primary to-[#0A84FF] bg-clip-text text-transparent inline-block pb-1">
+    Todos os Níveis
+  </span>
+</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Escolha o plano ideal para sua curva de aprendizado e tenha acesso 
             ao motor quantitativo mais potente do mercado brasileiro.

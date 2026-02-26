@@ -30,25 +30,13 @@ export const CTA = () => {
             </span>
           </div>
           
-          {/* TÍTULO COM CORREÇÃO DE ESPAÇAMENTO (LINE-HEIGHT E PADDING) */}
-          <h2 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight text-foreground leading-[1.2] md:leading-[1.3]">
-            Pronto para operar com{" "}
-            <span 
-              className="inline-block"
-              style={{
-                background: "linear-gradient(90deg, #0A84FF 0%, #32D74B 50%, #FFD60A 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                color: "transparent",
-                paddingBottom: "15px", // Espaço extra para não cortar o "g"
-                marginBottom: "-15px" // Compensa o padding para não afetar o layout
-              }}
-            >
-              Inteligência Institucional?
-            </span>
-          </h2>
-          
+          {/* TÍTULO CORRIGIDO PARA MOBILE E DESKTOP */}
+<h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-6 tracking-tight text-foreground leading-tight">
+  <span className="block sm:inline">Pronto para operar com</span>{" "}
+  <span className="relative inline-block bg-gradient-to-r from-[#0A84FF] via-[#32D74B] to-[#FFD60A] bg-clip-text text-transparent pb-4 -mb-4">
+    Inteligência Institucional?
+  </span>
+</h2>
           <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
             Junte-se a centenas de traders que utilizam a tecnologia da <span className="text-foreground font-semibold">TradingPro Brasil</span> para auditar riscos e maximizar retornos.
           </p>
