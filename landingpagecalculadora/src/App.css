@@ -1,16 +1,35 @@
+/* Ajuste do Container Principal */
 #root {
+  width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  /* No mobile diminuímos o padding para sobrar espaço para o conteúdo */
+  padding: 1rem; 
   text-align: center;
+  box-sizing: border-box;
+}
+
+/* Ajuste para telas maiores (Desktop) */
+@media (min-width: 768px) {
+  #root {
+    padding: 2rem;
+  }
 }
 
 .logo {
-  height: 6em;
-  padding: 1.5em;
+  height: 4em; /* Reduzi um pouco para não ocupar a tela toda no celular */
+  padding: 1rem;
   will-change: filter;
   transition: filter 300ms;
 }
+
+@media (min-width: 768px) {
+  .logo {
+    height: 6em;
+    padding: 1.5em;
+  }
+}
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
@@ -19,12 +38,8 @@
 }
 
 @keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -33,10 +48,20 @@
   }
 }
 
+/* Ajuste dos Cards (Onde ficam as estratégias) */
 .card {
-  padding: 2em;
+  padding: 1rem; /* Menos espaço interno no mobile */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: 2em;
+  }
 }
 
 .read-the-docs {
   color: #888;
+  font-size: 0.9rem; /* Texto levemente menor no mobile */
 }
