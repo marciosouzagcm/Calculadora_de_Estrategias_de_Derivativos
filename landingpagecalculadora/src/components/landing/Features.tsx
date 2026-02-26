@@ -87,15 +87,14 @@ export const Features = () => {
 
       <div className="container mx-auto px-4">
         
-        {/* Section Header - Ajustado para responsividade mobile */}
-<div className="text-center mb-10 md:mb-16 space-y-4 px-4">
-  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
-    <span className="text-foreground block sm:inline">Tecnologia</span>{" "}
-    <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block pb-1">
-      Institucional
-    </span>
-  </h2>
-</div>
+        {/* Section Header */}
+        <div className="text-center mb-10 md:mb-16 space-y-4">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+            <span className="text-foreground block sm:inline">Tecnologia</span>{" "}
+            <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block pb-1">
+              Institucional
+            </span>
+          </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Ferramentas quantitativas de nível profissional, desenhadas especificamente para as particularidades do mercado brasileiro.
           </p>
