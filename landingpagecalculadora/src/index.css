@@ -34,4 +34,12 @@
     margin: 0;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+} /* CORRIGIDO: Removida a vírgula que estava aqui e fechada a chave corretamente */
+
+/* ADICIONADO: Camada de utilitários para forçar o funcionamento dos gradientes no deploy */
+@layer utilities {
+  .bg-clip-text {
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+  }
 }

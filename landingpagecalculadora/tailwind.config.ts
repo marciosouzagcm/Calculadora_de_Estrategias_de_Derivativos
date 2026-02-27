@@ -5,23 +5,29 @@ export default {
   darkMode: ["class"],
   content: [
     "./index.html",
+    "./src/**/*.{ts,tsx,js,jsx}",
     "./frontend-app/index.html",
     "./frontend-app/src/**/*.{ts,tsx,js,jsx}",
     "./landingpagecalculadora/index.html",
     "./landingpagecalculadora/src/**/*.{ts,tsx,js,jsx}",
-    "./src/**/*.{ts,tsx,js,jsx}",
   ],
   theme: {
     container: {
       center: true,
       padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
+      screens: { "2xl": "1400px" },
     },
     extend: {
       colors: {
-        // Isso resolve o erro de 'border-border' e outras classes do Shadcn
+        // Cores Institucionais blindadas
+        brand: {
+          blue: "#0A84FF",
+          green: "#32D74B",
+        },
+        // Adicionando utilitários que você usou nos componentes (importante!)
+        info: { DEFAULT: "#0A84FF" },
+        warning: { DEFAULT: "#FFD60A" },
+        
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -55,6 +61,10 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+      },
+      // GARANTIA: Registrando os gradientes para o PurgeCSS não remover
+      backgroundImage: {
+        'gradient-primary': 'linear-gradient(to right, #0A84FF, #32D74B)',
       },
       borderRadius: {
         lg: "var(--radius)",
