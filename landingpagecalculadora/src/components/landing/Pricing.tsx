@@ -1,7 +1,7 @@
 /**
  * COMPONENTE: Pricing
  * DESCRIÇÃO: Tabela de preços unificada com lógica de redirecionamento e design responsivo.
- * AJUSTE: Imports relativos para garantir funcionamento em qualquer ambiente (Vercel/Netlify).
+ * AJUSTE: Imports relativos e correção de renderização de gradientes para produção.
  */
 
 import { Check, Sparkles } from "lucide-react";
@@ -93,7 +93,7 @@ const plans: PricingPlan[] = [
 ];
 
 export const Pricing = () => {
-  // Altere para a URL real do seu sistema de checkout/app
+  // URL do sistema de checkout/app
   const APP_URL = "https://app.tradingprobrasil.com";
 
   const handleSubscriptionRedirect = (planName: string) => {
@@ -107,17 +107,17 @@ export const Pricing = () => {
 
       <div className="container mx-auto px-4">
         
-        {/* Section Header */}
+        {/* Section Header - PADRONIZADO PARA VISIBILIDADE NA NUVEM */}
         <div className="text-center mb-16 space-y-4">
           <Badge variant="outline" className="px-4 py-1 border-primary/30 text-primary font-bold">
             Preços Transparentes
           </Badge>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
-  <span className="text-foreground block sm:inline">Planos para</span>{" "}
-  <span className="bg-gradient-to-r from-primary to-[#0A84FF] bg-clip-text text-transparent inline-block pb-1">
-    Todos os Níveis
-  </span>
-</h2>
+            <span className="text-foreground block sm:inline">Planos para</span>{" "}
+            <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent leading-normal inline-block">
+              Todos os Níveis
+            </span>
+          </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Escolha o plano ideal para sua curva de aprendizado e tenha acesso 
             ao motor quantitativo mais potente do mercado brasileiro.

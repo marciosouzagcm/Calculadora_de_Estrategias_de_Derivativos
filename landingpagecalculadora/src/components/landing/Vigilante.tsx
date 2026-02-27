@@ -24,12 +24,13 @@ export const Vigilante = () => {
               Tecnologia Proprietária
             </Badge>
             
+            {/* TÍTULO PADRONIZADO COM O HERO PARA NÃO SUMIR NA NUVEM */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
-  <span className="text-foreground block sm:inline">Sistema</span>{" "}
-  <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block pb-1">
-    Vigilante V2
-  </span>
-</h2>
+              <span className="text-foreground block sm:inline">Sistema</span>{" "}
+              <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent leading-normal inline-block">
+                Vigilante V2
+              </span>
+            </h2>
             
             <p className="text-xl text-muted-foreground leading-relaxed">
               Mais que uma calculadora, uma camada de inteligência quantitativa que audita cada estratégia em milissegundos, protegendo você contra o "risco de ruína" do mercado de opções.
@@ -89,9 +90,7 @@ export const Vigilante = () => {
                   <div className="h-2 w-2 rounded-full bg-accent animate-pulse shadow-[0_0_10px_rgba(10,132,255,1)]" />
                 </div>
                 
-                {/* Diagrama de Fluxo */}
                 <div className="space-y-6">
-                  {/* Passo 1: Entrada de Dados */}
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 border border-border">
                     <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center text-lg font-mono font-bold shadow-inner">
                       432
@@ -102,12 +101,10 @@ export const Vigilante = () => {
                     </div>
                   </div>
                   
-                  {/* Seta de Conexão */}
                   <div className="flex justify-center -my-2">
                     <div className="w-px h-8 bg-gradient-to-b from-border to-accent" />
                   </div>
                   
-                  {/* Passo 2: O Motor Vigilante */}
                   <div className="p-5 rounded-xl border-2 border-accent bg-accent/5 shadow-inner shadow-accent/10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -132,12 +129,10 @@ export const Vigilante = () => {
                     </div>
                   </div>
                   
-                  {/* Seta de Conexão */}
                   <div className="flex justify-center -my-2">
                     <div className="w-px h-8 bg-gradient-to-b from-accent to-border" />
                   </div>
                   
-                  {/* Passo 3: Resultado do Filtro */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-accent/10 border border-accent/20">
                       <Check className="h-6 w-6 text-accent mb-2" />

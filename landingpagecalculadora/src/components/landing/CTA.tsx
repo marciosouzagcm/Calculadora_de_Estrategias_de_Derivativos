@@ -1,7 +1,6 @@
 /**
  * COMPONENTE: CTA (Call to Action)
- * DESCRIÇÃO: Seção de conversão final.
- * AJUSTE: Correção de espaçamento e altura de linha para não cortar letras (como o "g").
+ * DESCRIÇÃO: Seção de conversão final com blindagem de renderização.
  */
 
 import { ArrowRight, Zap, ShieldCheck } from "lucide-react";
@@ -30,13 +29,14 @@ export const CTA = () => {
             </span>
           </div>
           
-          {/* TÍTULO CORRIGIDO PARA MOBILE E DESKTOP */}
-<h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-6 tracking-tight text-foreground leading-tight">
-  <span className="block sm:inline">Pronto para operar com</span>{" "}
-  <span className="relative inline-block bg-gradient-to-r from-[#0A84FF] via-[#32D74B] to-[#FFD60A] bg-clip-text text-transparent pb-4 -mb-4">
-    Inteligência Institucional?
-  </span>
-</h2>
+          {/* TÍTULO BLINDADO: leading-normal e inline-block para não cortar o gradiente */}
+          <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-6 tracking-tight text-foreground leading-tight">
+            <span className="block sm:inline">Pronto para operar com</span>{" "}
+            <span className="bg-gradient-to-r from-[#0A84FF] via-[#32D74B] to-[#FFD60A] bg-clip-text text-transparent leading-normal inline-block">
+              Inteligência Institucional?
+            </span>
+          </h2>
+          
           <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
             Junte-se a centenas de traders que utilizam a tecnologia da <span className="text-foreground font-semibold">TradingPro Brasil</span> para auditar riscos e maximizar retornos.
           </p>

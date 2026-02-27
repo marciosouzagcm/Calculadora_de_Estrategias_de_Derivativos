@@ -98,11 +98,11 @@ export const Strategies = () => {
             23 Algoritmos Ativos
           </Badge>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
-  <span className="text-foreground block sm:inline">O Maior Arsenal de</span>{" "}
-  <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block pb-1">
-    Operações Estruturadas do Brasil
-  </span>
-</h2>
+            <span className="text-foreground block sm:inline">O Maior Arsenal de</span>{" "}
+            <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent leading-normal inline-block">
+              Estratégias Quantitativas
+            </span>
+          </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
             De travas simples a estruturas complexas de arbitragem. 
             Tudo auditado pelo nosso motor quantitativo nativo.

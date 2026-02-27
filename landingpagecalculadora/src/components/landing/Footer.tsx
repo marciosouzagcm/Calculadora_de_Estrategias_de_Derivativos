@@ -23,8 +23,7 @@ export const Footer = () => {
           {/* COLUNA 1: Brand & Social */}
           <div className="col-span-1">
             <div className="flex items-center gap-2 mb-6">
-              {/* Fallback para logo em texto caso a imagem não carregue */}
-              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shrink-0">
                 <span className="text-xs font-bold text-white">TP</span>
               </div>
               <span className="text-xl font-bold tracking-tight">
@@ -50,7 +49,7 @@ export const Footer = () => {
           
           {/* COLUNA 2: Produto */}
           <div>
-            <h4 className="font-bold text-foreground mb-6 uppercase text-xs tracking-widest">Produto</h4>
+            <h4 className="font-bold text-foreground mb-6 uppercase text-[10px] tracking-widest">Produto</h4>
             <ul className="space-y-3">
               <li>
                 <a href={`${APP_URL}/scanner`} className="text-sm text-muted-foreground hover:text-foreground transition-all flex items-center gap-1 font-medium">
@@ -71,7 +70,7 @@ export const Footer = () => {
           
           {/* COLUNA 3: Suporte & Recursos */}
           <div>
-            <h4 className="font-bold text-foreground mb-6 uppercase text-xs tracking-widest">Recursos</h4>
+            <h4 className="font-bold text-foreground mb-6 uppercase text-[10px] tracking-widest">Recursos</h4>
             <ul className="space-y-3">
               <li>
                 <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-all font-medium">Documentação API</a>
@@ -90,7 +89,7 @@ export const Footer = () => {
           
           {/* COLUNA 4: Legal */}
           <div>
-            <h4 className="font-bold text-foreground mb-6 uppercase text-xs tracking-widest">Legal</h4>
+            <h4 className="font-bold text-foreground mb-6 uppercase text-[10px] tracking-widest">Legal</h4>
             <ul className="space-y-3">
               <li>
                 <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-all font-medium">Termos de Uso</a>
@@ -111,7 +110,7 @@ export const Footer = () => {
         {/* RODAPÉ FINAL: Copyright e Aviso de Risco */}
         <div className="pt-8 border-t border-border/50">
           <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
-            <div className="text-left">
+            <div className="text-left shrink-0">
               <p className="text-sm text-muted-foreground">
                 © {YEAR} <span className="font-semibold text-foreground">TradingPro Brasil</span>. 
                 <br className="md:hidden" /> Todos os direitos reservados.

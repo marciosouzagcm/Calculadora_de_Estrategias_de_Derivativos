@@ -1,3 +1,9 @@
+/**
+ * COMPONENTE: Features
+ * DESCRIÇÃO: Grid de funcionalidades principais.
+ * AJUSTE: Correção de fechamento de tag e blindagem de gradiente para produção.
+ */
+
 import { 
   Calculator, 
   Shield, 
@@ -87,11 +93,11 @@ export const Features = () => {
 
       <div className="container mx-auto px-4">
         
-        {/* Section Header */}
+        {/* Section Header - CORRIGIDO E PADRONIZADO */}
         <div className="text-center mb-10 md:mb-16 space-y-4">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
             <span className="text-foreground block sm:inline">Tecnologia</span>{" "}
-            <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent inline-block pb-1">
+            <span className="bg-gradient-to-r from-[#0A84FF] to-[#32D74B] bg-clip-text text-transparent leading-normal inline-block">
               Institucional
             </span>
           </h2>
@@ -108,7 +114,6 @@ export const Features = () => {
               className="group bg-card/50 backdrop-blur-sm border-border hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500"
             >
               <CardContent className="p-8">
-                {/* Icon Container com animação no hover */}
                 <div className={`inline-flex p-3 rounded-2xl ${feature.bgColor} mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
                   <feature.icon className={`h-7 w-7 ${feature.color}`} />
                 </div>
