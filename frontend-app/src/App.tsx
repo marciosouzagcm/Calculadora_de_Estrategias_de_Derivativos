@@ -150,10 +150,10 @@ const App: React.FC = () => {
       
       const limiteUR = toNum(riscoMaximoInput);
 
-      // --- CORREÇÃO DE URL ABSOLUTA PARA O RENDER ---
+      // --- CORREÇÃO DE URL DINÂMICA COMPATÍVEL COM VERCEL E LOCALHOST ---
       const baseUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:10000' 
-        : 'https://calculadora-de-estrategias-de-derivativos.onrender.com';
+        : window.location.origin;
 
       const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteUR * lote}&slot=${pRef}`;
       
@@ -178,7 +178,7 @@ const App: React.FC = () => {
       }
     } catch (err) { 
       console.error("ERRO NO SCANNER:", err);
-      alert("Erro ao conectar com o motor de cálculo no Render.");
+      alert("Erro ao conectar com o motor de cálculo.");
     } finally { 
       setLoading(false); 
     }

@@ -37,8 +37,8 @@ function cleanAndParseNumber(value: any): number {
     } catch { return 0; }
 }
 
-function formatVencimento(value: any): string {
-    if (!value) return '';
+function formatVencimento(value: any): string | null {
+    if (!value || String(value).trim() === '') return null;
     try {
         let date: Date;
         if (typeof value === 'number') {
@@ -52,8 +52,8 @@ function formatVencimento(value: any): string {
                 date = new Date(str);
             }
         }
-        return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
-    } catch { return ''; }
+        return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+    } catch { return null; }
 }
 
 export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<void> {
@@ -109,10 +109,13 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
             const tipoRaw = String(getVal('tipo') || '').toUpperCase();
             const tipo = (tipoRaw.startsWith('P') || tipoRaw.startsWith('A') || ticker.charAt(4) > 'L') ? 'PUT' : 'CALL';
 
+            // Tratamento explícito para converter string vazia em NULL real para o banco de dados
+            const dataVencimentoValida = formatVencimento(getVal('vencimento'));
+
             valoresParaInserir.push([
                 ativoBase,
                 ticker,
-                formatVencimento(getVal('vencimento')),
+                dataVencimentoValida, // Agora envia string no formato YYYY-MM-DD ou null puro
                 parseInt(getVal('diasUteis')) || 0,
                 tipo,
                 Number(strike.toFixed(2)),

@@ -5,7 +5,10 @@
   "rewrites": [
     { "source": "/assets/(.*)", "destination": "/assets/$1" },
     { "source": "/Logo.png", "destination": "/Logo.png" },
-    { "source": "/api/(.*)", "destination": "/api/index.ts" },
+    { 
+      "source": "/api/(.*)", 
+      "destination": "https://calculadora-de-estrategias-de-derivativos.onrender.com/api/$1" 
+    },
     {
       "source": "/app",
       "destination": "/frontend-app/index.html"
