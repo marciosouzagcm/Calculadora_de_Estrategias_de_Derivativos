@@ -17,12 +17,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Mapeia a raiz do código fonte de forma absoluta
       "@": path.resolve(__dirname, "./src"),
-      // ADICIONE ESTA LINHA ABAIXO:
-      "../strategies": path.resolve(__dirname, "./src/strategies"),
     },
   },
-  // Opcional: Adicione este bloco para garantir que o Vitest entenda o ambiente
   test: {
     globals: true,
     environment: 'node',

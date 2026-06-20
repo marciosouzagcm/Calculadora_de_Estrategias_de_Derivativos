@@ -1,15 +1,17 @@
+import {
+  BookOpen,
+  FileDown,
+  ShieldCheck,
+  Zap
+} from 'lucide-react';
 import React, { useMemo, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import NotFound from './components/NotFound';
 import { PayoffChart } from './components/PayoffChart';
+import { ReportTemplate } from './components/ReportTemplate';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
 import { exportarPDF } from './services/pdfService';
-import { ReportTemplate } from './components/ReportTemplate'; 
-import { 
-  FileDown, 
-  BookOpen, 
-  ShieldCheck, 
-  Zap
-} from 'lucide-react';
 
 const marketService = new MarketDataService();
 const LOGO_SRC = "/saiba-mais/Logo.png";
@@ -25,7 +27,7 @@ const strategyCard = (active: boolean): React.CSSProperties => ({
   flexDirection: 'column'
 });
 
-const App: React.FC = () => {
+const ScannerDashboard: React.FC = () => {
   const [ticker, setTicker] = useState('BOVA11');
   const [precoSlot, setPrecoSlot] = useState(''); 
   const [lote, setLote] = useState(1000);
@@ -150,8 +152,14 @@ const App: React.FC = () => {
       
       const limiteUR = toNum(riscoMaximoInput);
 
-      // --- CORREÇÃO DE URL DINÂMICA COMPATÍVEL COM VERCEL E LOCALHOST ---
-      const baseUrl = window.location.hostname === 'localhost' 
+      // Engenharia de ambiente para evitar roteamentos nulos ou estáticos na nuvem antiga
+      const isLocalEnv = 
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.port === '8080' || 
+        window.location.port === '5173';
+
+      const baseUrl = isLocalEnv 
         ? 'http://localhost:10000' 
         : window.location.origin;
 
@@ -160,10 +168,7 @@ const App: React.FC = () => {
       console.log("BOARDPRO DIAGNÓSTICO - Chamando:", url);
 
       const resp = await fetch(url);
-      
-      if (!resp.ok) {
-        throw new Error(`Erro no servidor: ${resp.status}`);
-      }
+      if (!resp.ok) throw new Error(`Erro no servidor: ${resp.status}`);
 
       const result = await resp.json();
       
@@ -316,6 +321,39 @@ const App: React.FC = () => {
   );
 };
 
+// --- ARQUITETURA DE ROTEAMENTO INTEGRADA COM DETECÇÃO DINÂMICA DE BASENAME ---
+const App: React.FC = () => {
+  const isLocalhost = 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' || 
+    window.location.port === '8080' || 
+    window.location.port === '5173';
+
+  const routerBasename = isLocalhost ? '/' : '/app';
+
+  return (
+    <BrowserRouter 
+      basename={routerBasename}
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <Routes>
+        {/* Rota principal mapeada para o Painel do Scanner */}
+        <Route path="/" element={<ScannerDashboard />} />
+        
+        {/* Redirecionamento amigável caso acesse /app em ambiente de desenvolvimento local */}
+        {isLocalhost && <Route path="/app" element={<Navigate to="/" replace />} />}
+        
+        {/* Captura de rotas inexistentes */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+// Estilos de Interface
 const containerStyle: React.CSSProperties = { backgroundColor: '#020617', minHeight: '100vh', color: '#f1f5f9', padding: '15px', fontFamily: 'monospace' };
 const headerStyle: React.CSSProperties = { backgroundColor: '#0f172a', padding: '12px 20px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '15px' };
 const logoStyle: React.CSSProperties = { margin: 0, fontSize: '16px', fontWeight: '900', letterSpacing: '-0.5px' };

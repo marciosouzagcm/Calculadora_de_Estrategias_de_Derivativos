@@ -11,6 +11,9 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: { 
+      // Modificado de "./src" para "../src" para alcançar a raiz do projeto
+      "@": path.resolve(__dirname, "../src") 
+    },
   },
 });
