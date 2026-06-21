@@ -1,20 +1,19 @@
 {
   "compilerOptions": {
-    /* Configurações de Módulo e Alvo */
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "node",
     "esModuleInterop": true,
     "isolatedModules": true,
-
-    /* Configurações de Emissão (Engloba raiz para aceitar src e tests) */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "outDir": "./dist",
-    "rootDir": "./", 
-    "noEmit": false, 
-    
-    /* Rigor e Performance */
+    "rootDir": "./",
+    "noEmit": false,
     "strict": true,
-    "noImplicitAny": false, // Desativado temporariamente para limpar erros de (.map) nos seus arquivos antigos
+    "noImplicitAny": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
@@ -25,8 +24,8 @@
     "tests/**/*.ts"
   ],
   "exclude": [
-    "node_modules", 
-    "dist", 
+    "node_modules",
+    "dist",
     "frontend-app"
   ]
 }
