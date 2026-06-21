@@ -30,11 +30,11 @@ const Index: React.FC = () => {
   const [precoSlot, setPrecoSlot] = useState(''); 
   const [lote, setLote] = useState(1000);
   const [riscoMaximoInput, setRiscoMaximoInput] = useState(0.70); 
-  const [taxaPorPerna, setTaxaPorPerna] = useState(0.00); // FIXED: Iniciado em zero para não matar os dados do CSV nas primeiras simulações
+  const [taxaPorPerna, setTaxaPorPerna] = useState(0.00); 
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string>('');
-  const [estrategias, setEstrategias] = useState<StrategyMetrics[]>([]);
-  const [selecionada, setSelecionada] = useState<StrategyMetrics | null>(null);
+  const [estrategias, setEstrategias] = useState<any[]>([]); // Tipo flexível para aceitar o payload bruto do DB
+  const [selecionada, setSelecionada] = useState<any | null>(null);
 
   const toNum = (val: any): number => {
     if (val === undefined || val === null || val === '') return 0;
@@ -79,29 +79,32 @@ const Index: React.FC = () => {
     if (!sucesso) alert("Erro ao gerar PDF. Verifique o console.");
   };
 
-  const calcularMetricasCompletas = (est: StrategyMetrics | null) => {
-    if (!est || !est.pernas) return null;
-    const nPernas = est.pernas.length;
+  // Mapeamento dinâmico para garantir que o interpretador leia as chaves do banco de dados na íntegra
+  const obterPernas = (est: any): any[] => {
+    return est?.pernas || est?.opcoes || est?.legs || est?.components || [];
+  };
+
+  const calcularMetricasCompletas = (est: any) => {
+    if (!est) return null;
+    const pernas = obterPernas(est);
+    const nPernas = pernas.length;
     const taxasMontagem = nPernas * taxaPorPerna;
     const taxasTotais = taxasMontagem * 2; 
-    const pRefAtivo = toNum(precoSlot);
     
     let fluxoCaixaUnit = 0;
     let strikes: number[] = [];
     let possuiVendaSeca = false;
-    let dataDistorcido = false;
 
-    est.pernas.forEach(p => {
-      let prm = toNum(p.derivative?.premio || p.premio || 0);
-      const strike = toNum(p.strike || p.derivative?.strike || p.derivative?.symbol || p.symbol || p.option_ticker);
-      if (prm >= pRefAtivo && pRefAtivo > 0) { dataDistorcido = true; prm = 0.01; }
+    pernas.forEach((p: any) => {
+      let prm = toNum(p.derivative?.premio || p.premio || p.preco_opcao || 0);
+      const strike = toNum(p.strike || p.derivative?.strike || p.derivative?.symbol || p.symbol || p.option_ticker || p.strike_price);
       if (strike > 0) strikes.push(strike);
-      const isCompra = (p.direction || p.direcao || '').toUpperCase() === 'COMPRA';
+      const isCompra = ['COMPRA', 'BUY', 'C', 'LONG'].includes((p.direction || p.direcao || p.tipo_operacao || '').toUpperCase());
       fluxoCaixaUnit += isCompra ? -prm : prm;
       if (!isCompra) {
-        const temProtecao = est.pernas?.some(prot => 
-          (prot.direction || prot.direcao || '').toUpperCase() === 'COMPRA' && 
-          (prot.derivative?.tipo || prot.tipo) === (p.derivative?.tipo || p.tipo)
+        const temProtecao = pernas.some((prot: any) => 
+          ['COMPRA', 'BUY', 'C', 'LONG'].includes((prot.direction || prot.direcao || prot.tipo_operacao || '').toUpperCase()) && 
+          (prot.derivative?.tipo || prot.tipo || prot.opcao_tipo) === (p.derivative?.tipo || p.tipo || p.opcao_tipo)
         );
         if (!temProtecao) possuiVendaSeca = true;
       }
@@ -117,11 +120,11 @@ const Index: React.FC = () => {
       const diffStrikes = Math.abs(strikes[0] - strikes[1]);
       riscoRealCalculado = diffStrikes === 0 ? premioAbsoluto * lote : (isCredito ? (diffStrikes - premioAbsoluto) * lote : premioAbsoluto * lote);
     } else {
-      riscoRealCalculado = toNum(est.max_loss || est.risco_maximo) || (riscoMaximoInput * lote);
+      riscoRealCalculado = toNum(est.max_loss || est.risco_maximo || est.perda_maxima) || (riscoMaximoInput * lote);
     }
 
     const capitalEmRiscoTotal = Math.abs(riscoRealCalculado) + taxasMontagem;
-    const lucroBrutoAPI = dataDistorcido ? 0 : toNum(est.max_profit || est.lucro_maximo || (isCredito ? premioAbsoluto * lote : 0));
+    const lucroBrutoAPI = toNum(est.max_profit || est.lucro_maximo || est.ganho_maximo || (isCredito ? premioAbsoluto * lote : 0));
     const resultadoLiquidoReal = lucroBrutoAPI - taxasTotais;
     const roiCalculado = capitalEmRiscoTotal > 0 ? (resultadoLiquidoReal / capitalEmRiscoTotal) * 100 : 0;
     
@@ -133,8 +136,7 @@ const Index: React.FC = () => {
       target: Math.max(0, targetAjustado), 
       taxas: taxasMontagem, 
       isCredito, 
-      be: toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : est.be),
-      isDistorcido: dataDistorcido || roiCalculado > 15000 // Aumentado limite superior de distorção para não travar os dados crús do CSV
+      be: toNum(est.breakEvenPoints ? est.breakEvenPoints[0] : (est.be || est.breakeven))
     };
   };
 
@@ -144,14 +146,12 @@ const Index: React.FC = () => {
     setLoading(true);
     try {
       let pRef = precoSlot;
-      
-      // Se não houver preço de referência manual, tenta opcionalmente ler o serviço, senão assume o fallback de proteção
       if (!pRef) {
         try {
           const marketData = await marketService.getAssetPrice(ticker.toUpperCase());
           pRef = marketData.price.toFixed(2);
         } catch {
-          pRef = "10.00"; // Fallback neutro de segurança se estiver offline
+          pRef = "10.00"; 
         }
         setPrecoSlot(pRef);
       }
@@ -169,13 +169,12 @@ const Index: React.FC = () => {
         ? 'http://localhost:10000' 
         : 'https://calculadora-de-estrategias-de-derivativos.onrender.com';
 
-      // Parâmetros estruturados na rota da API para casar perfeitamente com os cabeçalhos e registros do CSV do backend
       const url = `${baseUrl}/api/analise?ticker=${ticker.toUpperCase()}&lote=${lote}&risco=${limiteUR * lote}&slot=${pRef}`;
       
-      console.log("BOARDPRO DIAGNÓSTICO CSV - Solicitando processamento do arquivo de dados:", url);
+      console.log("BOARDPRO INGESTÃO DIRETA - Consultando dados do repositório:", url);
 
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 55000); // Janela expandida de leitura para grandes volumes de linhas CSV
+      const id = setTimeout(() => controller.abort(), 55000); 
 
       const resp = await fetch(url, {
         method: 'GET',
@@ -188,25 +187,27 @@ const Index: React.FC = () => {
       
       clearTimeout(id);
 
-      if (!resp.ok) throw new Error(`Erro no processamento do CSV pelo servidor: ${resp.status}`);
+      if (!resp.ok) throw new Error(`Erro de comunicação com o servidor: ${resp.status}`);
 
       const result = await resp.json();
       
-      if (result.status === "success" && result.data) {
-        // FIXED: Removido o descarte agressivo de estruturas. Agora aceita qualquer dado populado no arquivo CSV para renderização
-        const filtradas = result.data.filter((est: any) => {
-          const m = calcularMetricasCompletas(est);
-          return m && !m.isDistorcido; 
-        });
-        
-        setEstrategias(filtradas.length > 0 ? filtradas : result.data); // Fallback: se o filtro barrar, exibe o dado bruto do CSV na íntegra
-        if (filtradas.length > 0) setSelecionada(filtradas[0]);
-        else if (result.data.length > 0) setSelecionada(result.data[0]);
-        else setSelecionada(null);
+      // FORÇADO: Ingestão direta e bruta do array do DB sem qualquer filtro interceptor no frontend
+      if (result && Array.isArray(result)) {
+        setEstrategias(result);
+        setSelecionada(result.length > 0 ? result[0] : null);
+      } else if (result && result.data && Array.isArray(result.data)) {
+        setEstrategias(result.data);
+        setSelecionada(result.data.length > 0 ? result.data[0] : null);
+      } else if (result && result.status === "success" && result.data) {
+        setEstrategias(result.data);
+        setSelecionada(result.data.length > 0 ? result.data[0] : null);
+      } else {
+        console.warn("Estrutura de dados recebida não esperada, tentando mapeamento alternativo:", result);
       }
+
     } catch (err: any) { 
-      console.error("ERRO AO PROCESSAR PLANILHA CSV:", err);
-      alert("Falha na varredura do arquivo CSV. Verifique se os tickers e strikes do arquivo batem com o ATIVO digitado.");
+      console.error("ERRO NO COMPONENTE AO CARREGAR OPERAÇÕES:", err);
+      alert("Erro ao renderizar os dados retornados pelo servidor.");
     } finally { 
       setLoading(false); 
     }
@@ -229,7 +230,7 @@ const Index: React.FC = () => {
         {selecionada && selecionadaMetricas && (
           <div id="report-pdf-template" style={{ width: '1200px', backgroundColor: '#ffffff', color: '#000000', padding: '40px' }}>
             <ReportTemplate 
-              est={{ ...selecionada, officialDescription: getManualDescription(selecionada.name) }} 
+              est={{ ...selecionada, officialDescription: getManualDescription(selecionada.name || selecionada.estrategia || 'Setup') }} 
               metricas={selecionadaMetricas} 
               ticker={ticker} 
               spot={toNum(precoSlot)} 
@@ -258,7 +259,7 @@ const Index: React.FC = () => {
               <FileDown size={14} /> EXPORTAR PDF
             </button>
             <div style={badgeContainer}>
-              <span style={liveBadge}>● CSV ENGINE</span>
+              <span style={liveBadge}>● INTEGRIDADE DB</span>
               <span style={priceBadge}>{ticker}: R$ {precoSlot || '---'}</span>
               <span style={{...priceBadge, borderColor:'#f87171'}}>LIMIT: R$ {toNum(riscoMaximoInput).toFixed(2)}</span>
             </div>
@@ -267,7 +268,7 @@ const Index: React.FC = () => {
 
         <div style={controlGrid}>
           <div style={inputGroup}>
-            <label style={label}>ATIVO CSV</label>
+            <label style={label}>ATIVO</label>
             <input 
               value={ticker} 
               onChange={e => {
@@ -281,24 +282,26 @@ const Index: React.FC = () => {
           <div style={inputGroup}><label style={label}>LOTE</label><input type="number" value={lote} onChange={e => setLote(Number(e.target.value))} style={input} /></div>
           <div style={inputGroup}><label style={label}>RISCO UNIT. (U.R)</label><input type="number" step="0.01" value={riscoMaximoInput} onChange={e => setRiscoMaximoInput(toNum(e.target.value))} style={{...input, color: '#f87171', borderColor: '#450a0a'}} /></div>
           <div style={inputGroup}><label style={label}>TAXA/PERNA</label><input type="number" value={taxaPorPerna} onChange={e => setTaxaPorPerna(Number(e.target.value))} style={{...input, color: '#fbbf24'}} /></div>
-          <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>{loading ? 'VARRENDO CSV...' : 'EXECUTAR SCANNER'}</button>
+          <button onClick={buscarEstrategias} style={btnScan} disabled={loading}>{loading ? 'CARREGANDO OPERAÇÕES...' : 'EXECUTAR SCANNER'}</button>
         </div>
       </header>
 
       <main style={mainLayout}>
         <aside style={sidebar}>
-          <div style={sidebarTitle}>OPORTUNIDADES EM PLANILHA ({estrategias.length})</div>
+          <div style={sidebarTitle}>OPORTUNIDADES EM BANCO ({estrategias.length})</div>
           <div style={listScroll}>
             {estrategias.map((est, idx) => {
               const m = calcularMetricasCompletas(est);
               return (
-                <div key={idx} onClick={() => setSelecionada(est)} style={strategyCard(selecionada?.name === est.name)}>
-                  <div style={{fontWeight:'800', fontSize:'11px', color: '#fff'}}>{est.name}</div>
-                  <div style={{color:'#4ade80', fontSize:'14px', fontWeight:'900', margin: '4px 0'}}>R$ {m?.totalLiquido.toFixed(2)}</div>
-                  <div style={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}>Risco Mapeado: <span style={{color: '#f87171'}}>R$ {m?.riscoReal.toFixed(2)}</span></div>
+                <div key={idx} onClick={() => setSelecionada(est)} style={strategyCard(selecionada?.name === est.name || selecionada?.estrategia === est.estrategia)}>
+                  <div style={{fontWeight:'800', fontSize:'11px', color: '#fff'}}>{est.name || est.estrategia || 'Setup Oportunidade'}</div>
+                  <div style={{color:'#4ade80', fontSize:'14px', fontWeight:'900', margin: '4px 0'}}>
+                    R$ {m ? m.totalLiquido.toFixed(2) : toNum(est.lucro_maximo || est.max_profit).toFixed(2)}
+                  </div>
+                  <div style={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}>Risco Mapeado: <span style={{color: '#f87171'}}>R$ {m ? m.riscoReal.toFixed(2) : toNum(est.risco_maximo || est.max_loss).toFixed(2)}</span></div>
                   <div style={{display: 'flex', gap: '5px'}}>
-                    <div style={roiBadge}>ROI: {m?.roi.toFixed(1) || '0.0'}%</div>
-                    <div style={riscoUnitBadge}>U.R: R$ {m?.ur.toFixed(2) || '0.00'}</div>
+                    <div style={roiBadge}>ROI: {m ? m.roi.toFixed(1) : '0.0'}%</div>
+                    <div style={riscoUnitBadge}>U.R: R$ {m ? m.ur.toFixed(2) : '0.00'}</div>
                   </div>
                 </div>
               );
@@ -307,7 +310,7 @@ const Index: React.FC = () => {
         </aside>
 
         <section style={workspace}>
-          {selecionada && selecionadaMetricas ? (
+          {selecionada ? (
             <div style={detailGrid}>
               <div style={panel}>
                 <div style={panelHeader}>COMPOSIÇÃO ESTRUTURAL DO SETUP</div>
@@ -317,14 +320,16 @@ const Index: React.FC = () => {
                       <tr><th style={th}>LADO</th><th style={th}>TIPO</th><th style={th}>SÉRIE</th><th style={th}>STRIKE</th><th style={th}>PRÊMIO</th><th style={th}>VENC.</th><th style={th}>QTD</th></tr>
                     </thead>
                     <tbody>
-                      {selecionada.pernas?.map((p, i) => (
+                      {obterPernas(selecionada).map((p: any, i: number) => (
                         <tr key={i} style={tr}>
-                          <td style={{ color: (p.direction || p.direcao || '').toUpperCase() === 'COMPRA' ? '#4ade80' : '#f87171', padding: '10px', fontWeight: 'bold' }}>{p.direction || p.direcao}</td>
-                          <td style={{ color: '#94a3b8' }}>{(p.derivative?.tipo || p.tipo || '').toUpperCase()}</td>
-                          <td style={{ color: '#fff', fontWeight: 'bold' }}>{p.derivative?.symbol || p.symbol || p.option_ticker || '---'}</td>
-                          <td style={{ color: '#fff' }}>R$ {toNum(p.strike || p.derivative?.strike || p.derivative?.symbol || p.symbol || p.option_ticker).toFixed(2)}</td>
-                          <td style={{ color: '#4ade80', fontWeight: 'bold' }}>R$ {toNum(p.premio || p.derivative?.premio).toFixed(2)}</td>
-                          <td style={{ color: '#fbbf24' }}>{formatarData(p.vencimento || p.derivative?.vencimento || p.expiration)}</td>
+                          <td style={{ color: ['COMPRA', 'BUY', 'C', 'LONG'].includes((p.direction || p.direcao || p.tipo_operacao || '').toUpperCase()) ? '#4ade80' : '#f87171', padding: '10px', fontWeight: 'bold' }}>
+                            {p.direction || p.direcao || p.tipo_operacao || '---'}
+                          </td>
+                          <td style={{ color: '#94a3b8' }}>{(p.derivative?.tipo || p.tipo || p.opcao_tipo || '').toUpperCase()}</td>
+                          <td style={{ color: '#fff', fontWeight: 'bold' }}>{p.derivative?.symbol || p.symbol || p.option_ticker || p.codigo_opcao || '---'}</td>
+                          <td style={{ color: '#fff' }}>R$ {toNum(p.strike || p.derivative?.strike || p.derivative?.symbol || p.symbol || p.option_ticker || p.strike_price).toFixed(2)}</td>
+                          <td style={{ color: '#4ade80', fontWeight: 'bold' }}>R$ {toNum(p.premio || p.derivative?.premio || p.preco_opcao).toFixed(2)}</td>
+                          <td style={{ color: '#fbbf24' }}>{formatarData(p.vencimento || p.derivative?.vencimento || p.expiration || p.data_vencimento)}</td>
                           <td style={{ color: '#fff' }}>{lote}</td>
                         </tr>
                       ))}
@@ -333,21 +338,37 @@ const Index: React.FC = () => {
                 </div>
                 <div style={statusFooter}>
                   <div style={{ display: 'flex', gap: '22px', flexWrap: 'wrap' }}>
-                    <div style={footerBlock}><span style={label}>RESULTADO ESTIMADO</span><b style={{ color: '#4ade80' }}>R$ {selecionadaMetricas.totalLiquido.toFixed(2)}</b></div>
-                    <div style={footerBlock}><span style={label}>RISCO DA ESTRUTURA</span><b style={{ color: '#f87171' }}>R$ {selecionadaMetricas.riscoReal.toFixed(2)}</b></div>
-                    <div style={footerBlock}><span style={label}>TARGET BREAKEVEN</span><b style={{ color: '#38bdf8' }}>R$ {selecionadaMetricas.target.toFixed(2)}</b></div>
-                    <div style={footerBlock}><span style={label}>U.R. ATUAL</span><b style={{ color: '#fbbf24' }}>R$ {selecionadaMetricas.ur.toFixed(2)}</b></div>
+                    <div style={footerBlock}>
+                      <span style={label}>RESULTADO LÍQUIDO</span>
+                      <b style={{ color: '#4ade80' }}>
+                        R$ {selecionadaMetricas ? selecionadaMetricas.totalLiquido.toFixed(2) : toNum(selecionada.lucro_maximo || selecionada.max_profit).toFixed(2)}
+                      </b>
+                    </div>
+                    <div style={footerBlock}>
+                      <span style={label}>RISCO TOTAL</span>
+                      <b style={{ color: '#f87171' }}>
+                        R$ {selecionadaMetricas ? selecionadaMetricas.riscoReal.toFixed(2) : toNum(selecionada.risco_maximo || selecionada.max_loss).toFixed(2)}
+                      </b>
+                    </div>
+                    <div style={footerBlock}>
+                      <span style={label}>TARGET BREAKEVEN</span>
+                      <b style={{ color: '#38bdf8' }}>R$ {selecionadaMetricas ? selecionadaMetricas.target.toFixed(2) : toNum(selecionada.be || selecionada.breakeven).toFixed(2)}</b>
+                    </div>
+                    <div style={footerBlock}>
+                      <span style={label}>U.R. ATUAL</span>
+                      <b style={{ color: '#fbbf24' }}>R$ {selecionadaMetricas ? selecionadaMetricas.ur.toFixed(2) : '0.00'}</b>
+                    </div>
                   </div>
                 </div>
               </div>
               <div style={panel}>
                 <div style={panelHeader}>MODELAGEM DE PAYOFF (VENCIMENTO)</div>
                 <div style={{flex:1}}>
-                  <PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={selecionadaMetricas.taxas * 2} isLightMode={false} />
+                  <PayoffChart strategy={selecionada} lote={lote} taxasIdaVolta={selecionadaMetricas ? selecionadaMetricas.taxas * 2 : 0} isLightMode={false} />
                 </div>
               </div>
             </div>
-          ) : <div style={empty}>REALIZE O SCANNER PARA EXTRAIR OS DADOS DO ARQUIVO CSV.</div>}
+          ) : <div style={empty}>REALIZE O SCANNER PARA EXTRAIR OS DADOS DO BANCO DE DADOS.</div>}
         </section>
       </main>
     </div>
