@@ -1,10 +1,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
-// Atualizado com .js para garantir compatibilidade com o ambiente Vercel/Node ESM
 import { pool } from '../config/database.js';
 
-// Ajuste de compatibilidade para ESM (Node 20 / TSX)
 const lib = (XLSX as any).default || XLSX;
 const { readFile, utils } = lib;
 
@@ -37,23 +35,36 @@ function cleanAndParseNumber(value: any): number {
     } catch { return 0; }
 }
 
+/**
+ * Função corrigida para converter datas do Excel (serial ou string) para YYYY-MM-DD
+ */
 function formatVencimento(value: any): string {
-    if (!value) return '';
+    if (!value || String(value).trim() === '') return '2099-12-31';
+    
     try {
         let date: Date;
-        if (typeof value === 'number') {
-            date = new Date(Math.round((value - 25569) * 86400 * 1000));
+
+        // Se for número (Serial do Excel)
+        if (typeof value === 'number' || (!isNaN(Number(value)) && String(value).trim() !== '')) {
+            const serial = Number(value);
+            // 25569 é o offset para a base 1970 do Unix
+            date = new Date(Math.round((serial - 25569) * 86400 * 1000));
         } else {
             const str = String(value).trim();
-            const parts = str.split(/[\/\-]/);
-            if (parts.length === 3) {
-                date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            // Tenta capturar DD/MM/YYYY ou DD-MM-YYYY
+            const match = str.match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+            if (match) {
+                // match[1]=dia, match[2]=mes, match[3]=ano
+                date = new Date(`${match[3]}-${match[2]}-${match[1]}`);
             } else {
                 date = new Date(str);
             }
         }
-        return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
-    } catch { return ''; }
+        
+        return isNaN(date.getTime()) ? '2099-12-31' : date.toISOString().split('T')[0];
+    } catch { 
+        return '2099-12-31'; 
+    }
 }
 
 export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<void> {
@@ -64,16 +75,15 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
 
         console.log(`[TiDB PROCESSOR] 📑 Iniciando processamento: ${nomeBase}`);
 
-        // Verificação de existência do arquivo para evitar crash em Serverless
         if (!fs.existsSync(nomeArquivoExcel)) {
-            throw new Error(`Arquivo não encontrado no caminho: ${nomeArquivoExcel}`);
+            throw new Error(`Arquivo não encontrado: ${nomeArquivoExcel}`);
         }
 
         const workbook = readFile(nomeArquivoExcel);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const sheetAsArray: any[][] = utils.sheet_to_json(worksheet, { header: 1, raw: false });
 
-        if (sheetAsArray.length < 2) {
+        if (sheetAsArray.length < 3) {
             console.warn(`[PROCESSOR] ⚠️ Arquivo insuficiente ou vazio: ${nomeBase}`);
             return;
         }
@@ -98,7 +108,6 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
             if (ticker.length < 5 || ticker.toUpperCase() === 'TICKER') continue;
 
             let strike = cleanAndParseNumber(getVal('strike'));
-            // Normalização de Strike (Ex: BOVA11 15.5 -> 155.0)
             if (strike < 15 && strike > 0) strike = strike * 10; 
 
             const premio = cleanAndParseNumber(getVal('premioPct')) / FATOR_CORRECAO_ESCALA_PRECO;
@@ -131,32 +140,20 @@ export async function processarDadosOpcoes(nomeArquivoExcel: string): Promise<vo
             return;
         }
 
-        // SQL Otimizado para TiDB Cloud (Uso de transação para garantir atomicidade)
-        const sql = `
-            INSERT INTO opcoes 
-            (idAcao, ticker, vencimento, diasUteis, tipo, strike, premioPct, volImplicita, delta, gamma, theta, vega, dataHora)
-            VALUES ? 
-            ON DUPLICATE KEY UPDATE 
-            strike=VALUES(strike), 
-            premioPct=VALUES(premioPct), 
-            volImplicita=VALUES(volImplicita),
-            diasUteis=VALUES(diasUteis),
-            dataHora=VALUES(dataHora)
-        `;
+        const sql = `INSERT INTO opcoes (idAcao, ticker, vencimento, diasUteis, tipo, strike, premioPct, volImplicita, delta, gamma, theta, vega, dataHora) VALUES ? ON DUPLICATE KEY UPDATE strike=VALUES(strike), premioPct=VALUES(premioPct), volImplicita=VALUES(volImplicita), diasUteis=VALUES(diasUteis), dataHora=VALUES(dataHora)`;
 
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
             await connection.query(sql, [valoresParaInserir]);
             await connection.commit();
-            console.log(`[TiDB CLOUD] ☁️ SUCESSO! ${valoresParaInserir.length} registros de ${ativoBase} sincronizados.`);
+            console.log(`[TiDB CLOUD] ☁️ SUCESSO! ${valoresParaInserir.length} registros sincronizados.`);
         } catch (dbError: any) {
             await connection.rollback();
             throw dbError;
         } finally {
             connection.release();
         }
-
     } catch (error: any) {
         console.error(`[PROCESSOR ERROR] ❌ Falha na sincronização com TiDB:`, error.message);
     }
