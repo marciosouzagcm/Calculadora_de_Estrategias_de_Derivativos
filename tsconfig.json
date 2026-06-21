@@ -7,14 +7,20 @@
     "esModuleInterop": true,
     "isolatedModules": true,
 
-    /* Configurações de Emissão (Engloba raiz para aceitar src e tests) */
+    /* Mapeamento de Alias (ESSENCIAL para o @/ funcionar) */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* Configurações de Emissão */
     "outDir": "./dist",
     "rootDir": "./", 
     "noEmit": false, 
     
     /* Rigor e Performance */
     "strict": true,
-    "noImplicitAny": false, // Desativado temporariamente para limpar erros de (.map) nos seus arquivos antigos
+    "noImplicitAny": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
