@@ -6,12 +6,36 @@ import {
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import NotFound from './components/NotFound';
 import { PayoffChart } from './components/PayoffChart';
 import { ReportTemplate } from './components/ReportTemplate';
 import { StrategyMetrics } from './interfaces/Types';
 import { MarketDataService } from './services/MarketDataService';
 import { exportarPDF } from './services/pdfService';
+
+// Fallback de segurança para evitar dependência de arquivo externo que quebra o build do Vite
+const NotFound: React.FC = () => (
+  <div style={{ 
+    backgroundColor: '#020617', 
+    minHeight: '100vh', 
+    color: '#f87171', 
+    display: 'flex', 
+    flexDirection: 'column',
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    fontFamily: 'monospace',
+    padding: '20px'
+  }}>
+    <h2 style={{ borderBottom: '1px solid #450a0a', paddingBottom: '10px', letterSpacing: '1px' }}>
+      ⚠️ 404 - RECURSO NÃO ENCONTRADO
+    </h2>
+    <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '10px' }}>
+      A rota especificada não corresponde a nenhum endpoint do painel BoardPRO.
+    </p>
+    <a href="/" style={{ color: '#0ea5e9', fontSize: '11px', textDecoration: 'none', marginTop: '20px', fontWeight: 'bold' }}>
+      [ VOLTAR PARA O DASHBOARD ]
+    </a>
+  </div>
+);
 
 const marketService = new MarketDataService();
 const LOGO_SRC = "/saiba-mais/Logo.png";
@@ -152,7 +176,6 @@ const ScannerDashboard: React.FC = () => {
       
       const limiteUR = toNum(riscoMaximoInput);
 
-      // Engenharia de ambiente para evitar roteamentos nulos ou estáticos na nuvem antiga
       const isLocalEnv = 
         window.location.hostname === 'localhost' || 
         window.location.hostname === '127.0.0.1' || 
@@ -321,7 +344,7 @@ const ScannerDashboard: React.FC = () => {
   );
 };
 
-// --- ARQUITETURA DE ROTEAMENTO INTEGRADA COM DETECÇÃO DINÂMICA DE BASENAME ---
+// --- ARQUITETURA DE ROTEAMENTO INTEGRADA COM DECLARAÇÃO INTERNA DO NOTFOUND ---
 const App: React.FC = () => {
   const isLocalhost = 
     window.location.hostname === 'localhost' || 
@@ -346,7 +369,7 @@ const App: React.FC = () => {
         {/* Redirecionamento amigável caso acesse /app em ambiente de desenvolvimento local */}
         {isLocalhost && <Route path="/app" element={<Navigate to="/" replace />} />}
         
-        {/* Captura de rotas inexistentes */}
+        {/* Captura de rotas inexistentes mapeando o fallback interno estável */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
