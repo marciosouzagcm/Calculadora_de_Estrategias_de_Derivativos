@@ -4,7 +4,7 @@
   "description": "Refatoração em TypeScript para cálculo e otimaiização de estratégias com opções.",
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "main": "src/server.ts",
   "scripts": {
