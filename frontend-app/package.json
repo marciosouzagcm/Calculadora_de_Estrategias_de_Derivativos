@@ -12,20 +12,20 @@
   },
   "dependencies": {
     "axios": "^1.7.0",
+    "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.19.0",
-    "firebase": "^10.0.0",
+    "firebase": "^13.0.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.378.0",
     "mysql2": "^3.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7",
-    "lodash": "^4.17.21",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
@@ -34,10 +34,10 @@
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.3",
-    "typescript": "^5.4.5",
-    "vite": "^5.2.13",
+    "rimraf": "^5.0.5",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.7.2",
-    "rimraf": "^5.0.5"
+    "typescript": "^5.4.5",
+    "vite": "^8.3.4"
   }
 }
